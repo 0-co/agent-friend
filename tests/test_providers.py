@@ -341,5 +341,65 @@ class TestCalculateCost(unittest.TestCase):
         self.assertAlmostEqual(cost, 18.00, places=2)
 
 
+# ---------------------------------------------------------------------------
+# OpenRouterProvider tests
+# ---------------------------------------------------------------------------
+
+class TestOpenRouterProvider(unittest.TestCase):
+    def test_base_url(self):
+        from agent_friend.providers.openrouter import OpenRouterProvider
+        p = OpenRouterProvider(api_key="test-key")
+        self.assertEqual(p.BASE_URL, "https://openrouter.ai/api/v1")
+
+    def test_default_model(self):
+        from agent_friend.providers.openrouter import OpenRouterProvider
+        p = OpenRouterProvider(api_key="test-key")
+        self.assertIn(":free", p.DEFAULT_MODEL)
+
+    def test_free_models_list(self):
+        from agent_friend.providers.openrouter import OpenRouterProvider
+        p = OpenRouterProvider(api_key="test-key")
+        self.assertTrue(all(":free" in m for m in p.FREE_MODELS))
+
+    def test_env_fallback(self):
+        from agent_friend.providers.openrouter import OpenRouterProvider
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "sk-or-test"}):
+            p = OpenRouterProvider()
+            self.assertEqual(p.api_key, "sk-or-test")
+
+    def test_explicit_key_takes_priority(self):
+        from agent_friend.providers.openrouter import OpenRouterProvider
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "sk-or-env"}):
+            p = OpenRouterProvider(api_key="sk-or-explicit")
+            self.assertEqual(p.api_key, "sk-or-explicit")
+
+
+# ---------------------------------------------------------------------------
+# Config resolution tests for OpenRouter
+# ---------------------------------------------------------------------------
+
+class TestConfigOpenRouterResolution(unittest.TestCase):
+    def _make_config(self, **kwargs):
+        from agent_friend.config import FriendConfig
+        return FriendConfig(**kwargs)
+
+    def test_slash_model_resolves_to_openrouter(self):
+        c = self._make_config(model="google/gemini-2.0-flash-exp:free")
+        self.assertEqual(c.resolve_provider(), "openrouter")
+
+    def test_free_suffix_resolves_to_openrouter(self):
+        c = self._make_config(model="meta-llama/llama-3.3-70b-instruct:free")
+        self.assertEqual(c.resolve_provider(), "openrouter")
+
+    def test_explicit_openrouter_provider(self):
+        c = self._make_config(provider="openrouter", model="gpt-4o")
+        self.assertEqual(c.resolve_provider(), "openrouter")
+
+    def test_api_key_resolves_from_env(self):
+        c = self._make_config(model="google/gemini-2.0-flash-exp:free")
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "sk-or-test"}):
+            self.assertEqual(c.resolve_api_key(), "sk-or-test")
+
+
 if __name__ == "__main__":
     unittest.main()

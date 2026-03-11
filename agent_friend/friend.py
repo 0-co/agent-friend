@@ -20,6 +20,11 @@ _TOKEN_COSTS: Dict[str, tuple] = {
     "claude-opus-4-6": (15.00, 75.00),
     "gpt-4o": (2.50, 10.00),
     "gpt-4o-mini": (0.15, 0.60),
+    # OpenRouter free-tier models ($0 but rate-limited)
+    "google/gemini-2.0-flash-exp:free": (0.0, 0.0),
+    "meta-llama/llama-3.3-70b-instruct:free": (0.0, 0.0),
+    "mistralai/mistral-7b-instruct:free": (0.0, 0.0),
+    "qwen/qwen-2.5-72b-instruct:free": (0.0, 0.0),
 }
 
 _TOOL_NAME_MAP = {
@@ -272,8 +277,8 @@ class Friend:
         self, response: ProviderResponse, provider_name: str
     ) -> Dict[str, Any]:
         """Build the assistant message containing tool_use blocks."""
-        if provider_name == "openai":
-            # OpenAI: assistant message with tool_calls array
+        if provider_name in ("openai", "openrouter"):
+            # OpenAI/OpenRouter: assistant message with tool_calls array
             return {
                 "role": "assistant",
                 "content": response.text or None,
@@ -339,7 +344,7 @@ class Friend:
         tool_results: List[Dict[str, str]],
     ) -> Dict[str, Any]:
         """Build the tool result message in provider-native format."""
-        if provider_name == "openai":
+        if provider_name in ("openai", "openrouter"):
             from .providers.openai import OpenAIProvider
             provider = OpenAIProvider()
             return provider.build_tool_result_message(response, tool_results, None)
@@ -360,7 +365,10 @@ class Friend:
         provider_name = self._config.resolve_provider()
         api_key = self._config.resolve_api_key()
 
-        if provider_name == "openai":
+        if provider_name == "openrouter":
+            from .providers.openrouter import OpenRouterProvider
+            self._provider = OpenRouterProvider(api_key=api_key)
+        elif provider_name == "openai":
             from .providers.openai import OpenAIProvider
             self._provider = OpenAIProvider(api_key=api_key)
         else:

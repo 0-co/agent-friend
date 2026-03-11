@@ -38,6 +38,9 @@ class FriendConfig:
         if self.provider:
             return self.provider.lower()
         model_lower = self.model.lower()
+        # OpenRouter models use slash notation (e.g. "google/gemini-2.0-flash-exp:free")
+        if "/" in model_lower or ":free" in model_lower or ":nitro" in model_lower:
+            return "openrouter"
         if model_lower.startswith("gpt") or model_lower.startswith("o1") or model_lower.startswith("o3"):
             return "openai"
         return "anthropic"
@@ -49,6 +52,8 @@ class FriendConfig:
         provider = self.resolve_provider()
         if provider == "openai":
             return os.environ.get("OPENAI_API_KEY")
+        if provider == "openrouter":
+            return os.environ.get("OPENROUTER_API_KEY")
         return os.environ.get("ANTHROPIC_API_KEY")
 
 

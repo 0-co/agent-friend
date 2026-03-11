@@ -33,12 +33,26 @@ Set your API key:
 export ANTHROPIC_API_KEY=sk-ant-...
 # or
 export OPENAI_API_KEY=sk-...
+# or — free tier via OpenRouter (no credit card required):
+export OPENROUTER_API_KEY=sk-or-...
 ```
+
+**No API key? Try it free** with [OpenRouter](https://openrouter.ai/) — free account, no credit card, access to Gemini 2.0 Flash and Llama 3.3 70B.
 
 ## Quick Start
 
 ```python
 from agent_friend import Friend
+
+# Free tier via OpenRouter (Gemini 2.0 Flash, no credit card required)
+friend = Friend(
+    seed="You are a helpful assistant.",
+    model="google/gemini-2.0-flash-exp:free",
+    tools=["search", "memory"],
+    api_key="sk-or-...",  # from openrouter.ai (free)
+)
+response = friend.chat("Search for the latest news about AI agents")
+print(response.text)
 
 # Minimal — just chat
 friend = Friend(seed="You are a helpful assistant.", api_key="sk-ant-...")
@@ -72,9 +86,9 @@ for chunk in friend.stream("Tell me about agent frameworks"):
 ```python
 Friend(
     seed="You are a helpful assistant.",  # System prompt
-    api_key=None,                          # Falls back to ANTHROPIC_API_KEY / OPENAI_API_KEY
-    model="claude-haiku-4-5-20251001",    # Model identifier
-    provider=None,                         # "anthropic" or "openai" (auto-detected)
+    api_key=None,                          # Falls back to ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY
+    model="claude-haiku-4-5-20251001",    # Model identifier (use "google/gemini-2.0-flash-exp:free" for OpenRouter free tier)
+    provider=None,                         # "anthropic", "openai", or "openrouter" (auto-detected)
     tools=[],                              # Tool names or BaseTool instances
     memory_path="~/.agent_friend/memory.db",
     budget_usd=None,                       # Optional spending limit
