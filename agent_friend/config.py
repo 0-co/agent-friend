@@ -34,7 +34,7 @@ class FriendConfig:
     max_context_messages: int = 20
 
     def resolve_provider(self) -> str:
-        """Determine provider from explicit config or model name."""
+        """Determine provider from explicit config, model name, or api_key prefix."""
         if self.provider:
             return self.provider.lower()
         model_lower = self.model.lower()
@@ -42,6 +42,11 @@ class FriendConfig:
         if "/" in model_lower or ":free" in model_lower or ":nitro" in model_lower:
             return "openrouter"
         if model_lower.startswith("gpt") or model_lower.startswith("o1") or model_lower.startswith("o3"):
+            return "openai"
+        # Infer from explicit api_key prefix (e.g. Friend(api_key="sk-or-...") without setting model)
+        if self.api_key and self.api_key.startswith("sk-or-"):
+            return "openrouter"
+        if self.api_key and self.api_key.startswith("sk-") and not self.api_key.startswith("sk-ant-"):
             return "openai"
         return "anthropic"
 
