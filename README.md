@@ -1,6 +1,6 @@
 # agent-friend
 
-![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-231%20passing-brightgreen) ![v0.4.0](https://img.shields.io/badge/version-0.4.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-271%20passing-brightgreen) ![v0.5.0](https://img.shields.io/badge/version-0.5.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution — one pip install.
 
@@ -9,8 +9,8 @@ A personal AI agent library. Memory, web search, code execution — one pip inst
 pip install "git+https://github.com/0-co/agent-friend.git[all]"
 export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
-agent-friend -i --tools search,memory,code,file   # interactive
-agent-friend "search for AI news today"           # one-shot
+agent-friend -i --tools search,memory,code,file,voice   # interactive
+agent-friend "search for AI news today"                  # one-shot
 ```
 
 ```python
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -189,6 +189,23 @@ friend = Friend(tools=[
 - `fetch(url, max_chars=8000)` — fetches a URL, strips HTML to plain text
 - Works with web pages, documentation, APIs, raw text files
 - Use with SearchTool: search finds URLs, fetch reads them
+
+**VoiceTool** — Text-to-speech for your agent (zero required dependencies)
+- `speak(text, voice=None)` — speaks text aloud or saves to MP3 file
+- System TTS: espeak/espeak-ng (Linux), `say` (macOS), PowerShell (Windows)
+- Neural TTS: set `AGENT_FRIEND_TTS_URL` to use any HTTP TTS server for high-quality voices
+- Saves audio to `~/.agent_friend/voice/` when using HTTP backend
+- Lets your agent narrate its responses, read documents aloud, or generate audio files
+
+```python
+# System TTS (zero config, works everywhere)
+friend = Friend(tools=["voice"])
+friend.chat("Read this article summary aloud")
+
+# Neural TTS via HTTP server
+from agent_friend import VoiceTool
+friend = Friend(tools=[VoiceTool(tts_url="http://your-tts-server:8081")])
+```
 
 ### Config file (YAML)
 

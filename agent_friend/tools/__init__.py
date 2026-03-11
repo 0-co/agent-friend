@@ -8,5 +8,6 @@ from .browser import BrowserTool
 from .email import EmailTool
 from .file import FileTool
 from .fetch import FetchTool
+from .voice import VoiceTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool"]
