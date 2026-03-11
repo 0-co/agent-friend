@@ -57,6 +57,17 @@ def main():
     print(f"inbox: {inbox}")
     print(f"{'='*60}\n")
 
+    def verbose_tool(name, args, result):
+        import sys
+        if result is None:
+            # Before tool call
+            arg_preview = ", ".join(f"{k}={repr(v)[:40]}" for k, v in args.items())
+            print(f"  → [TOOL] {name}({arg_preview})", file=sys.stderr)
+        else:
+            # After tool call
+            preview = str(result).replace("\n", " ")[:120]
+            print(f"  ← [RESULT] {preview}", file=sys.stderr)
+
     friend = Friend(
         seed=(
             "You are a helpful daily briefing assistant. "
@@ -73,6 +84,7 @@ def main():
         model=model,
         api_key=api_key,
         budget_usd=0.10,
+        on_tool_call=verbose_tool,
     )
 
     print("Step 1: Checking inbox for new messages...")

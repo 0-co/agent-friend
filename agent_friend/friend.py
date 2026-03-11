@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterator, List, Optional, Union
+from typing import Any, Callable, Dict, Generator, Iterator, List, Optional, Union
 
 from .config import FriendConfig, load_from_dict, load_from_yaml
 from .providers.base import BaseProvider, ProviderResponse
@@ -112,6 +112,7 @@ class Friend:
         memory_path: str = "~/.agent_friend/memory.db",
         budget_usd: Optional[float] = None,
         max_context_messages: int = 20,
+        on_tool_call: Optional[Callable[[str, Dict[str, Any], Optional[str]], None]] = None,
     ) -> None:
         self._config = FriendConfig(
             seed=seed,
@@ -127,6 +128,7 @@ class Friend:
         self._tools: List[BaseTool] = []
         self._conversation: List[Dict[str, Any]] = []
         self._total_cost_usd: float = 0.0
+        self._on_tool_call = on_tool_call
 
         self._initialize_tools(self._config.tools)
 
@@ -154,6 +156,7 @@ class Friend:
         instance._tools = []
         instance._conversation = []
         instance._total_cost_usd = 0.0
+        instance._on_tool_call = None
         instance._initialize_tools(config.tools)
         return instance
 
@@ -326,6 +329,12 @@ class Friend:
             arguments = tool_call["arguments"]
             tool_instance = tool_map.get(name)
 
+            if self._on_tool_call is not None:
+                try:
+                    self._on_tool_call(name, arguments, None)
+                except Exception:
+                    pass
+
             if tool_instance is None:
                 content = f"Tool not found: {name}"
             else:
@@ -333,6 +342,12 @@ class Friend:
                     content = tool_instance.execute(name, arguments)
                 except Exception as error:
                     content = f"Tool error ({name}): {error}"
+
+            if self._on_tool_call is not None:
+                try:
+                    self._on_tool_call(name, arguments, content)
+                except Exception:
+                    pass
 
             results.append({"tool_use_id": tool_call["id"], "content": content})
 

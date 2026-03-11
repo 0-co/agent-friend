@@ -337,5 +337,71 @@ class TestFriendFromYaml(unittest.TestCase):
             Friend.from_yaml("/nonexistent/path/config.yaml")
 
 
+class TestFriendOnToolCall(unittest.TestCase):
+    def _make_tool_scenario(self):
+        """Return (mock_provider, friend_constructor_args) for a tool call loop."""
+        from agent_friend.tools.code import CodeTool
+        tool_use_response = ProviderResponse(
+            text="",
+            tool_calls=[{"id": "call_1", "name": "run_code", "arguments": {"code": "1+1"}}],
+            input_tokens=10,
+            output_tokens=5,
+            stop_reason="tool_use",
+            model="claude-haiku-4-5-20251001",
+        )
+        final_response = _make_provider_response("Done.")
+        mock_provider = MagicMock()
+        mock_provider.complete.side_effect = [tool_use_response, final_response]
+        return mock_provider, CodeTool()
+
+    def test_on_tool_call_called_twice_per_tool(self):
+        """Callback is called before (result=None) and after (result=str) each tool."""
+        calls = []
+        mock_provider, code_tool = self._make_tool_scenario()
+
+        friend = Friend(tools=[code_tool], on_tool_call=lambda n, a, r: calls.append((n, r)))
+        friend._provider = mock_provider
+        friend.chat("Run 1+1")
+
+        self.assertEqual(len(calls), 2)
+        name_before, result_before = calls[0]
+        name_after, result_after = calls[1]
+        self.assertEqual(name_before, "run_code")
+        self.assertIsNone(result_before)
+        self.assertEqual(name_after, "run_code")
+        self.assertIsNotNone(result_after)
+
+    def test_on_tool_call_receives_arguments(self):
+        """Callback receives the tool arguments dict."""
+        received = []
+        mock_provider, code_tool = self._make_tool_scenario()
+
+        friend = Friend(tools=[code_tool], on_tool_call=lambda n, a, r: received.append(a))
+        friend._provider = mock_provider
+        friend.chat("Run 1+1")
+
+        self.assertTrue(any(a is not None and "code" in a for a in received))
+
+    def test_on_tool_call_exception_does_not_crash(self):
+        """A buggy callback does not break the agent loop."""
+        def bad_callback(n, a, r):
+            raise RuntimeError("callback bug")
+
+        mock_provider, code_tool = self._make_tool_scenario()
+        friend = Friend(tools=[code_tool], on_tool_call=bad_callback)
+        friend._provider = mock_provider
+
+        result = friend.chat("Run 1+1")
+        self.assertEqual(result.text, "Done.")
+
+    def test_no_callback_works_normally(self):
+        """on_tool_call=None (default) works fine — no errors."""
+        mock_provider, code_tool = self._make_tool_scenario()
+        friend = Friend(tools=[code_tool])
+        friend._provider = mock_provider
+        result = friend.chat("Run 1+1")
+        self.assertEqual(result.text, "Done.")
+
+
 if __name__ == "__main__":
     unittest.main()
