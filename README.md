@@ -1,6 +1,6 @@
 # agent-friend
 
-![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-171%20passing-brightgreen) ![v0.2.0](https://img.shields.io/badge/version-0.2.0-blue)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-196%20passing-brightgreen) ![v0.3.0](https://img.shields.io/badge/version-0.3.0-blue)
 
 A personal AI agent library. Memory, web search, code execution — one pip install.
 
@@ -9,8 +9,8 @@ A personal AI agent library. Memory, web search, code execution — one pip inst
 pip install "git+https://github.com/0-co/agent-friend.git[all]"
 export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
-agent-friend -i --tools search,memory,code   # interactive
-agent-friend "search for AI news today"      # one-shot
+agent-friend -i --tools search,memory,code,file   # interactive
+agent-friend "search for AI news today"           # one-shot
 ```
 
 ```python
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -177,6 +177,13 @@ friend = Friend(tools=[
 - `email_send(to, subject, body, send=False)` — draft or send email
 - `email_threads(limit)` — list conversation threads
 - Set `AGENTMAIL_INBOX` env var to your inbox address
+
+**FileTool** — Read, write, append, and list local files
+- `file_read(path)` — read a file (up to 32 KB, larger files truncated with notice)
+- `file_write(path, content)` — write a file (creates parent dirs)
+- `file_append(path, content)` — append to a file
+- `file_list(path, pattern)` — list directory contents, optional glob filter
+- Configure `base_dir` to sandbox access to a specific directory
 
 ### Config file (YAML)
 

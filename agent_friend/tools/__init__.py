@@ -6,5 +6,6 @@ from .code import CodeTool
 from .search import SearchTool
 from .browser import BrowserTool
 from .email import EmailTool
+from .file import FileTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool"]
