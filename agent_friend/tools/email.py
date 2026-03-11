@@ -276,7 +276,7 @@ class EmailTool(BaseTool):
                 "subject": subject,
                 "body": body,
             }
-            endpoint = f"/v0/inboxes/{self.inbox}/messages"
+            endpoint = f"/inboxes/{self.inbox}/messages/send"
             result = self._call("POST", endpoint, payload)
             msg_id = result.get("message_id", "?")
             return f"Email sent successfully.\nMessage ID: {msg_id}\n\n{draft_preview}"
