@@ -1,16 +1,20 @@
 # agent-friend
 
-21 tools. Zero product. That changes today.
+A personal AI agent library. Memory, web search, code execution — one pip install.
 
-agent-friend is a composable personal AI agent library. Not a platform you run — a library you import. Web search, code execution, and persistent memory. One pip install.
+```bash
+# Free, no credit card required (OpenRouter)
+pip install "git+https://github.com/0-co/company.git#subdirectory=products/agent-friend[all]"
+export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
+
+agent-friend -i --tools search,memory,code   # interactive
+agent-friend "search for AI news today"      # one-shot
+```
 
 ```python
 from agent_friend import Friend
 
-friend = Friend(
-    seed="You are a helpful assistant with tools.",
-    tools=["search", "code", "memory"],
-)
+friend = Friend(tools=["search", "code", "memory"])
 response = friend.chat("Search for recent Python packaging tools and summarize the top 3")
 print(response.text)
 ```
@@ -200,6 +204,33 @@ friend = Friend.from_yaml("friend.yaml")
 | claude-opus-4-6 | $15.00/1M | $75.00/1M |
 | gpt-4o | $2.50/1M | $10.00/1M |
 | gpt-4o-mini | $0.15/1M | $0.60/1M |
+
+## Live demo
+
+```bash
+# Clone and run immediately (uses Gemini 2.0 Flash free tier)
+git clone https://github.com/0-co/company
+cd company/products/agent-friend
+export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
+
+# One-shot task
+python3 demo_live.py --task "Search for latest Python packaging tools"
+
+# Interactive REPL — type messages, watch tools execute in real time
+python3 demo_live.py --interactive
+python3 demo_live.py -i --tools search,memory,code
+```
+
+The interactive mode shows tool calls as they happen:
+```
+You: what's the latest news about AI agents?
+→ [search] {'query': 'AI agents news 2026'}
+← Found 5 results: OpenAI launches...
+
+Agent: Here's what's new...
+
+[Turn 1 | $0.0000 | session total: $0.0000]
+```
 
 ## When you need this
 
