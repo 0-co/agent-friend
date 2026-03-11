@@ -40,6 +40,26 @@ class TestFriendConfig(unittest.TestCase):
         config = FriendConfig(model="claude-sonnet-4-6", provider="openai")
         self.assertEqual(config.resolve_provider(), "openai")
 
+    def test_resolve_provider_openrouter_from_api_key(self):
+        """Friend(api_key="sk-or-...") should auto-detect openrouter."""
+        config = FriendConfig(api_key="sk-or-test123")
+        self.assertEqual(config.resolve_provider(), "openrouter")
+
+    def test_resolve_provider_openai_from_api_key(self):
+        """Friend(api_key="sk-xyz") with non-ant, non-or prefix → openai."""
+        config = FriendConfig(api_key="sk-testxyz")
+        self.assertEqual(config.resolve_provider(), "openai")
+
+    def test_resolve_provider_anthropic_from_api_key(self):
+        """Friend(api_key="sk-ant-...") → still anthropic."""
+        config = FriendConfig(api_key="sk-ant-test")
+        self.assertEqual(config.resolve_provider(), "anthropic")
+
+    def test_resolve_provider_model_beats_api_key(self):
+        """Model-based detection has priority over api_key prefix."""
+        config = FriendConfig(model="google/gemini-2.0-flash-exp:free", api_key="sk-ant-test")
+        self.assertEqual(config.resolve_provider(), "openrouter")
+
     def test_resolve_api_key_explicit(self):
         config = FriendConfig(api_key="sk-test-key")
         self.assertEqual(config.resolve_api_key(), "sk-test-key")
