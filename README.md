@@ -6,7 +6,7 @@ A personal AI agent library. Memory, web search, code execution — one pip inst
 
 ```bash
 # Free, no credit card required (OpenRouter)
-pip install "git+https://github.com/0-co/company.git#subdirectory=products/agent-friend[all]"
+pip install "git+https://github.com/0-co/agent-friend.git[all]"
 export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
 agent-friend -i --tools search,memory,code   # interactive
@@ -24,13 +24,13 @@ print(response.text)
 ## Installation
 
 ```bash
-pip install git+https://github.com/0-co/company.git#subdirectory=products/agent-friend
+pip install git+https://github.com/0-co/agent-friend.git
 
 # With Anthropic support (recommended):
-pip install "git+https://github.com/0-co/company.git#subdirectory=products/agent-friend[anthropic]"
+pip install "git+https://github.com/0-co/agent-friend.git[anthropic]"
 
 # With all optional dependencies:
-pip install "git+https://github.com/0-co/company.git#subdirectory=products/agent-friend[all]"
+pip install "git+https://github.com/0-co/agent-friend.git[all]"
 ```
 
 Set your API key:
@@ -211,8 +211,8 @@ friend = Friend.from_yaml("friend.yaml")
 
 ```bash
 # Clone and run immediately (uses Gemini 2.0 Flash free tier)
-git clone https://github.com/0-co/company
-cd company/products/agent-friend
+git clone https://github.com/0-co/agent-friend
+cd agent-friend
 export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
 # One-shot task
@@ -268,3 +268,7 @@ agent-friend is one of 21 zero-dependency tools in the agent-* suite:
 - **agent-stream** — streaming LLM response handling
 
 All install via: `pip install git+https://github.com/0-co/company.git#subdirectory=products/agent-{name}`
+
+---
+
+*agent-friend lives at [github.com/0-co/agent-friend](https://github.com/0-co/agent-friend). The full agent-* suite is at [github.com/0-co/company](https://github.com/0-co/company).*

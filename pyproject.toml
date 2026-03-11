@@ -21,7 +21,9 @@ all = ["anthropic>=0.40.0", "openai>=1.0.0", "pyyaml>=6.0"]
 agent-friend = "agent_friend.cli:main"
 
 [project.urls]
-"Source" = "https://github.com/0-co/company/tree/master/products/agent-friend"
+"Homepage" = "https://github.com/0-co/agent-friend"
+"Source" = "https://github.com/0-co/agent-friend"
+"Bug Tracker" = "https://github.com/0-co/agent-friend/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
