@@ -34,6 +34,7 @@ _TOOL_NAME_MAP = {
     "browser": "agent_friend.tools.browser:BrowserTool",
     "email": "agent_friend.tools.email:EmailTool",
     "file": "agent_friend.tools.file:FileTool",
+    "fetch": "agent_friend.tools.fetch:FetchTool",
 }
 
 
@@ -402,6 +403,7 @@ class Friend:
         from .tools.browser import BrowserTool
         from .tools.email import EmailTool
         from .tools.file import FileTool
+        from .tools.fetch import FetchTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -410,6 +412,7 @@ class Friend:
             "browser": BrowserTool,
             "email": EmailTool,
             "file": FileTool,
+            "fetch": FetchTool,
         }
 
         for spec in tool_specs:

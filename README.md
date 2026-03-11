@@ -1,6 +1,6 @@
 # agent-friend
 
-![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-196%20passing-brightgreen) ![v0.3.0](https://img.shields.io/badge/version-0.3.0-blue)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-227%20passing-brightgreen) ![v0.4.0](https://img.shields.io/badge/version-0.4.0-blue)
 
 A personal AI agent library. Memory, web search, code execution — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -184,6 +184,11 @@ friend = Friend(tools=[
 - `file_append(path, content)` — append to a file
 - `file_list(path, pattern)` — list directory contents, optional glob filter
 - Configure `base_dir` to sandbox access to a specific directory
+
+**FetchTool** — Fetch any URL and read its text content (no API key)
+- `fetch(url, max_chars=8000)` — fetches a URL, strips HTML to plain text
+- Works with web pages, documentation, APIs, raw text files
+- Use with SearchTool: search finds URLs, fetch reads them
 
 ### Config file (YAML)
 

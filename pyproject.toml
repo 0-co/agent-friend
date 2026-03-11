@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "agent-friend"
-version = "0.3.0"
+version = "0.4.0"
 description = "A composable personal AI agent library — web search, code execution, and persistent memory in one pip install"
 readme = "README.md"
 license = {text = "MIT"}
