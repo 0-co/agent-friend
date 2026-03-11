@@ -32,6 +32,7 @@ _TOOL_NAME_MAP = {
     "code": "agent_friend.tools.code:CodeTool",
     "search": "agent_friend.tools.search:SearchTool",
     "browser": "agent_friend.tools.browser:BrowserTool",
+    "email": "agent_friend.tools.email:EmailTool",
 }
 
 
@@ -383,12 +384,14 @@ class Friend:
         from .tools.code import CodeTool
         from .tools.search import SearchTool
         from .tools.browser import BrowserTool
+        from .tools.email import EmailTool
 
         name_to_class = {
             "memory": MemoryTool,
             "code": CodeTool,
             "search": SearchTool,
             "browser": BrowserTool,
+            "email": EmailTool,
         }
 
         for spec in tool_specs:
@@ -402,6 +405,10 @@ class Friend:
                 # MemoryTool needs the configured memory_path
                 if tool_class is MemoryTool:
                     self._tools.append(MemoryTool(db_path=self._config.memory_path))
+                # EmailTool needs an inbox address (from env or default)
+                elif tool_class is EmailTool:
+                    inbox = os.environ.get("AGENTMAIL_INBOX", "")
+                    self._tools.append(EmailTool(inbox=inbox))
                 else:
                     self._tools.append(tool_class())
             elif isinstance(spec, BaseTool):

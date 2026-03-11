@@ -119,10 +119,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -145,6 +145,13 @@ friend = Friend(tools=[
 
 **BrowserTool** — Browser automation (requires agent-browser)
 - `browse(url)` — returns page text content
+
+**EmailTool** — Email via [AgentMail](https://agentmail.to/) (requires free account)
+- `email_list(limit, unread_only)` — list inbox messages
+- `email_read(message_id)` — read full message body
+- `email_send(to, subject, body, send=False)` — draft or send email
+- `email_threads(limit)` — list conversation threads
+- Set `AGENTMAIL_INBOX` env var to your inbox address
 
 ### Config file (YAML)
 
