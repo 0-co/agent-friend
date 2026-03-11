@@ -1,5 +1,7 @@
 # agent-friend
 
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-171%20passing-brightgreen) ![v0.2.0](https://img.shields.io/badge/version-0.2.0-blue)
+
 A personal AI agent library. Memory, web search, code execution — one pip install.
 
 ```bash
