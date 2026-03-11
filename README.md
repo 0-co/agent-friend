@@ -93,6 +93,7 @@ Friend(
     memory_path="~/.agent_friend/memory.db",
     budget_usd=None,                       # Optional spending limit
     max_context_messages=20,               # Sliding window size
+    on_tool_call=None,                     # Optional callback(name, args, result) — None before, str after
 )
 ```
 
@@ -102,6 +103,24 @@ Friend(
 - `reset()` — clear conversation history
 - `Friend.from_config(dict) -> Friend` — construct from dict
 - `Friend.from_yaml(path) -> Friend` — construct from YAML file
+
+**Observability — watch tools execute in real time:**
+
+```python
+def show_tools(name, args, result):
+    if result is None:
+        print(f"→ [{name}] {args}")   # before call
+    else:
+        print(f"← {str(result)[:80]}")  # after call
+
+friend = Friend(
+    tools=["search", "memory"],
+    on_tool_call=show_tools,
+)
+friend.chat("What's new in AI today?")
+# → [search] {'query': 'AI news today 2026'}
+# ← Found 5 results: OpenAI launches...
+```
 
 ### ChatResponse
 
