@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2034%20passing-brightgreen) ![v0.42.0](https://img.shields.io/badge/version-0.42.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2103%20passing-brightgreen) ![v0.43.0](https://img.shields.io/badge/version-0.43.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1076,6 +1076,49 @@ train, test = r["splits"]
 # Reproducible random integers
 r = json.loads(sampler.random_int(1, 100, n=5, seed=7))
 print(r["values"])  # [43, 12, 78, 34, 91]
+```
+
+**WorkflowTool** — lightweight workflow / pipeline runner for agent orchestration
+- `workflow_define(name, steps, description="")` — register a named workflow; steps: `{name, fn, retries?, on_error?, default?, condition?}`
+- `workflow_run(name, input=None, context={})` — execute workflow; returns `{output, steps, elapsed_ms, ok}`
+- `step_define(name, source)` — register custom step function: `def step(value, ctx): ...`
+- `workflow_list()` / `workflow_get(name)` / `workflow_delete(name)` — manage workflows
+- `workflow_status()` — execution history: total_runs, ok_runs, failed_runs, recent
+- `builtin_fns()` — list built-ins: identity, upper, lower, strip, to_int, to_float, to_str, to_list, reverse, length, sum_list, sort, unique, flatten, noop
+- Supports: retries, on_error (fail/skip/default), conditional steps (truthy/falsy), shared context dict
+
+```python
+from agent_friend import WorkflowTool
+import json
+
+wf = WorkflowTool()
+
+# Define an ETL pipeline
+wf.workflow_define("clean", steps=[
+    {"name": "strip",  "fn": "strip"},
+    {"name": "upper",  "fn": "upper"},
+    {"name": "to_list", "fn": "to_list"},
+])
+
+r = json.loads(wf.workflow_run("clean", input="  hello world  "))
+print(r["output"])  # ['H', 'E', 'L', 'L', 'O', ' ', 'W', 'O', 'R', 'L', 'D']
+
+# Custom step with Python source
+wf.step_define("double", "def step(value, ctx): return value * 2")
+wf.workflow_define("math", steps=[
+    {"fn": "to_int"},
+    {"fn": "double"},
+])
+r = json.loads(wf.workflow_run("math", input="21"))
+print(r["output"])  # 42
+
+# on_error=skip keeps pipeline running on bad data
+wf.workflow_define("safe", steps=[
+    {"fn": "to_int", "on_error": "skip"},
+    {"fn": "to_str"},
+])
+r = json.loads(wf.workflow_run("safe", input="not_a_number"))
+print(r["ok"])  # True — pipeline completed with skipped step
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
