@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1277%20passing-brightgreen) ![v0.28.0](https://img.shields.io/badge/version-0.28.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1325%20passing-brightgreen) ![v0.29.0](https://img.shields.io/badge/version-0.29.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -698,6 +698,39 @@ rx.regex_findall("error|warning", log_text, flags=["IGNORECASE"])
 # Build a safe literal pattern from user input
 escaped = rx.regex_escape("$1.00 (special offer)")
 rx.regex_search(escaped, price_text)  # matches the literal string
+```
+
+**RateLimitTool** — rate limiting for agent API calls: fixed window, sliding window, token bucket
+- `limiter_create(name, max_calls=10, window_seconds=60, algorithm="fixed")` — create a named limiter
+- `limiter_check(name)` — check if a request is allowed **without** consuming a token
+- `limiter_consume(name)` — record that a request was made (consumes a token)
+- `limiter_acquire(name)` — atomically check **and** consume — the most common operation
+- `limiter_status(name)` — current state: count, remaining, algorithm, window size, tokens
+- `limiter_reset(name)` — reset counters to initial state
+- `limiter_delete(name)` / `limiter_list()` — manage limiters
+- Algorithms: `fixed` (simple counter), `sliding` (no boundary burst), `token_bucket` (smooth rate + burst)
+
+```python
+from agent_friend import RateLimitTool
+
+r = RateLimitTool()
+
+# 10 requests per 60 seconds, sliding window (no boundary burst)
+r.limiter_create("openai", max_calls=10, window_seconds=60, algorithm="sliding")
+
+# Check-and-consume before every API call
+result = json.loads(r.limiter_acquire("openai"))
+if result["allowed"]:
+    # make the API call
+    pass
+else:
+    print(f"Rate limited. Try again in {result['reset_in_seconds']:.1f}s")
+
+# Token bucket — smooth rate with burst capacity
+r.limiter_create("github", algorithm="token_bucket", rate_per_second=1.0, burst_capacity=10.0)
+
+# List all active limiters
+print(r.limiter_list())
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
