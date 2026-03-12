@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-498%20passing-brightgreen) ![v0.11.0](https://img.shields.io/badge/version-0.11.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-517%20passing-brightgreen) ![v0.12.0](https://img.shields.io/badge/version-0.12.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git"])
@@ -269,6 +269,24 @@ table = TableTool()
 friend = Friend(tools=["search", "code", table])
 friend.chat("Read sales.csv and tell me the average revenue by region")
 friend.chat("Filter transactions.csv to rows where amount > 1000")
+```
+
+**WebhookTool** — receive incoming webhooks (payment callbacks, GitHub events, form submissions)
+- `wait_for_webhook(path, timeout)` — start HTTP server and wait for a POST request
+- Returns: path, headers, body (str), json (parsed dict or None), received_at timestamp
+- Port 0 = auto-assign random available port. Server shuts down after receiving one request.
+
+```python
+from agent_friend import Friend, WebhookTool
+
+# Agent waits for a payment webhook, then reacts
+hook = WebhookTool(port=8765)
+friend = Friend(tools=["code", "memory", hook])
+response = friend.chat(
+    "Wait for a webhook at /payment with 60 second timeout. "
+    "When it arrives, log the amount to memory."
+)
+# In another terminal: curl -X POST http://localhost:8765/payment -d '{"amount": 99.99}'
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
