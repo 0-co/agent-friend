@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-friend"
-version = "0.48.0"
-description = "A composable personal AI agent library — web search, code execution, and persistent memory in one pip install"
+version = "0.49.0"
+description = "Universal tool adapter for AI agents — @tool exports to OpenAI, Claude, Gemini, MCP. 51 built-in tools."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
