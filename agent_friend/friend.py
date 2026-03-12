@@ -64,6 +64,7 @@ _TOOL_NAME_MAP = {
     "state_machine": "agent_friend.tools.state_machine:StateMachineTool",
     "map_reduce": "agent_friend.tools.map_reduce:MapReduceTool",
     "graph": "agent_friend.tools.graph:GraphTool",
+    "format": "agent_friend.tools.format_tool:FormatTool",
 }
 
 
@@ -462,6 +463,7 @@ class Friend:
         from .tools.state_machine import StateMachineTool
         from .tools.map_reduce import MapReduceTool
         from .tools.graph import GraphTool
+        from .tools.format_tool import FormatTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -500,6 +502,7 @@ class Friend:
             "state_machine": StateMachineTool,
             "map_reduce": MapReduceTool,
             "graph": GraphTool,
+            "format": FormatTool,
         }
 
         for spec in tool_specs:

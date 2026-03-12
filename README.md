@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1590%20passing-brightgreen) ![v0.34.0](https://img.shields.io/badge/version-0.34.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1676%20passing-brightgreen) ![v0.35.0](https://img.shields.io/badge/version-0.35.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -798,6 +798,45 @@ history = json.loads(bus.bus_history("new_url", n=5))
 # Observability
 stats = json.loads(bus.bus_stats())
 # {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
+```
+
+**FormatTool** — human-readable formatting for numbers, sizes, durations, and text
+- `format_bytes(value, decimals=1, binary=False)` — `1234567` → `"1.2 MB"` (or `KiB/MiB` with `binary=True`)
+- `format_duration(seconds, verbose=False)` — `3661` → `"1h 1m 1s"` or `"1 hour 1 minute 1 second"`
+- `format_number(value, decimals=2)` — `1234567.89` → `"1,234,567.89"`
+- `format_percent(value, decimals=1)` — `0.8734` → `"87.3%"` (ratios auto-scaled)
+- `format_currency(value, currency="USD")` — `1234.5` → `"$1,234.50"` (USD/EUR/GBP/JPY/...)
+- `format_ordinal(n)` — `1` → `"1st"`, `11` → `"11th"`, `21` → `"21st"`
+- `format_plural(count, singular, plural=None)` — `format_plural(3, "item")` → `"3 items"`
+- `format_truncate(text, max_length=80, suffix="…")` — truncate long strings with ellipsis
+- `format_pad(text, width, align="left")` — left/right/center pad a string
+- `format_table(data, columns=None)` — render a JSON array of dicts as a plain-text table
+
+```python
+from agent_friend import FormatTool
+
+f = FormatTool()
+
+f.format_bytes(1_234_567)           # "1.2 MB"
+f.format_bytes(1024, binary=True)   # "1.0 KiB"
+f.format_duration(3_661)            # "1h 1m 1s"
+f.format_duration(90, verbose=True) # "1 minute 30 seconds"
+f.format_number(1_234_567.89)       # "1,234,567.89"
+f.format_percent(0.8734)            # "87.3%"
+f.format_currency(1234.5, "EUR")    # "€1,234.50"
+f.format_ordinal(21)                # "21st"
+f.format_plural(3, "test")          # "3 tests"
+f.format_truncate("a very long...", max_length=20)  # "a very long...…"
+
+import json
+data = json.dumps([{"name": "Alice", "score": 90}, {"name": "Bob", "score": 75}])
+print(f.format_table(data))
+# +-------+-------+
+# | name  | score |
+# +-------+-------+
+# | Alice | 90    |
+# | Bob   | 75    |
+# +-------+-------+
 ```
 
 **GraphTool** — directed graphs: dependency tracking, topological sort, cycle detection
