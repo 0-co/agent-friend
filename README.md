@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1825%20passing-brightgreen) ![v0.38.0](https://img.shields.io/badge/version-0.38.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1875%20passing-brightgreen) ![v0.39.0](https://img.shields.io/badge/version-0.39.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -923,6 +923,43 @@ windows = json.loads(chunker.chunk_sliding_window(text, window_chars=1000, step_
 # Stats before chunking
 stats = json.loads(chunker.chunk_stats(text))
 # {"char_count": 15000, "token_estimate": 3750, "sentence_count": 120, ...}
+```
+
+
+**VectorStoreTool** — in-memory vector store with cosine/euclidean/dot similarity search
+- `vector_add(name, vector, metadata={}, doc_id=None)` — store an embedding; auto-generates UUID4 ID
+- `vector_search(name, query, top_k=5, metric="cosine", threshold=None)` — nearest-neighbour search; returns `[{id, score, metadata}]`
+- `vector_get(name, doc_id)` / `vector_delete(name, doc_id)` — retrieve or remove by ID
+- `vector_list(name, offset=0, limit=100)` — paginated list of stored IDs
+- `vector_stats(name)` — count, dim, max_vectors
+- `vector_drop(name)` / `vector_list_stores()` — manage named stores
+- Metrics: cosine (default), euclidean (inverted distance), dot product. Pairs with ChunkerTool for RAG pipelines.
+
+```python
+from agent_friend import VectorStoreTool
+import json
+
+vs = VectorStoreTool()
+
+# Store embeddings (from Anthropic/OpenAI embedding API)
+vs.vector_add("docs", [0.1, 0.9, 0.3], metadata={"text": "cats and kittens"}, doc_id="doc1")
+vs.vector_add("docs", [0.8, 0.1, 0.5], metadata={"text": "dogs and puppies"}, doc_id="doc2")
+vs.vector_add("docs", [0.15, 0.85, 0.25], metadata={"text": "feline companions"}, doc_id="doc3")
+
+# Find nearest neighbours (cosine similarity)
+results = json.loads(vs.vector_search("docs", [0.1, 0.9, 0.3], top_k=2))
+# [{"id": "doc1", "score": 1.0, "metadata": {"text": "cats and kittens"}},
+#  {"id": "doc3", "score": 0.999, "metadata": {"text": "feline companions"}}]
+
+# Filter by minimum similarity
+results = json.loads(vs.vector_search("docs", query, threshold=0.9))
+
+# Euclidean distance (closer = higher score)
+results = json.loads(vs.vector_search("docs", query, metric="euclidean"))
+
+# Stats
+stats = json.loads(vs.vector_stats("docs"))
+# {"count": 3, "dim": 3, "max_vectors": 10000}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
