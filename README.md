@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-517%20passing-brightgreen) ![v0.12.0](https://img.shields.io/badge/version-0.12.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-554%20passing-brightgreen) ![v0.13.0](https://img.shields.io/badge/version-0.13.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -287,6 +287,27 @@ response = friend.chat(
     "When it arrives, log the amount to memory."
 )
 # In another terminal: curl -X POST http://localhost:8765/payment -d '{"amount": 99.99}'
+```
+
+**HTTPTool** — generic REST API client (GET/POST/PUT/PATCH/DELETE with auth headers)
+- `http_request(method, url, headers, body, body_text)` — make any HTTP request
+- Returns: status code, response headers, body (str), json (parsed dict if JSON response)
+- `default_headers` constructor param for auth headers shared across all requests
+- No requests library required — stdlib only
+
+```python
+from agent_friend import Friend, HTTPTool
+
+# API client with auth headers baked in
+http = HTTPTool(default_headers={"Authorization": "Bearer sk-..."})
+friend = Friend(tools=["memory", http])
+response = friend.chat(
+    "POST to https://api.example.com/orders with body {\"item\": \"widget\", \"qty\": 5}"
+)
+
+# One-off requests without config
+friend = Friend(tools=["search", "http"])
+friend.chat("GET https://api.github.com/repos/0-co/agent-friend and summarize the stats")
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

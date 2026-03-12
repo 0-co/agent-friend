@@ -39,6 +39,10 @@ _TOOL_NAME_MAP = {
     "rss": "agent_friend.tools.rss:RSSFeedTool",
     "scheduler": "agent_friend.tools.scheduler:SchedulerTool",
     "database": "agent_friend.tools.database:DatabaseTool",
+    "git": "agent_friend.tools.git:GitTool",
+    "table": "agent_friend.tools.table:TableTool",
+    "webhook": "agent_friend.tools.webhook:WebhookTool",
+    "http": "agent_friend.tools.http:HTTPTool",
 }
 
 
@@ -413,6 +417,9 @@ class Friend:
         from .tools.scheduler import SchedulerTool
         from .tools.database import DatabaseTool
         from .tools.git import GitTool
+        from .tools.table import TableTool
+        from .tools.webhook import WebhookTool
+        from .tools.http import HTTPTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -427,6 +434,9 @@ class Friend:
             "scheduler": SchedulerTool,
             "database": DatabaseTool,
             "git": GitTool,
+            "table": TableTool,
+            "webhook": WebhookTool,
+            "http": HTTPTool,
         }
 
         for spec in tool_specs:
