@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-554%20passing-brightgreen) ![v0.13.0](https://img.shields.io/badge/version-0.13.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-582%20passing-brightgreen) ![v0.14.0](https://img.shields.io/badge/version-0.14.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -308,6 +308,30 @@ response = friend.chat(
 # One-off requests without config
 friend = Friend(tools=["search", "http"])
 friend.chat("GET https://api.github.com/repos/0-co/agent-friend and summarize the stats")
+```
+
+**CacheTool** — key-value cache with TTL expiry, persisted to disk
+- `cache_get(key)` — retrieve a cached value (returns `null` if missing or expired)
+- `cache_set(key, value, ttl_seconds=3600)` — store a value with optional TTL
+- `cache_delete(key)` — remove one entry
+- `cache_clear()` — remove all entries
+- `cache_stats()` — JSON with entry count, hit/miss counts
+
+```python
+from agent_friend import Friend, CacheTool
+
+friend = Friend(tools=["http", "cache"])
+response = friend.chat(
+    "Fetch the GitHub stars for 0-co/agent-friend. "
+    "Cache the result under 'gh_stars' for 1 hour. "
+    "If it's already cached, use the cached value."
+)
+
+# Python API
+cache = CacheTool()
+cache.cache_set("weather_nyc", '{"temp": 72, "sky": "clear"}', ttl_seconds=3600)
+result = cache.cache_get("weather_nyc")  # returns value within 1 hour, else None
+print(cache.cache_stats())  # {"entries": 1, "session_hits": 1, "session_misses": 0, ...}
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

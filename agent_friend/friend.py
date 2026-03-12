@@ -43,6 +43,7 @@ _TOOL_NAME_MAP = {
     "table": "agent_friend.tools.table:TableTool",
     "webhook": "agent_friend.tools.webhook:WebhookTool",
     "http": "agent_friend.tools.http:HTTPTool",
+    "cache": "agent_friend.tools.cache:CacheTool",
 }
 
 
@@ -420,6 +421,7 @@ class Friend:
         from .tools.table import TableTool
         from .tools.webhook import WebhookTool
         from .tools.http import HTTPTool
+        from .tools.cache import CacheTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -437,6 +439,7 @@ class Friend:
             "table": TableTool,
             "webhook": WebhookTool,
             "http": HTTPTool,
+            "cache": CacheTool,
         }
 
         for spec in tool_specs:
