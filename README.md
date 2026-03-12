@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2263%20passing-brightgreen) ![v0.46.0](https://img.shields.io/badge/version-0.46.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2328%20passing-brightgreen) ![v0.47.0](https://img.shields.io/badge/version-0.47.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, AuditTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, AuditTool, BatchTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1227,6 +1227,48 @@ print("By type:", r["by_type"])  # {"user.login": 2, "file.delete": 1, ...}
 # Timeline
 r = json.loads(audit.audit_timeline(bucket="hour"))
 print("Buckets:", len(r["buckets"]))
+```
+
+**BatchTool** — map/filter/reduce/partition lists with registered or built-in functions
+- `fn_define(name, source)` — register `def fn(item): ...` (or `def fn(acc, item): ...` for reducers with `is_reducer=True`)
+- `batch_map(items, fn, on_error="null"|"skip"|"raise")` — apply fn to each item; returns `{results, ok, errors}`
+- `batch_filter(items, fn)` — keep items where `fn(item)` is truthy; returns `{results, kept, rejected}`
+- `batch_reduce(items, fn, initial=None)` — fold with accumulator; built-ins: sum/product/max/min/concat
+- `batch_partition(items, fn)` — split into `{passing, failing}` lists
+- `batch_chunk(items, size)` — split into equal-size chunks
+- `batch_zip(keys, *lists)` — zip lists into list of dicts
+- Built-in fns: identity/str/int/float/upper/lower/strip/len/bool/not/negate/abs/double/square
+
+```python
+from agent_friend import BatchTool
+import json
+
+batch = BatchTool()
+
+# Built-in map
+r = json.loads(batch.batch_map([1, 2, 3, 4, 5], fn="square"))
+print(r["results"])  # [1, 4, 9, 16, 25]
+
+# Built-in filter
+r = json.loads(batch.batch_filter(["", "hello", "", "world"], fn="is_truthy"))
+print(r["results"])  # ["hello", "world"]
+
+# Custom function
+batch.fn_define("add_tax", "def fn(item): return round(item * 1.08, 2)")
+r = json.loads(batch.batch_map([10.0, 20.0, 50.0], fn="add_tax"))
+print(r["results"])  # [10.8, 21.6, 54.0]
+
+# Reduce
+r = json.loads(batch.batch_reduce([1, 2, 3, 4, 5], fn="sum"))
+print(r["result"])  # 15
+
+# Partition
+r = json.loads(batch.batch_partition([1, -2, 3, -4, 0], fn="is_truthy"))
+print(r["passing"], r["failing"])  # [1, 3]  [-2, -4, 0]
+
+# Chunk into batches of 3
+r = json.loads(batch.batch_chunk(list(range(10)), size=3))
+print(r["chunks"])  # [[0,1,2], [3,4,5], [6,7,8], [9]]
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
