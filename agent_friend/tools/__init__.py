@@ -30,5 +30,6 @@ from .template import TemplateTool
 from .diff import DiffTool
 from .retry import RetryTool
 from .html_tool import HTMLTool
+from .xml_tool import XMLTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool"]

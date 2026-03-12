@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1163%20passing-brightgreen) ![v0.26.0](https://img.shields.io/badge/version-0.26.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1214%20passing-brightgreen) ![v0.27.0](https://img.shields.io/badge/version-0.27.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -633,6 +633,32 @@ html_tool.html_headings(html)
 # Extract prices from a shopping page
 html_tool.html_select(html, "span", {"class": "price"})
 # ["$29.99", "$49.99", ...]
+```
+
+**XMLTool** — parse XML, run XPath queries, and convert to JSON
+- `xml_extract(xml, tag)` — text content of all matching tags: `["Apple", "Banana"]`
+- `xml_attrs(xml, tag)` — attributes of all matching tags: `[{"id": "1"}, {"id": "2"}]`
+- `xml_find(xml, xpath)` — first match: `{tag, text, attrs, children}`
+- `xml_findall(xml, xpath)` — all matches as list of `{tag, text, attrs}`
+- `xml_to_dict(xml)` — XML → nested dict (attrs get `@` prefix, repeated tags → list)
+- `xml_validate(xml)` — `{valid: true/false}` — check XML is well-formed
+- `xml_tags(xml)` — tag name → occurrence count (explore unfamiliar XML)
+
+```python
+from agent_friend import XMLTool
+
+x = XMLTool()
+xml = """<catalog>
+  <book id="1"><title>Agent Patterns</title><price>29.99</price></book>
+  <book id="2"><title>Async Python</title><price>24.99</price></book>
+</catalog>"""
+
+x.xml_extract(xml, "title")  # '["Agent Patterns", "Async Python"]'
+x.xml_attrs(xml, "book")     # '[{"id": "1"}, {"id": "2"}]'
+x.xml_find(xml, ".//book[@id='2']")
+# {"found": true, "tag": "book", "text": "", "attrs": {"id": "2"}, "children": [...]}
+x.xml_to_dict(xml)  # nested dict representation
+x.xml_tags(xml)     # {"catalog": 1, "book": 2, "title": 2, "price": 2}
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

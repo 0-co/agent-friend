@@ -56,6 +56,7 @@ _TOOL_NAME_MAP = {
     "diff": "agent_friend.tools.diff:DiffTool",
     "retry": "agent_friend.tools.retry:RetryTool",
     "html": "agent_friend.tools.html_tool:HTMLTool",
+    "xml": "agent_friend.tools.xml_tool:XMLTool",
 }
 
 
@@ -446,6 +447,7 @@ class Friend:
         from .tools.diff import DiffTool
         from .tools.retry import RetryTool
         from .tools.html_tool import HTMLTool
+        from .tools.xml_tool import XMLTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -476,6 +478,7 @@ class Friend:
             "diff": DiffTool,
             "retry": RetryTool,
             "html": HTMLTool,
+            "xml": XMLTool,
         }
 
         for spec in tool_specs:
