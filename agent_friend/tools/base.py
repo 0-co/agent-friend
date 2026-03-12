@@ -47,3 +47,95 @@ class BaseTool(ABC):
         -------
         String result to return to the LLM.
         """
+
+    # ------------------------------------------------------------------
+    # Framework adapter methods
+    # ------------------------------------------------------------------
+
+    def to_anthropic(self) -> List[Dict[str, Any]]:
+        """Export tool definitions in Anthropic Claude format.
+
+        Returns the native format since ``definitions()`` already produces
+        Anthropic-compatible dicts with ``name``, ``description``, and
+        ``input_schema`` keys.
+        """
+        return self.definitions()
+
+    def to_openai(self) -> List[Dict[str, Any]]:
+        """Export tool definitions in OpenAI function-calling format.
+
+        Each entry is wrapped in ``{"type": "function", "function": {...}}``.
+        """
+        result: List[Dict[str, Any]] = []
+        for defn in self.definitions():
+            result.append({
+                "type": "function",
+                "function": {
+                    "name": defn["name"],
+                    "description": defn.get("description", ""),
+                    "parameters": defn.get("input_schema", {"type": "object", "properties": {}}),
+                },
+            })
+        return result
+
+    def to_google(self) -> List[Dict[str, Any]]:
+        """Export tool definitions in Google Gemini format.
+
+        Types are uppercased (``STRING``, ``INTEGER``, etc.) to match the
+        Gemini API convention.
+        """
+        _TYPE_MAP = {
+            "string": "STRING",
+            "integer": "INTEGER",
+            "number": "NUMBER",
+            "boolean": "BOOLEAN",
+            "array": "ARRAY",
+            "object": "OBJECT",
+        }
+        result: List[Dict[str, Any]] = []
+        for defn in self.definitions():
+            schema = defn.get("input_schema", {"type": "object", "properties": {}})
+            result.append({
+                "name": defn["name"],
+                "description": defn.get("description", ""),
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        k: {
+                            "type": _TYPE_MAP.get(v.get("type", "string"), v.get("type", "STRING").upper()),
+                            "description": v.get("description", ""),
+                        }
+                        for k, v in schema.get("properties", {}).items()
+                    },
+                    "required": schema.get("required", []),
+                },
+            })
+        return result
+
+    def to_mcp(self) -> List[Dict[str, Any]]:
+        """Export tool definitions in MCP (Model Context Protocol) format.
+
+        Uses ``inputSchema`` (camelCase) as required by the MCP spec.
+        """
+        result: List[Dict[str, Any]] = []
+        for defn in self.definitions():
+            result.append({
+                "name": defn["name"],
+                "description": defn.get("description", ""),
+                "inputSchema": defn.get("input_schema", {"type": "object", "properties": {}}),
+            })
+        return result
+
+    def to_json_schema(self) -> List[Dict[str, Any]]:
+        """Export raw JSON Schema for each tool.
+
+        Each schema dict includes ``title`` (tool name) and ``description``
+        alongside the standard JSON Schema properties.
+        """
+        result: List[Dict[str, Any]] = []
+        for defn in self.definitions():
+            schema = dict(defn.get("input_schema", {"type": "object", "properties": {}}))
+            schema["title"] = defn["name"]
+            schema["description"] = defn.get("description", "")
+            result.append(schema)
+        return result

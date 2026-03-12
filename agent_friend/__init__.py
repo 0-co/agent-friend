@@ -24,6 +24,7 @@ With tools:
 
 from .friend import Friend, ChatResponse, BudgetExceeded
 from .tools import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, FunctionTool, tool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool
+from .toolkit import Toolkit
 
 __all__ = [
     "Friend",
@@ -54,6 +55,7 @@ __all__ = [
     "EnvTool",
     "CryptoTool",
     "ValidatorTool",
+    "Toolkit",
 ]
 
-__version__ = "0.21.0"
+__version__ = "0.49.0"

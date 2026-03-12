@@ -1,11 +1,49 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2328%20passing-brightgreen) ![v0.47.0](https://img.shields.io/badge/version-0.47.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2474%20passing-brightgreen) ![v0.49.0](https://img.shields.io/badge/version-0.49.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
-A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
+Write a Python function. Use it as a tool in any AI framework.
+
+```python
+from agent_friend import tool
+
+@tool
+def get_weather(city: str, unit: str = "celsius") -> dict:
+    """Get current weather for a city.
+
+    Args:
+        city: The city name
+        unit: Temperature unit (celsius or fahrenheit)
+    """
+    return {"temp": 22, "unit": unit, "city": city}
+
+# Export to any framework — one function, every format
+get_weather.to_openai()     # OpenAI function calling
+get_weather.to_anthropic()  # Claude tool_use
+get_weather.to_google()     # Gemini
+get_weather.to_mcp()        # Model Context Protocol
+get_weather.to_json_schema() # Raw JSON Schema
+```
+
+Batch export with `Toolkit`:
+
+```python
+from agent_friend import tool, Toolkit
+
+@tool
+def search(query: str) -> str: ...
+
+@tool
+def calculate(expression: str) -> float: ...
+
+kit = Toolkit([search, calculate])
+kit.to_openai()   # All tools in OpenAI format
+kit.to_mcp()      # All tools in MCP format
+```
+
+Also includes 51 built-in tools and a full agent runtime:
 
 ```bash
-# Free, no credit card required (OpenRouter)
 pip install "git+https://github.com/0-co/agent-friend.git[all]"
 export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
@@ -144,7 +182,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, AuditTool, BatchTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, AuditTool, BatchTool, TransformTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1269,6 +1307,43 @@ print(r["passing"], r["failing"])  # [1, 3]  [-2, -4, 0]
 # Chunk into batches of 3
 r = json.loads(batch.batch_chunk(list(range(10)), size=3))
 print(r["chunks"])  # [[0,1,2], [3,4,5], [6,7,8], [9]]
+```
+
+**TransformTool** — structured data transformation: pick, omit, rename, coerce, flatten, unflatten, batch records, deep merge
+- `transform_pick(record, keys)` — extract only specified keys; returns `{result, picked, missing}`
+- `transform_omit(record, keys)` — remove specified keys; returns `{result, omitted}`
+- `transform_rename(record, mapping)` — rename keys via `{old: new}`; unmapped keys kept; returns `{result, renamed}`
+- `transform_coerce(record, types)` — type-coerce values via `{key: "str"|"int"|"float"|"bool"|"list"|"dict"|"null"}`; returns `{result, coerced, errors}`
+- `transform_flatten(record, sep=".")` — nested dict → dot-notation keys; arrays indexed as `key.0`, `key.1`; returns `{result, key_count}`
+- `transform_unflatten(record, sep=".")` — dot-notation keys → nested dict; returns `{result}`
+- `transform_map_records(records, pick, omit, rename, coerce, add)` — apply pick→omit→rename→coerce→add to each record in a list; returns `{results, count, errors}`
+- `transform_merge(*dicts)` — deep merge; later dicts win on conflict; returns `{result, merged_from}`
+
+```python
+from agent_friend import TransformTool
+import json
+
+t = TransformTool()
+
+# Pick & rename
+r = json.loads(t.transform_pick({"a": 1, "b": 2, "c": 3}, keys=["a", "c"]))
+print(r["result"])  # {"a": 1, "c": 3}
+
+r = json.loads(t.transform_rename({"name": "alice", "age": 30}, mapping={"name": "full_name"}))
+print(r["result"])  # {"full_name": "alice", "age": 30}
+
+# Flatten & unflatten
+r = json.loads(t.transform_flatten({"user": {"name": "alice", "scores": [90, 85]}}))
+print(r["result"])  # {"user.name": "alice", "user.scores.0": 90, "user.scores.1": 85}
+
+# Batch transform records
+records = [{"n": "alice", "s": "95"}, {"n": "bob", "s": "87"}]
+r = json.loads(t.transform_map_records(records, rename={"n": "name", "s": "score"}, coerce={"score": "int"}))
+print(r["results"])  # [{"name": "alice", "score": 95}, {"name": "bob", "score": 87}]
+
+# Deep merge
+r = json.loads(t.transform_merge({"x": {"a": 1}}, {"x": {"b": 2}, "y": 3}))
+print(r["result"])  # {"x": {"a": 1, "b": 2}, "y": 3}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

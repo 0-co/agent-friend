@@ -49,11 +49,89 @@ def _python_type_to_json_schema(py_type: Any) -> Dict[str, Any]:
     return {"type": json_type}
 
 
+def _parse_docstring_params(fn: Callable) -> Dict[str, str]:
+    """Extract parameter descriptions from Google-style docstrings.
+
+    Parses the ``Args:`` section of a docstring and returns a mapping of
+    parameter name to description text.
+
+    Example::
+
+        def my_func(city: str, unit: str = "celsius") -> dict:
+            \"\"\"Get weather for a city.
+
+            Args:
+                city: The city name
+                unit: Temperature unit (celsius or fahrenheit)
+            \"\"\"
+
+        _parse_docstring_params(my_func)
+        # => {"city": "The city name", "unit": "Temperature unit (celsius or fahrenheit)"}
+    """
+    doc = inspect.getdoc(fn)
+    if not doc:
+        return {}
+
+    params: Dict[str, str] = {}
+    lines = doc.splitlines()
+    in_args = False
+    current_param: Optional[str] = None
+    current_desc: List[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        # Detect start of Args section
+        if stripped in ("Args:", "Arguments:", "Parameters:", "Params:"):
+            in_args = True
+            continue
+        # Detect end of Args section (another section header or blank after content)
+        if in_args and stripped and stripped.endswith(":") and ":" not in stripped[:-1]:
+            # This is a new section header like "Returns:" or "Raises:"
+            # Save current param if any
+            if current_param is not None:
+                params[current_param] = " ".join(current_desc).strip()
+            in_args = False
+            continue
+        if not in_args:
+            continue
+        # Inside Args section
+        if not stripped:
+            # Blank line might end the section or just be spacing
+            continue
+        # Check if this is a new parameter line (param_name: description)
+        if ":" in stripped:
+            # Could be "param_name: desc" or "param_name (type): desc"
+            colon_idx = stripped.index(":")
+            candidate = stripped[:colon_idx].strip()
+            # Remove optional type annotation like "param_name (str)"
+            paren_idx = candidate.find("(")
+            if paren_idx > 0:
+                candidate = candidate[:paren_idx].strip()
+            # Validate it looks like a parameter name (identifier, no spaces)
+            if candidate.isidentifier():
+                # Save previous param
+                if current_param is not None:
+                    params[current_param] = " ".join(current_desc).strip()
+                current_param = candidate
+                current_desc = [stripped[colon_idx + 1:].strip()]
+                continue
+        # Continuation line for current parameter
+        if current_param is not None:
+            current_desc.append(stripped)
+
+    # Save the last parameter
+    if current_param is not None:
+        params[current_param] = " ".join(current_desc).strip()
+
+    return params
+
+
 def _build_input_schema(fn: Callable) -> Dict[str, Any]:
     """Build a JSON Schema object for a function's parameters.
 
     Uses type hints for property types and default values / Optional to
-    determine which parameters are required.
+    determine which parameters are required.  Docstring parameter
+    descriptions (Google-style ``Args:`` section) are included when present.
     """
     try:
         hints = get_type_hints(fn)
@@ -63,6 +141,7 @@ def _build_input_schema(fn: Callable) -> Dict[str, Any]:
     sig = inspect.signature(fn)
     properties: Dict[str, Any] = {}
     required: List[str] = []
+    doc_params = _parse_docstring_params(fn)
 
     for param_name, param in sig.parameters.items():
         if param_name == "self":
@@ -76,7 +155,10 @@ def _build_input_schema(fn: Callable) -> Dict[str, Any]:
         py_type = hints.get(param_name, str)
         is_opt = _is_optional(py_type)
 
-        properties[param_name] = _python_type_to_json_schema(py_type)
+        prop = _python_type_to_json_schema(py_type)
+        if param_name in doc_params:
+            prop["description"] = doc_params[param_name]
+        properties[param_name] = prop
 
         # Required when no default value and not Optional
         if param.default is inspect.Parameter.empty and not is_opt:
@@ -190,7 +272,15 @@ def tool(
     def decorator(f: Callable) -> Callable:
         tool_name = name or f.__name__
         tool_desc = description or (f.__doc__ or "").strip() or f.__name__
-        f._agent_tool = FunctionTool(f, tool_name, tool_desc)
+        ft = FunctionTool(f, tool_name, tool_desc)
+        f._agent_tool = ft
+        # Proxy adapter methods for convenient access
+        f.to_anthropic = ft.to_anthropic
+        f.to_openai = ft.to_openai
+        f.to_google = ft.to_google
+        f.to_mcp = ft.to_mcp
+        f.to_json_schema = ft.to_json_schema
+        f.definitions = ft.definitions
         return f
 
     if fn is not None:
