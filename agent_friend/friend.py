@@ -446,9 +446,14 @@ class Friend:
                     self._tools.append(tool_class())
             elif isinstance(spec, BaseTool):
                 self._tools.append(spec)
+            elif hasattr(spec, "_agent_tool") and isinstance(spec._agent_tool, BaseTool):
+                # Function decorated with @tool
+                self._tools.append(spec._agent_tool)
             else:
                 raise TypeError(
-                    f"Tool must be a string name or BaseTool instance, got: {type(spec)}"
+                    f"Tool must be a string name, BaseTool instance, or @tool-decorated "
+                    f"function, got: {type(spec)}. "
+                    f"To use a custom function, decorate it with @tool first."
                 )
 
     def _build_tool_definitions(self) -> List[Dict[str, Any]]:

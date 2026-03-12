@@ -73,10 +73,36 @@ The Python API demo works with zero config — no API key, no external services.
 
 ---
 
+---
+
+### `custom_tools.py` — register any Python function as an agent tool
+
+Use the `@tool` decorator to turn any function into an agent tool — stock prices, internal APIs, custom data lookups. Type hints become the JSON schema automatically.
+
+```bash
+python3 examples/custom_tools.py
+```
+
+```python
+from agent_friend import Friend, tool
+
+@tool
+def stock_price(ticker: str) -> str:
+    """Get current stock price for a ticker symbol."""
+    return f"{ticker}: $182.50"  # call your real API here
+
+friend = Friend(tools=["search", stock_price])
+friend.chat("What's the AAPL stock price?")
+```
+
+Functions remain callable normally — `@tool` adds tool registration without changing the function.
+
+---
+
 ## Full demo scripts
 
 The root directory also contains:
 
 - `demo_live.py` — interactive REPL showing tool calls in real time
 - `demo_briefing.py` — daily briefing with email + search + memory
-- `demo.ipynb` — Colab notebook with 11 demos (no install required)
+- `demo.ipynb` — Colab notebook with 12 demos (no install required)

@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-391%20passing-brightgreen) ![v0.8.0](https://img.shields.io/badge/version-0.8.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-423%20passing-brightgreen) ![v0.9.0](https://img.shields.io/badge/version-0.9.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database"])
@@ -155,6 +155,14 @@ friend = Friend(tools=[
     CodeTool(timeout_seconds=10),
     SearchTool(max_results=5),
 ])
+
+# Or register any function as a tool with @tool
+@tool
+def get_weather(city: str) -> str:
+    """Get current weather for a city."""
+    return f"Sunny in {city}, 22°C"  # replace with real API call
+
+friend = Friend(tools=["search", get_weather])
 ```
 
 **MemoryTool** — SQLite-backed persistent memory
@@ -220,6 +228,33 @@ friend = Friend(tools=[
 - `db_schema(table)` — get the CREATE TABLE statement for any table
 - Python API: `create_table()`, `insert()`, `query()`, `run()`, `list_tables()`, `get_schema()`
 - Backed by `~/.agent_friend/agent.db`. Your agent can store and query structured data persistently.
+
+**Custom Tools via `@tool`** — register any Python function as an agent tool
+- Reads type hints to auto-generate the JSON schema
+- Optional parameters (with defaults or `Optional[X]`) are not required
+- The decorated function remains callable normally
+- Mix with built-in tools: `Friend(tools=["search", my_fn])`
+
+```python
+from agent_friend import Friend, tool
+
+@tool
+def stock_price(ticker: str) -> str:
+    """Get current stock price for a ticker symbol."""
+    # call your actual API here
+    return f"{ticker}: $182.50"
+
+@tool(name="convert_temp", description="Convert Celsius to Fahrenheit")
+def to_fahrenheit(celsius: float) -> str:
+    return f"{celsius * 9/5 + 32:.1f}°F"
+
+friend = Friend(tools=["search", stock_price, to_fahrenheit])
+friend.chat("What's AAPL stock price and convert 22°C to Fahrenheit?")
+
+# Functions still work normally
+print(stock_price("AAPL"))    # "AAPL: $182.50"
+print(to_fahrenheit(22.0))    # "71.6°F"
+```
 
 ```python
 # System TTS (zero config, works everywhere)
