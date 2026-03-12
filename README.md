@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1325%20passing-brightgreen) ![v0.29.0](https://img.shields.io/badge/version-0.29.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1367%20passing-brightgreen) ![v0.30.0](https://img.shields.io/badge/version-0.30.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -731,6 +731,40 @@ r.limiter_create("github", algorithm="token_bucket", rate_per_second=1.0, burst_
 
 # List all active limiters
 print(r.limiter_list())
+```
+
+**QueueTool** — named work queues: FIFO, LIFO (stack), and priority queue
+- `queue_create(name, kind="fifo", maxsize=0)` — create a named queue
+- `queue_push(name, item, priority=0.0)` — add an item (any JSON value)
+- `queue_pop(name)` — remove and return the next item → `{item, size}` or `{empty: true}`
+- `queue_peek(name)` — inspect next item **without** removing it
+- `queue_size(name)` — current item count
+- `queue_clear(name)` / `queue_delete(name)` / `queue_list()` — manage queues
+- Priority queue: lower priority number = more urgent (min-heap). Same priority → FIFO order.
+
+```python
+from agent_friend import QueueTool
+
+q = QueueTool()
+
+# FIFO work queue — process URLs in order
+q.queue_create("urls")
+q.queue_push("urls", {"url": "https://example.com", "action": "scrape"})
+q.queue_push("urls", {"url": "https://other.com", "action": "scrape"})
+
+while True:
+    result = json.loads(q.queue_pop("urls"))
+    if result.get("empty"):
+        break
+    item = result["item"]
+    # process item["url"]
+
+# Priority queue — handle critical alerts first
+q.queue_create("alerts", kind="priority")
+q.queue_push("alerts", "disk full", priority=1)       # urgent
+q.queue_push("alerts", "CPU usage high", priority=5)  # normal
+q.queue_push("alerts", "log rotate", priority=10)     # low
+print(json.loads(q.queue_pop("alerts"))["item"])  # "disk full"
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

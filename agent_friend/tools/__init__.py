@@ -33,5 +33,6 @@ from .html_tool import HTMLTool
 from .xml_tool import XMLTool
 from .regex_tool import RegexTool
 from .rate_limit import RateLimitTool
+from .queue_tool import QueueTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool"]

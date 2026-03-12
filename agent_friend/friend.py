@@ -59,6 +59,7 @@ _TOOL_NAME_MAP = {
     "xml": "agent_friend.tools.xml_tool:XMLTool",
     "regex": "agent_friend.tools.regex_tool:RegexTool",
     "rate_limit": "agent_friend.tools.rate_limit:RateLimitTool",
+    "queue": "agent_friend.tools.queue_tool:QueueTool",
 }
 
 
@@ -452,6 +453,7 @@ class Friend:
         from .tools.xml_tool import XMLTool
         from .tools.regex_tool import RegexTool
         from .tools.rate_limit import RateLimitTool
+        from .tools.queue_tool import QueueTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -485,6 +487,7 @@ class Friend:
             "xml": XMLTool,
             "regex": RegexTool,
             "rate_limit": RateLimitTool,
+            "queue": QueueTool,
         }
 
         for spec in tool_specs:
