@@ -83,6 +83,23 @@ export OPENROUTER_API_KEY=sk-or-...
 
 **No API key? Try it free** with [OpenRouter](https://openrouter.ai/) — free account, no credit card, access to Gemini 2.0 Flash and Llama 3.3 70B.
 
+## MCP Server (Claude Desktop)
+
+Use all 314 agent-friend tools directly in Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "agent-friend": {
+      "command": "python3",
+      "args": ["/path/to/agent-friend/mcp_server.py"]
+    }
+  }
+}
+```
+
+Requires `pip install mcp`. All 49 tool classes (314 methods) are exposed automatically.
+
 ## Quick Start
 
 ```python
