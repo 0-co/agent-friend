@@ -71,6 +71,7 @@ _TOOL_NAME_MAP = {
     "vector_store": "agent_friend.tools.vector_store:VectorStoreTool",
     "timer": "agent_friend.tools.timer_tool:TimerTool",
     "stats": "agent_friend.tools.stats_tool:StatsTool",
+    "sampler": "agent_friend.tools.sampler:SamplerTool",
 }
 
 
@@ -476,6 +477,7 @@ class Friend:
         from .tools.vector_store import VectorStoreTool
         from .tools.timer_tool import TimerTool
         from .tools.stats_tool import StatsTool
+        from .tools.sampler import SamplerTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -521,6 +523,7 @@ class Friend:
             "vector_store": VectorStoreTool,
             "timer": TimerTool,
             "stats": StatsTool,
+            "sampler": SamplerTool,
         }
 
         for spec in tool_specs:

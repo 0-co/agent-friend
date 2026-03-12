@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1982%20passing-brightgreen) ![v0.41.0](https://img.shields.io/badge/version-0.41.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2034%20passing-brightgreen) ![v0.42.0](https://img.shields.io/badge/version-0.42.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1039,6 +1039,43 @@ r = json.loads(stats.stats_outliers([1, 2, 3, 4, 100], method="iqr"))
 # 3-period moving average
 r = json.loads(stats.stats_moving_average([1,2,3,4,5], window=3))
 # {"values": [1.0, 1.5, 2.0, 3.0, 4.0], ...}
+```
+
+
+**SamplerTool** — random sampling, shuffling, and data splitting
+- `sample_list(items, n, seed=None, replacement=False)` — random sample; deterministic with seed
+- `sample_weighted(items, weights, n=1, seed=None)` — weighted selection; weights auto-normalized
+- `sample_stratified(groups, n_per_group, seed=None)` — balanced sampling across categories
+- `shuffle(items, seed=None)` — return shuffled copy (original unchanged)
+- `random_split(items, ratios=[0.8, 0.2], seed=None)` — train/test split or N-way partition
+- `random_choice(items, seed=None)` — pick one item; returns {choice, index}
+- `random_int(low, high, n=1, seed=None)` / `random_float(low, high, n=1)` — reproducible random numbers
+
+```python
+from agent_friend import SamplerTool
+import json
+
+sampler = SamplerTool()
+
+# Deterministic random sample (no duplicates)
+r = json.loads(sampler.sample_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], n=3, seed=42))
+print(r["sample"])  # [7, 6, 5] — same every time with seed=42
+
+# Weighted selection — 80% chance of "a"
+r = json.loads(sampler.sample_weighted(["a", "b", "c"], [0.8, 0.1, 0.1], n=5, seed=1))
+print(r["sample"])  # ["a", "a", "b", "a", "a"]
+
+# Stratified sampling for balanced datasets
+groups = {"positive": pos_examples, "negative": neg_examples}
+r = json.loads(sampler.sample_stratified(groups, n_per_group=50, seed=42))
+
+# Train/test split
+r = json.loads(sampler.random_split(dataset, ratios=[0.8, 0.2], seed=42))
+train, test = r["splits"]
+
+# Reproducible random integers
+r = json.loads(sampler.random_int(1, 100, n=5, seed=7))
+print(r["values"])  # [43, 12, 78, 34, 91]
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
