@@ -47,11 +47,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="agent-friend",
         description=(
-            "agent-friend — a personal AI agent with memory, search, and code execution.\n\n"
-            "Quick start (free, no credit card):\n"
-            "  export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai\n"
-            "  agent-friend -i                       # interactive\n"
-            '  agent-friend "search for AI news"     # one-shot'
+            "agent-friend — universal AI tool adapter. Write once, export everywhere.\n\n"
+            "Quick start:\n"
+            "  agent-friend --demo                   # see @tool exports (no API key)\n"
+            "  agent-friend --version                # show version\n"
+            "  agent-friend -i                       # interactive chat (needs API key)"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -105,6 +105,11 @@ def main() -> None:
         "--demo",
         action="store_true",
         help="Run a quick demo of @tool exports (no API key needed)",
+    )
+    parser.add_argument(
+        "--version", "-V",
+        action="version",
+        version=f"%(prog)s {__import__('agent_friend').__version__}",
     )
 
     args = parser.parse_args()
