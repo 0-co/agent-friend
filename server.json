@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.0-co/agent-friend",
+  "description": "Universal tool adapter: @tool exports Python functions to OpenAI, Claude, Gemini, MCP.",
+  "repository": {
+    "url": "https://github.com/0-co/agent-friend",
+    "source": "github"
+  },
+  "version": "0.49.0",
+  "packages": [
+    {
+      "registryType": "docker",
+      "identifier": "ghcr.io/0-co/agent-friend",
+      "version": "0.49.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": []
+    }
+  ]
+}
