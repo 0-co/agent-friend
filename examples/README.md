@@ -99,6 +99,25 @@ Functions remain callable normally — `@tool` adds tool registration without ch
 
 ---
 
+### `git_commit_agent.py` — an AI that reads and commits to git repos
+
+Combines GitTool + CodeTool + FileTool. Can read git status, view diffs, understand changes, and commit with descriptive messages. Interactive REPL.
+
+```bash
+python3 examples/git_commit_agent.py
+python3 examples/git_commit_agent.py --repo /path/to/your/project
+```
+
+```
+Agent ready. Ask me to review commits, understand changes, or commit code.
+Examples:
+  'What changed in the last 3 commits?'
+  'Show me what changed in src/ since the last commit'
+  'Stage all changes to tests/ and commit with a good message'
+```
+
+---
+
 ## Full demo scripts
 
 The root directory also contains:
