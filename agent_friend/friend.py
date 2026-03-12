@@ -54,6 +54,7 @@ _TOOL_NAME_MAP = {
     "metrics": "agent_friend.tools.metrics:MetricsTool",
     "template": "agent_friend.tools.template:TemplateTool",
     "diff": "agent_friend.tools.diff:DiffTool",
+    "retry": "agent_friend.tools.retry:RetryTool",
 }
 
 
@@ -442,6 +443,7 @@ class Friend:
         from .tools.metrics import MetricsTool
         from .tools.template import TemplateTool
         from .tools.diff import DiffTool
+        from .tools.retry import RetryTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -470,6 +472,7 @@ class Friend:
             "metrics": MetricsTool,
             "template": TemplateTool,
             "diff": DiffTool,
+            "retry": RetryTool,
         }
 
         for spec in tool_specs:

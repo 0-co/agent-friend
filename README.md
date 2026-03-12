@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1052%20passing-brightgreen) ![v0.24.0](https://img.shields.io/badge/version-0.24.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1106%20passing-brightgreen) ![v0.25.0](https://img.shields.io/badge/version-0.25.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -577,6 +577,30 @@ d.diff_stats("apple pie", "apple sauce")
 
 d.diff_similar("agnet-friend", ["agent-friend", "agent-lib", "agentsmith"])
 # [{"text": "agent-friend", "score": 0.93}, ...]
+```
+
+**RetryTool** — retry HTTP requests and shell commands with exponential back-off + circuit breaker
+- `retry_http(method, url, body, headers, max_attempts=3, delay_seconds=1.0, backoff_factor=2.0, jitter=True)` — HTTP with auto-retry on 429/5xx/network errors
+- `retry_shell(command, max_attempts=3, delay_seconds=1.0, backoff_factor=2.0)` — shell command with retry on non-zero exit
+- `retry_status()` — stats: total calls, retries, successes, failures
+- `circuit_create(name, max_failures=5, reset_timeout_seconds=60)` — create a named circuit breaker
+- `circuit_call(name, method, url, body, headers)` — HTTP call through circuit breaker (returns instantly if circuit is open)
+- `circuit_status(name)` — current state: closed / open / half-open, failure count
+- `circuit_reset(name)` — manually close a tripped circuit
+
+```python
+from agent_friend import RetryTool
+
+r = RetryTool()
+
+# Retry a flaky API — waits 1s, 2s, 4s between attempts
+result = r.retry_http("GET", "https://api.example.com/data", max_attempts=3)
+# {"ok": True, "status": 200, "body": "...", "attempts": 2}
+
+# Circuit breaker — stops hammering after 3 failures
+r.circuit_create("payments", max_failures=3, reset_timeout_seconds=30)
+r.circuit_call("payments", "POST", "https://pay.example.com/charge", body='{"amount": 100}')
+r.circuit_status("payments")  # {"state": "open", "failures": 3, ...}
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
