@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1410%20passing-brightgreen) ![v0.31.0](https://img.shields.io/badge/version-0.31.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1461%20passing-brightgreen) ![v0.32.0](https://img.shields.io/badge/version-0.32.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -798,6 +798,47 @@ history = json.loads(bus.bus_history("new_url", n=5))
 # Observability
 stats = json.loads(bus.bus_stats())
 # {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
+```
+
+**StateMachineTool** — finite state machines for agent workflow control
+- `sm_create(name, initial, states=[])` — define a named machine with an initial state
+- `sm_add_transition(name, from_state, to_state)` — allow a specific state transition
+- `sm_trigger(name, to_state)` — attempt a transition → `{ok, from, to}` or `{ok: false, error}`
+- `sm_state(name)` — current state + list of allowed next states
+- `sm_can(name, to_state)` — check if a transition is allowed without executing it
+- `sm_history(name, n=20)` — last N transitions as `[{seq, from, to, timestamp}]`
+- `sm_reset(name, state=None)` — reset to initial state (or specified state); clears history
+- `sm_status(name)` — full snapshot: states, current, allowed_next, transition_count
+- `sm_list()` / `sm_delete(name)` — manage machines
+- Multiple named machines per instance; only defined transitions are ever permitted
+
+```python
+from agent_friend import StateMachineTool
+
+sm = StateMachineTool()
+
+# Define an order workflow
+sm.sm_create("order", initial="pending",
+             states=["pending", "paid", "shipped", "delivered", "cancelled"])
+sm.sm_add_transition("order", "pending", "paid")
+sm.sm_add_transition("order", "pending", "cancelled")
+sm.sm_add_transition("order", "paid", "shipped")
+sm.sm_add_transition("order", "shipped", "delivered")
+
+# Execute transitions
+sm.sm_trigger("order", "paid")     # {"ok": true, "from": "pending", "to": "paid"}
+sm.sm_trigger("order", "delivered") # {"ok": false, "error": "No transition from 'paid' to 'delivered'..."}
+sm.sm_trigger("order", "shipped")  # ok
+sm.sm_trigger("order", "delivered")  # ok
+
+# Inspect
+sm.sm_state("order")  # {"state": "delivered", "allowed_next": []}
+sm.sm_history("order", n=3)  # [{seq: 1, from: "pending", to: "paid", timestamp: ...}, ...]
+
+# Guard before acting
+if json.loads(sm.sm_can("order", "shipped"))["allowed"]:
+    # safe to proceed
+    sm.sm_trigger("order", "shipped")
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

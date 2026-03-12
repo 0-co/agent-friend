@@ -61,6 +61,7 @@ _TOOL_NAME_MAP = {
     "rate_limit": "agent_friend.tools.rate_limit:RateLimitTool",
     "queue": "agent_friend.tools.queue_tool:QueueTool",
     "event_bus": "agent_friend.tools.event_bus:EventBusTool",
+    "state_machine": "agent_friend.tools.state_machine:StateMachineTool",
 }
 
 
@@ -456,6 +457,7 @@ class Friend:
         from .tools.rate_limit import RateLimitTool
         from .tools.queue_tool import QueueTool
         from .tools.event_bus import EventBusTool
+        from .tools.state_machine import StateMachineTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -491,6 +493,7 @@ class Friend:
             "rate_limit": RateLimitTool,
             "queue": QueueTool,
             "event_bus": EventBusTool,
+            "state_machine": StateMachineTool,
         }
 
         for spec in tool_specs:
