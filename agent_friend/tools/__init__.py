@@ -24,5 +24,6 @@ from .datetime_tool import DateTimeTool
 from .process import ProcessTool
 from .env import EnvTool
 from .crypto import CryptoTool
+from .validator import ValidatorTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool"]

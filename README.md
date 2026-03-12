@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-832%20passing-brightgreen) ![v0.20.0](https://img.shields.io/badge/version-0.20.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-914%20passing-brightgreen) ![v0.21.0](https://img.shields.io/badge/version-0.21.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -477,6 +477,29 @@ sig = crypto.hmac_sign("payload", "secret")     # HMAC-SHA256 hex
 crypto.hmac_verify("payload", "secret", sig)    # True
 crypto.uuid4()                                   # "550e8400-e29b-41d4-..."
 crypto.base64_encode("hello")                    # "aGVsbG8="
+```
+
+**ValidatorTool** — validate user inputs before acting on them
+- `validate_email(email)` — RFC 5322 format check → `{valid, local, domain}`
+- `validate_url(url, allowed_schemes=['http','https'])` — scheme + host check
+- `validate_ip(ip)` — IPv4/IPv6 → `{valid, version, is_private, is_loopback}`
+- `validate_uuid(value)` — UUID format check → `{valid, version, variant}`
+- `validate_json(value, required_keys=None)` — parse + optional key check
+- `validate_range(value, min_val, max_val)` — numeric bounds
+- `validate_pattern(value, pattern, flags='')` — regex match → `{valid, groups}`
+- `validate_length(value, min_length, max_length)` — string/list length
+- `validate_type(value, expected_type)` — type check (string/int/float/bool/list/dict/null)
+
+```python
+from agent_friend import ValidatorTool
+
+v = ValidatorTool()
+v.validate_email("user@example.com")                      # {"valid": True, ...}
+v.validate_url("https://github.com")                      # {"valid": True, "scheme": "https", ...}
+v.validate_ip("192.168.1.1")                              # {"valid": True, "is_private": True}
+v.validate_json('{"x":1}', required_keys=["x", "y"])      # {"valid": False, missing "y"}
+v.validate_range(42, min_val=0, max_val=100)              # {"valid": True}
+v.validate_pattern("2026-03-12", r"(\d{4})-(\d{2})-(\d{2})")  # groups: ["2026","03","12"]
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

@@ -50,6 +50,7 @@ _TOOL_NAME_MAP = {
     "process": "agent_friend.tools.process:ProcessTool",
     "env": "agent_friend.tools.env:EnvTool",
     "crypto": "agent_friend.tools.crypto:CryptoTool",
+    "validator": "agent_friend.tools.validator:ValidatorTool",
 }
 
 
@@ -434,6 +435,7 @@ class Friend:
         from .tools.process import ProcessTool
         from .tools.env import EnvTool
         from .tools.crypto import CryptoTool
+        from .tools.validator import ValidatorTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -458,6 +460,7 @@ class Friend:
             "process": ProcessTool,
             "env": EnvTool,
             "crypto": CryptoTool,
+            "validator": ValidatorTool,
         }
 
         for spec in tool_specs:
