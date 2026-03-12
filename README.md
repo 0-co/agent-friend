@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1106%20passing-brightgreen) ![v0.25.0](https://img.shields.io/badge/version-0.25.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1163%20passing-brightgreen) ![v0.26.0](https://img.shields.io/badge/version-0.26.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -601,6 +601,38 @@ result = r.retry_http("GET", "https://api.example.com/data", max_attempts=3)
 r.circuit_create("payments", max_failures=3, reset_timeout_seconds=30)
 r.circuit_call("payments", "POST", "https://pay.example.com/charge", body='{"amount": 100}')
 r.circuit_status("payments")  # {"state": "open", "failures": 3, ...}
+```
+
+**HTMLTool** — parse HTML and extract text, links, headings, tables, and meta tags
+- `html_text(html, max_chars=20000)` — extract visible text, stripping all tags and skipping script/style blocks
+- `html_links(html, base_url="")` — list of `{text, href}` dicts for every `<a>` tag
+- `html_headings(html)` — list of `{level, text}` dicts for `<h1>`–`<h6>`
+- `html_meta(html)` — page `{title, meta}` including Open Graph and description tags
+- `html_tables(html)` — list of tables, each a list of rows, each a list of cell strings
+- `html_select(html, tag, attrs={})` — text content of all matching elements (simple CSS-like selector)
+
+```python
+from agent_friend import HTMLTool, FetchTool
+
+# Fetch a page, then extract what you need
+fetch = FetchTool()
+html_tool = HTMLTool()
+
+# html = fetch.fetch_url("https://news.ycombinator.com")  # if FetchTool returns HTML
+html = "<h1>Agent News</h1><p>New tool <a href='/retry'>RetryTool</a> shipped.</p>"
+
+html_tool.html_text(html)
+# "Agent News\nNew tool RetryTool shipped."
+
+html_tool.html_links(html, base_url="https://example.com")
+# [{"text": "RetryTool", "href": "https://example.com/retry"}]
+
+html_tool.html_headings(html)
+# [{"level": 1, "text": "Agent News"}]
+
+# Extract prices from a shopping page
+html_tool.html_select(html, "span", {"class": "price"})
+# ["$29.99", "$49.99", ...]
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
