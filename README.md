@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1782%20passing-brightgreen) ![v0.37.0](https://img.shields.io/badge/version-0.37.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1825%20passing-brightgreen) ![v0.38.0](https://img.shields.io/badge/version-0.38.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -885,6 +885,44 @@ json.loads(cfg.config_list("app", prefix="db."))
 # Export
 json.loads(cfg.config_dump("app"))
 # {"db.host": "localhost", "db.port": 5432, "debug": true}
+```
+
+
+**ChunkerTool** — split long text and lists into chunks for LLM context windows
+- `chunk_text(text, max_chars=2000, overlap=0, mode="chars")` — split by chars, tokens, sentences, or paragraphs
+- `chunk_list(items, size=10)` — split a list into batches of *size*
+- `chunk_by_separator(text, separator, max_chars=0, keep_separator=False)` — split on custom delimiter, optionally merge up to max_chars
+- `chunk_sliding_window(text, window_chars=500, step_chars=250)` — overlapping sliding window; returns start/end offsets
+- `chunk_stats(text)` — char_count, token_estimate, word_count, sentence_count, paragraph_count
+- Token estimate: ~4 chars per token (GPT/Claude heuristic). Pairs with SearchIndexTool for RAG pipelines.
+
+```python
+from agent_friend import ChunkerTool
+import json
+
+chunker = ChunkerTool()
+
+# Split a long document into ~500 char chunks with 50 char overlap
+chunks = json.loads(chunker.chunk_text(long_doc, max_chars=500, overlap=50))
+# [{"index": 0, "text": "...", "char_count": 500, "token_estimate": 125}, ...]
+
+# Split by sentence boundaries (fits sentences into 1000-char groups)
+chunks = json.loads(chunker.chunk_text(doc, max_chars=1000, mode="sentences"))
+
+# Split by paragraph
+chunks = json.loads(chunker.chunk_text(doc, mode="paragraphs"))
+
+# Batch a list of URLs for parallel processing
+batches = json.loads(chunker.chunk_list(urls, size=10))
+# [{"index": 0, "items": [url1..url10], "count": 10}, ...]
+
+# Sliding window for context-aware chunking
+windows = json.loads(chunker.chunk_sliding_window(text, window_chars=1000, step_chars=500))
+# [{"index": 0, "text": "...", "start": 0, "end": 1000}, ...]
+
+# Stats before chunking
+stats = json.loads(chunker.chunk_stats(text))
+# {"char_count": 15000, "token_estimate": 3750, "sentence_count": 120, ...}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

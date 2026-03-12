@@ -67,6 +67,7 @@ _TOOL_NAME_MAP = {
     "format": "agent_friend.tools.format_tool:FormatTool",
     "search_index": "agent_friend.tools.search_index:SearchIndexTool",
     "config": "agent_friend.tools.config_tool:ConfigTool",
+    "chunker": "agent_friend.tools.chunker:ChunkerTool",
 }
 
 
@@ -468,6 +469,7 @@ class Friend:
         from .tools.format_tool import FormatTool
         from .tools.search_index import SearchIndexTool
         from .tools.config_tool import ConfigTool
+        from .tools.chunker import ChunkerTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -509,6 +511,7 @@ class Friend:
             "format": FormatTool,
             "search_index": SearchIndexTool,
             "config": ConfigTool,
+            "chunker": ChunkerTool,
         }
 
         for spec in tool_specs:
