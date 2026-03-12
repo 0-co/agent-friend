@@ -44,5 +44,6 @@ from .config_tool import ConfigTool
 from .chunker import ChunkerTool
 from .vector_store import VectorStoreTool
 from .timer_tool import TimerTool
+from .stats_tool import StatsTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool", "MapReduceTool", "GraphTool", "FormatTool", "SearchIndexTool", "ConfigTool", "ChunkerTool", "VectorStoreTool", "TimerTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool", "MapReduceTool", "GraphTool", "FormatTool", "SearchIndexTool", "ConfigTool", "ChunkerTool", "VectorStoreTool", "TimerTool", "StatsTool"]

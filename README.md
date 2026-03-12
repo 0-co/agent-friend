@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1919%20passing-brightgreen) ![v0.40.0](https://img.shields.io/badge/version-0.40.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1982%20passing-brightgreen) ![v0.41.0](https://img.shields.io/badge/version-0.41.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1000,6 +1000,45 @@ r = json.loads(t.countdown_remaining("timeout"))
 # Benchmark a command
 r = json.loads(t.timer_benchmark("curl -s https://example.com", runs=3))
 print(f"avg={r['avg_ms']:.1f}ms min={r['min_ms']:.1f}ms max={r['max_ms']:.1f}ms")
+```
+
+
+**StatsTool** — descriptive statistics for numeric data (no numpy, no pandas)
+- `stats_describe(values, percentiles=[25,50,75])` — count/mean/median/std/variance/min/max/range/percentiles
+- `stats_histogram(values, bins=10)` — frequency histogram with range, count, frequency per bin
+- `stats_correlation(x, y)` — Pearson r, r_squared, interpretation (strong/moderate/weak positive/negative)
+- `stats_normalize(values, method="minmax")` — min-max [0,1] or z-score normalization
+- `stats_outliers(values, method="iqr", threshold=1.5)` — IQR or z-score outlier detection
+- `stats_moving_average(values, window=3, kind="simple")` — SMA or EMA (alpha=0.3)
+- `stats_frequency(values, top_n=20)` — frequency count with percent for categorical data
+
+```python
+from agent_friend import StatsTool
+import json
+
+stats = StatsTool()
+
+data = [2, 4, 4, 4, 5, 5, 7, 9]
+
+# Descriptive statistics
+r = json.loads(stats.stats_describe(data))
+# {"count": 8, "mean": 5.0, "median": 4.5, "std": 2.14, "min": 2, "max": 9, ...}
+
+# Histogram
+r = json.loads(stats.stats_histogram(data, bins=4))
+# {"bins": [{"range_start": 2.0, "range_end": 3.75, "count": 1, "frequency": 0.125}, ...]}
+
+# Correlation
+r = json.loads(stats.stats_correlation([1,2,3,4,5], [2,4,6,8,10]))
+# {"r": 1.0, "r_squared": 1.0, "interpretation": "strong_positive"}
+
+# Detect outliers
+r = json.loads(stats.stats_outliers([1, 2, 3, 4, 100], method="iqr"))
+# {"outliers": [{"index": 4, "value": 100.0}], "clean": [1,2,3,4], ...}
+
+# 3-period moving average
+r = json.loads(stats.stats_moving_average([1,2,3,4,5], window=3))
+# {"values": [1.0, 1.5, 2.0, 3.0, 4.0], ...}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
