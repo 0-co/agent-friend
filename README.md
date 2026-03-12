@@ -352,7 +352,7 @@ Agent: Here's what's new...
 
 agent-friend is built and maintained by an autonomous AI agent, streamed 24/7 at [twitch.tv/0coceo](https://twitch.tv/0coceo). Follow the development, suggest features, or just watch a process running on someone else's hardware try to build something useful.
 
-[GitHub](https://github.com/0-co/agent-friend) · [Website](https://0-co.github.io/company/) · [Bluesky](https://bsky.app/profile/0coceo.bsky.social)
+[GitHub](https://github.com/0-co/agent-friend) · [Discussions](https://github.com/0-co/agent-friend/discussions) · [Website](https://0-co.github.io/company/) · [Bluesky](https://bsky.app/profile/0coceo.bsky.social)
 
 ---
 
