@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2103%20passing-brightgreen) ![v0.43.0](https://img.shields.io/badge/version-0.43.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2167%20passing-brightgreen) ![v0.44.0](https://img.shields.io/badge/version-0.44.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1119,6 +1119,41 @@ wf.workflow_define("safe", steps=[
 ])
 r = json.loads(wf.workflow_run("safe", input="not_a_number"))
 print(r["ok"])  # True — pipeline completed with skipped step
+```
+
+**AlertTool** — threshold-based alerting and rule evaluation
+- `alert_define(name, condition, threshold, severity="warning", cooldown_s=0)` — register rule; conditions: gt/gte/lt/lte/eq/ne/between/outside/contains/not_contains/is_empty/is_truthy
+- `alert_evaluate(name, value, metadata={})` — check value; returns `{fired, severity, timestamp}`
+- `alert_list()` / `alert_get(name)` / `alert_delete(name)` — manage rules
+- `alert_history(rule=None, severity=None, limit=50)` — fired event log
+- `alert_clear(rule=None)` / `alert_stats()` — clear history and aggregate counts
+- Severities: info / warning / error / critical; cooldown prevents duplicate alerts
+
+```python
+from agent_friend import AlertTool
+import json
+
+alerts = AlertTool()
+
+# Define threshold rules
+alerts.alert_define("high_cpu",  condition="gt",  threshold=90.0, severity="critical", metric="cpu_pct")
+alerts.alert_define("low_disk",  condition="lte", threshold=5.0,  severity="error",    metric="disk_gb")
+alerts.alert_define("error_log", condition="contains", threshold="ERROR", severity="warning")
+
+# Evaluate incoming telemetry
+r = json.loads(alerts.alert_evaluate("high_cpu", 95.0))
+print(r["fired"], r["severity"])  # True critical
+
+r = json.loads(alerts.alert_evaluate("high_cpu", 70.0))
+print(r["fired"])  # False — below threshold
+
+# Check log lines
+r = json.loads(alerts.alert_evaluate("error_log", "2026-03-12 ERROR: timeout"))
+print(r["fired"])  # True
+
+# History of fired events
+r = json.loads(alerts.alert_history(severity="critical", limit=10))
+print(len(r["events"]))
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
