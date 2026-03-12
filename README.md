@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-605%20passing-brightgreen) ![v0.15.0](https://img.shields.io/badge/version-0.15.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-640%20passing-brightgreen) ![v0.16.0](https://img.shields.io/badge/version-0.16.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -357,6 +357,32 @@ notifier = NotifyTool()
 notifier.notify("Report ready", "Daily news summary complete")       # desktop or file
 notifier.notify_file("Error", "API timeout after 30s retry")        # always works
 entries = notifier.read_notifications(n=5)                           # last 5 entries
+```
+
+**JSONTool** — parse, query, and transform JSON data with dot-notation paths
+- `json_get(data, path)` — extract value at path (`"user.name"`, `"items[0].id"`, `"users[*].email"`)
+- `json_set(data, path, value)` — return modified JSON with value set at path
+- `json_keys(data)` — list top-level keys
+- `json_filter(data, key, value)` — filter array by key=value
+- `json_format(data, indent=2)` — pretty-print
+- `json_merge(base, patch)` — merge two objects (patch overrides base)
+
+```python
+from agent_friend import Friend, JSONTool
+
+friend = Friend(tools=["http", "json"])
+response = friend.chat(
+    "GET https://pypi.org/pypi/requests/json and extract the latest version from info.version"
+)
+
+# Python API
+from agent_friend import JSONTool
+jt = JSONTool()
+data = '{"user": {"name": "Alice"}, "tags": ["ai", "python"]}'
+jt.json_get(data, "user.name")              # '"Alice"'
+jt.json_get(data, "tags[0]")               # '"ai"'
+jt.json_set(data, "user.email", '"a@b.com"')  # modified JSON
+jt.json_filter('[{"role":"admin"},{"role":"user"}]', "role", '"admin"')
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

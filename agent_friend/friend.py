@@ -45,6 +45,7 @@ _TOOL_NAME_MAP = {
     "http": "agent_friend.tools.http:HTTPTool",
     "cache": "agent_friend.tools.cache:CacheTool",
     "notify": "agent_friend.tools.notify:NotifyTool",
+    "json": "agent_friend.tools.json_tool:JSONTool",
 }
 
 
@@ -424,6 +425,7 @@ class Friend:
         from .tools.http import HTTPTool
         from .tools.cache import CacheTool
         from .tools.notify import NotifyTool
+        from .tools.json_tool import JSONTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -443,6 +445,7 @@ class Friend:
             "http": HTTPTool,
             "cache": CacheTool,
             "notify": NotifyTool,
+            "json": JSONTool,
         }
 
         for spec in tool_specs:
