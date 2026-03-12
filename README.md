@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-454%20passing-brightgreen) ![v0.10.0](https://img.shields.io/badge/version-0.10.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-498%20passing-brightgreen) ![v0.11.0](https://img.shields.io/badge/version-0.11.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git"])
@@ -251,6 +251,24 @@ friend.chat("Stage all changes to src/ and commit with message 'Refactor auth fl
 # Default: uses current working directory
 friend = Friend(tools=["git"])
 friend.chat("What changed in the last 5 commits?")
+```
+
+**TableTool** — read, filter, and aggregate CSV/TSV files (no pandas)
+- `table_read(filepath)` — read CSV/TSV, return rows as JSON
+- `table_columns(filepath)` — list column names
+- `table_filter(filepath, column, operator, value)` — filter rows (eq/ne/gt/lt/gte/lte/contains/startswith)
+- `table_aggregate(filepath, column, operation)` — count/sum/avg/min/max/unique over a column
+- `table_write(filepath, rows, delimiter)` — write rows to CSV
+- Python API: `read()`, `write()`, `columns()`, `filter_rows()`, `aggregate()`, `append_row()`
+- Auto-detects delimiter (comma vs tab). Zero dependencies.
+
+```python
+from agent_friend import Friend, TableTool
+
+table = TableTool()
+friend = Friend(tools=["search", "code", table])
+friend.chat("Read sales.csv and tell me the average revenue by region")
+friend.chat("Filter transactions.csv to rows where amount > 1000")
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
