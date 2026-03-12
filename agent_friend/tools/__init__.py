@@ -21,5 +21,6 @@ from .cache import CacheTool
 from .notify import NotifyTool
 from .json_tool import JSONTool
 from .datetime_tool import DateTimeTool
+from .process import ProcessTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool"]

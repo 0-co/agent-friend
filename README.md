@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-688%20passing-brightgreen) ![v0.17.0](https://img.shields.io/badge/version-0.17.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-736%20passing-brightgreen) ![v0.17.0](https://img.shields.io/badge/version-0.18.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -407,6 +407,26 @@ dt.now("America/New_York")                   # "2026-03-12T10:53:00-04:00"
 dt.diff("2026-03-12", "2026-04-01", "days")  # "20.0"
 dt.add_duration("2026-03-12T00:00:00", days=7)  # "2026-03-19T00:00:00+00:00"
 dt.convert_timezone("2026-03-12T12:00:00", to_tz="Asia/Tokyo")  # "2026-03-12T21:00:00+09:00"
+```
+
+**ProcessTool** — run shell commands and scripts from your agent
+- `run(command, timeout, cwd, env, shell)` — run any shell command, get stdout/stderr/returncode
+- `run_script(script, timeout, cwd, interpreter)` — execute multi-line bash/python scripts
+- `which(name)` — find the full path of an executable in PATH
+- All stdlib — `subprocess` + `shutil` + `shlex`. Configurable timeouts.
+
+```python
+from agent_friend import Friend, ProcessTool
+
+friend = Friend(tools=["process", "file"])
+response = friend.chat("Check if git is installed, then run git log --oneline -5")
+
+# Python API
+from agent_friend import ProcessTool
+proc = ProcessTool(timeout=30)
+proc.run("git status")          # {"success": true, "stdout": "...", ...}
+proc.which("python3")           # {"path": "/usr/bin/python3"}
+proc.run_script("echo hi\npython3 --version")  # multi-line script
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
