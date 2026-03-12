@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-640%20passing-brightgreen) ![v0.16.0](https://img.shields.io/badge/version-0.16.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-688%20passing-brightgreen) ![v0.17.0](https://img.shields.io/badge/version-0.17.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -383,6 +383,30 @@ jt.json_get(data, "user.name")              # '"Alice"'
 jt.json_get(data, "tags[0]")               # '"ai"'
 jt.json_set(data, "user.email", '"a@b.com"')  # modified JSON
 jt.json_filter('[{"role":"admin"},{"role":"user"}]', "role", '"admin"')
+```
+
+**DateTimeTool** — date and time operations without CodeTool
+- `now(timezone)` — current datetime in any IANA timezone
+- `parse(text)` — parse date strings (ISO 8601, natural language, slashes)
+- `format_dt(dt_str, fmt)` — strftime formatting
+- `diff(a, b, unit)` — time difference in seconds/minutes/hours/days
+- `add_duration(dt_str, days, hours, minutes, seconds)` — date arithmetic
+- `convert_timezone(dt_str, to_tz)` — timezone conversion
+- `to_timestamp(dt_str)` / `from_timestamp(ts)` — Unix timestamp conversion
+
+```python
+from agent_friend import Friend, DateTimeTool
+
+friend = Friend(tools=["datetime", "scheduler"])
+response = friend.chat("Schedule a reminder for 7 days from now and tell me the date")
+
+# Python API
+from agent_friend import DateTimeTool
+dt = DateTimeTool()
+dt.now("America/New_York")                   # "2026-03-12T10:53:00-04:00"
+dt.diff("2026-03-12", "2026-04-01", "days")  # "20.0"
+dt.add_duration("2026-03-12T00:00:00", days=7)  # "2026-03-19T00:00:00+00:00"
+dt.convert_timezone("2026-03-12T12:00:00", to_tz="Asia/Tokyo")  # "2026-03-12T21:00:00+09:00"
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

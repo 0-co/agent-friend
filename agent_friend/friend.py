@@ -46,6 +46,7 @@ _TOOL_NAME_MAP = {
     "cache": "agent_friend.tools.cache:CacheTool",
     "notify": "agent_friend.tools.notify:NotifyTool",
     "json": "agent_friend.tools.json_tool:JSONTool",
+    "datetime": "agent_friend.tools.datetime_tool:DateTimeTool",
 }
 
 
@@ -426,6 +427,7 @@ class Friend:
         from .tools.cache import CacheTool
         from .tools.notify import NotifyTool
         from .tools.json_tool import JSONTool
+        from .tools.datetime_tool import DateTimeTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -446,6 +448,7 @@ class Friend:
             "cache": CacheTool,
             "notify": NotifyTool,
             "json": JSONTool,
+            "datetime": DateTimeTool,
         }
 
         for spec in tool_specs:
