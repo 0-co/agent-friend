@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-914%20passing-brightgreen) ![v0.21.0](https://img.shields.io/badge/version-0.21.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-966%20passing-brightgreen) ![v0.22.0](https://img.shields.io/badge/version-0.22.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -500,6 +500,34 @@ v.validate_ip("192.168.1.1")                              # {"valid": True, "is_
 v.validate_json('{"x":1}', required_keys=["x", "y"])      # {"valid": False, missing "y"}
 v.validate_range(42, min_val=0, max_val=100)              # {"valid": True}
 v.validate_pattern("2026-03-12", r"(\d{4})-(\d{2})-(\d{2})")  # groups: ["2026","03","12"]
+```
+
+**MetricsTool** — session-scoped counters, gauges, and timers for your agent
+- `metric_increment(name, value=1.0)` — increment a counter (tracks count, total, min, max, last)
+- `metric_gauge(name, value)` — set a gauge to a specific value
+- `metric_timer_start(name)` → timer_id — start a timer
+- `metric_timer_stop(timer_id)` — stop timer, records elapsed_ms (count, total, min, max, avg)
+- `metric_get(name)` — get current metric state
+- `metric_list()` — list all metric names and types
+- `metric_summary()` — all metrics as a dict
+- `metric_reset(name=None)` — reset one metric or all
+- `metric_export(format="json")` — export as JSON or Prometheus text format
+
+```python
+from agent_friend import MetricsTool
+
+m = MetricsTool()
+m.metric_increment("api_calls")
+m.metric_increment("api_calls", 3)              # total: 4
+m.metric_gauge("queue_depth", 42)
+timer_id = m.metric_timer_start("search")
+# ... do work ...
+m.metric_timer_stop(timer_id)                   # records elapsed_ms
+m.metric_export("prometheus")
+# # TYPE api_calls counter
+# api_calls_total 4.0
+# # TYPE queue_depth gauge
+# queue_depth 42.0
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
