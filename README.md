@@ -1,8 +1,8 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-309%20passing-brightgreen) ![v0.6.0](https://img.shields.io/badge/version-0.6.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-353%20passing-brightgreen) ![v0.7.0](https://img.shields.io/badge/version-0.7.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
-A personal AI agent library. Memory, web search, code execution, RSS feeds — one pip install.
+A personal AI agent library. Memory, web search, code execution, scheduled tasks — one pip install.
 
 ```bash
 # Free, no credit card required (OpenRouter)
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -204,6 +204,14 @@ friend = Friend(tools=[
 - `fetch_feed(url, count=5)` — fetch any RSS/Atom URL directly
 - `unsubscribe(name)` — remove a subscribed feed
 - Supports RSS 2.0, Atom, and RSS 1.0. Strips HTML from summaries automatically.
+
+**SchedulerTool** — Schedule tasks for your agent to run on a timer or at a specific time
+- `schedule(task_id, prompt, interval_minutes=None, run_at=None)` — create a recurring or one-shot task
+- `run_pending()` — check and return tasks that are due (use with `agent-friend schedule` CLI)
+- `list_scheduled()` — see all scheduled tasks and their next run times
+- `cancel(task_id)` — remove a scheduled task
+- `clear_all()` — remove all tasks
+- Stores schedule in `~/.agent_friend/scheduler.json`. Zero dependencies.
 
 ```python
 # System TTS (zero config, works everywhere)
