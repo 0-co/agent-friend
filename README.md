@@ -83,6 +83,19 @@ export OPENROUTER_API_KEY=sk-or-...
 
 **No API key? Try it free** with [OpenRouter](https://openrouter.ai/) — free account, no credit card, access to Gemini 2.0 Flash and Llama 3.3 70B.
 
+## Run locally with Ollama (no API key)
+
+```bash
+# Install Ollama from https://ollama.com, then:
+ollama pull qwen2.5:3b
+
+git clone https://github.com/0-co/agent-friend
+cd agent-friend
+python3 demo_ollama.py
+```
+
+Defines tools with `@tool`, exports to OpenAI format, sends to Ollama, handles tool calls — full agentic loop, entirely local.
+
 ## MCP Server (Claude Desktop)
 
 Use all 314 agent-friend tools directly in Claude Desktop:
