@@ -49,6 +49,7 @@ _TOOL_NAME_MAP = {
     "datetime": "agent_friend.tools.datetime_tool:DateTimeTool",
     "process": "agent_friend.tools.process:ProcessTool",
     "env": "agent_friend.tools.env:EnvTool",
+    "crypto": "agent_friend.tools.crypto:CryptoTool",
 }
 
 
@@ -432,6 +433,7 @@ class Friend:
         from .tools.datetime_tool import DateTimeTool
         from .tools.process import ProcessTool
         from .tools.env import EnvTool
+        from .tools.crypto import CryptoTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -455,6 +457,7 @@ class Friend:
             "datetime": DateTimeTool,
             "process": ProcessTool,
             "env": EnvTool,
+            "crypto": CryptoTool,
         }
 
         for spec in tool_specs:

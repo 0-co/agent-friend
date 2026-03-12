@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-772%20passing-brightgreen) ![v0.19.0](https://img.shields.io/badge/version-0.19.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-832%20passing-brightgreen) ![v0.20.0](https://img.shields.io/badge/version-0.20.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -455,6 +455,28 @@ env.env_check(["OPENAI_API_KEY", "DATABASE_URL"])  # {"ok": false, "missing": ["
 env.env_get("HOME")                             # "/home/user"
 env.env_list(prefix="AWS_")                     # lists all AWS_ vars
 env.env_set("LOG_LEVEL", "debug")              # set for current process
+```
+
+**CryptoTool** — cryptographic utilities: tokens, hashing, HMAC, UUID, base64
+- `generate_token(length=32)` — secure random hex token (32 bytes → 64-char hex)
+- `hash_data(data, algorithm='sha256')` — SHA-256/512/etc hex digest
+- `hmac_sign(data, secret, algorithm='sha256')` — sign data with HMAC
+- `hmac_verify(data, secret, signature)` — verify HMAC signature (constant-time)
+- `uuid4()` — generate a random UUID4
+- `base64_encode(data, url_safe=False)` / `base64_decode(data, url_safe=False)`
+- `random_bytes(length=16)` — random bytes as hex (for nonces, salts)
+- All stdlib — zero dependencies
+
+```python
+from agent_friend import CryptoTool
+
+crypto = CryptoTool()
+crypto.generate_token()                          # "a3f9b2..." (64-char hex)
+crypto.hash_data("hello", "sha256")             # "2cf24d..."
+sig = crypto.hmac_sign("payload", "secret")     # HMAC-SHA256 hex
+crypto.hmac_verify("payload", "secret", sig)    # True
+crypto.uuid4()                                   # "550e8400-e29b-41d4-..."
+crypto.base64_encode("hello")                    # "aGVsbG8="
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
