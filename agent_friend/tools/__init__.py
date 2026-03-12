@@ -40,5 +40,6 @@ from .map_reduce import MapReduceTool
 from .graph import GraphTool
 from .format_tool import FormatTool
 from .search_index import SearchIndexTool
+from .config_tool import ConfigTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool", "MapReduceTool", "GraphTool", "FormatTool", "SearchIndexTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool", "MapReduceTool", "GraphTool", "FormatTool", "SearchIndexTool", "ConfigTool"]

@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1722%20passing-brightgreen) ![v0.36.0](https://img.shields.io/badge/version-0.36.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1782%20passing-brightgreen) ![v0.37.0](https://img.shields.io/badge/version-0.37.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -840,6 +840,51 @@ results = json.loads(idx.index_search("articles", "rate limit api", top_n=1))
 # Status
 json.loads(idx.index_status("articles"))
 # {"name": "articles", "doc_count": 4, "token_count": 18, ...}
+```
+
+**ConfigTool** — hierarchical key-value configuration management
+- `config_set(name, key, value)` — set a key (dot-notation OK: `"db.host"`)
+- `config_get(name, key, default=None, as_type=None)` — get with optional type coercion (`int/float/bool/str/json`)
+- `config_defaults(name, defaults)` — set multiple defaults (only where key not already set)
+- `config_load_env(name, prefix="", strip_prefix=True, lowercase=True)` — populate from env vars; `__` → `.` for dot-notation
+- `config_list(name, prefix="")` — list all keys, optionally filtered by prefix
+- `config_delete(name, key)` / `config_dump(name)` — remove a key or export all as JSON
+- `config_require(name, keys)` — assert required keys exist; returns `{ok: false, missing: [...]}`
+- `config_drop(name)` / `config_list_stores()` — manage named config stores
+- Multiple named configs per instance. Max 20 stores, 1000 keys each (configurable).
+
+```python
+from agent_friend import ConfigTool
+import json
+
+cfg = ConfigTool()
+
+# Set config values with dot-notation keys
+cfg.config_set("app", "db.host", "localhost")
+cfg.config_set("app", "db.port", 5432)
+cfg.config_set("app", "debug", True)
+
+# Get with type coercion
+json.loads(cfg.config_get("app", "db.host"))          # {"value": "localhost", "found": True}
+json.loads(cfg.config_get("app", "db.port", as_type="int"))  # {"value": 5432, ...}
+
+# Load from environment (APP_DB__HOST → db.host)
+cfg.config_load_env("app", prefix="APP_", strip_prefix=True, lowercase=True)
+
+# Set defaults (won't overwrite existing keys)
+cfg.config_defaults("app", {"db.host": "127.0.0.1", "timeout": 30})
+
+# Assert required keys before starting
+json.loads(cfg.config_require("app", ["db.host", "db.port"]))
+# {"ok": true, "missing": []}
+
+# List keys by prefix
+json.loads(cfg.config_list("app", prefix="db."))
+# ["db.host", "db.port"]
+
+# Export
+json.loads(cfg.config_dump("app"))
+# {"db.host": "localhost", "db.port": 5432, "debug": true}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

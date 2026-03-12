@@ -66,6 +66,7 @@ _TOOL_NAME_MAP = {
     "graph": "agent_friend.tools.graph:GraphTool",
     "format": "agent_friend.tools.format_tool:FormatTool",
     "search_index": "agent_friend.tools.search_index:SearchIndexTool",
+    "config": "agent_friend.tools.config_tool:ConfigTool",
 }
 
 
@@ -466,6 +467,7 @@ class Friend:
         from .tools.graph import GraphTool
         from .tools.format_tool import FormatTool
         from .tools.search_index import SearchIndexTool
+        from .tools.config_tool import ConfigTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -506,6 +508,7 @@ class Friend:
             "graph": GraphTool,
             "format": FormatTool,
             "search_index": SearchIndexTool,
+            "config": ConfigTool,
         }
 
         for spec in tool_specs:
