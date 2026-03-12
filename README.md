@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1367%20passing-brightgreen) ![v0.30.0](https://img.shields.io/badge/version-0.30.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1410%20passing-brightgreen) ![v0.31.0](https://img.shields.io/badge/version-0.31.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -765,6 +765,39 @@ q.queue_push("alerts", "disk full", priority=1)       # urgent
 q.queue_push("alerts", "CPU usage high", priority=5)  # normal
 q.queue_push("alerts", "log rotate", priority=10)     # low
 print(json.loads(q.queue_pop("alerts"))["item"])  # "disk full"
+```
+
+**EventBusTool** — in-process pub/sub event bus for decoupled agent coordination
+- `bus_subscribe(topic, subscriber)` — subscribe to a topic; use `topic="*"` for wildcard
+- `bus_unsubscribe(topic, subscriber)` — unsubscribe from a topic
+- `bus_publish(topic, data)` — emit an event → notifies all subscribers in order
+- `bus_history(topic, n=10)` — get the *n* most recent events for a topic
+- `bus_topics()` — list all topics with subscriber and event counts
+- `bus_subscribers(topic)` — list subscribers to a topic
+- `bus_stats()` — total events published, per-subscriber call counts
+- `bus_clear(topic=None)` — clear a topic or all topics
+
+```python
+from agent_friend import EventBusTool
+
+bus = EventBusTool()
+
+# Subscribe
+bus.bus_subscribe("new_url", "scraper")
+bus.bus_subscribe("new_url", "logger")
+bus.bus_subscribe("*", "auditor")   # receives ALL events
+
+# Publish
+bus.bus_publish("new_url", {"url": "https://example.com", "priority": 1})
+# scraper, logger, and auditor are all notified
+
+# Read history
+history = json.loads(bus.bus_history("new_url", n=5))
+# [{"event_id": 1, "topic": "new_url", "data": {...}, "timestamp": 1741754400.0}]
+
+# Observability
+stats = json.loads(bus.bus_stats())
+# {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

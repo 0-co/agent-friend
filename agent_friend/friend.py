@@ -60,6 +60,7 @@ _TOOL_NAME_MAP = {
     "regex": "agent_friend.tools.regex_tool:RegexTool",
     "rate_limit": "agent_friend.tools.rate_limit:RateLimitTool",
     "queue": "agent_friend.tools.queue_tool:QueueTool",
+    "event_bus": "agent_friend.tools.event_bus:EventBusTool",
 }
 
 
@@ -454,6 +455,7 @@ class Friend:
         from .tools.regex_tool import RegexTool
         from .tools.rate_limit import RateLimitTool
         from .tools.queue_tool import QueueTool
+        from .tools.event_bus import EventBusTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -488,6 +490,7 @@ class Friend:
             "regex": RegexTool,
             "rate_limit": RateLimitTool,
             "queue": QueueTool,
+            "event_bus": EventBusTool,
         }
 
         for spec in tool_specs:
