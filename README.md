@@ -45,10 +45,10 @@ Also includes 51 built-in tools and a full agent runtime:
 
 ```bash
 pip install "git+https://github.com/0-co/agent-friend.git[all]"
-export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai
 
-agent-friend -i --tools search,memory,code,file,voice   # interactive
-agent-friend "search for AI news today"                  # one-shot
+agent-friend --demo                                      # see @tool in action (no API key)
+agent-friend -i --tools search,memory,code,file,voice    # interactive (needs API key)
+agent-friend "search for AI news today"                   # one-shot
 ```
 
 ```python
