@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1013%20passing-brightgreen) ![v0.23.0](https://img.shields.io/badge/version-0.23.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1052%20passing-brightgreen) ![v0.24.0](https://img.shields.io/badge/version-0.24.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -550,6 +550,33 @@ t.template_render_named("search_prompt", {"topic": "AI agents", "start_date": "2
 # Check what variables a template needs before rendering
 t.template_variables("Dear ${name}, your order ${order_id} is ${status}.")
 # {"variables": ["name", "order_id", "status"], "count": 3}
+```
+
+**DiffTool** — compare text and files with unified diffs, word-level comparison, and similarity scoring
+- `diff_text(text_a, text_b, context=3)` — unified diff between two strings
+- `diff_files(path_a, path_b)` — unified diff between two files
+- `diff_words(text_a, text_b)` — inline word-level diff (`+added`, `-removed`)
+- `diff_stats(text_a, text_b)` — similarity ratio, added/removed chars and lines
+- `diff_similar(query, candidates, top_n=5)` — find closest matches from a list
+
+```python
+from agent_friend import DiffTool
+
+d = DiffTool()
+result = d.diff_text("def foo():\n    return 1\n", "def foo():\n    return 42\n")
+print(result["unified"])
+# --- before
+# +++ after
+# @@ -1,2 +1,2 @@
+#  def foo():
+# -    return 1
+# +    return 42
+
+d.diff_stats("apple pie", "apple sauce")
+# {"similarity": 0.67, "added_chars": 5, "removed_chars": 3, ...}
+
+d.diff_similar("agnet-friend", ["agent-friend", "agent-lib", "agentsmith"])
+# [{"text": "agent-friend", "score": 0.93}, ...]
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

@@ -53,6 +53,7 @@ _TOOL_NAME_MAP = {
     "validator": "agent_friend.tools.validator:ValidatorTool",
     "metrics": "agent_friend.tools.metrics:MetricsTool",
     "template": "agent_friend.tools.template:TemplateTool",
+    "diff": "agent_friend.tools.diff:DiffTool",
 }
 
 
@@ -440,6 +441,7 @@ class Friend:
         from .tools.validator import ValidatorTool
         from .tools.metrics import MetricsTool
         from .tools.template import TemplateTool
+        from .tools.diff import DiffTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -467,6 +469,7 @@ class Friend:
             "validator": ValidatorTool,
             "metrics": MetricsTool,
             "template": TemplateTool,
+            "diff": DiffTool,
         }
 
         for spec in tool_specs:
