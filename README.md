@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-736%20passing-brightgreen) ![v0.17.0](https://img.shields.io/badge/version-0.18.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-772%20passing-brightgreen) ![v0.19.0](https://img.shields.io/badge/version-0.19.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -427,6 +427,34 @@ proc = ProcessTool(timeout=30)
 proc.run("git status")          # {"success": true, "stdout": "...", ...}
 proc.which("python3")           # {"path": "/usr/bin/python3"}
 proc.run_script("echo hi\npython3 --version")  # multi-line script
+```
+
+**EnvTool** — read, set, and verify environment variables; load `.env` files
+- `env_get(key, default=None)` — get an env var's value (sensitive vars return `[hidden]`)
+- `env_set(key, value)` — set a var for the current process
+- `env_list(prefix="")` — list visible vars as JSON, filtered by optional prefix
+- `env_check(keys)` — verify required vars are set — `{ok: bool, present: [...], missing: [...]}`
+- `env_load(path=".env")` — load key=value pairs from a `.env` file (won't overwrite existing vars)
+- Sensitive variable names (KEY, TOKEN, SECRET, etc.) are hidden from `env_get` and `env_list`
+
+```python
+from agent_friend import Friend, EnvTool
+
+# Check API keys are set before calling external services
+friend = Friend(tools=["env", "http"])
+response = friend.chat(
+    "Check that OPENAI_API_KEY and DATABASE_URL are set. "
+    "If DATABASE_URL is missing, load it from .env"
+)
+
+# Python API
+from agent_friend import EnvTool
+env = EnvTool()
+env.env_load(".env")                            # loads .env into os.environ
+env.env_check(["OPENAI_API_KEY", "DATABASE_URL"])  # {"ok": false, "missing": ["DATABASE_URL"]}
+env.env_get("HOME")                             # "/home/user"
+env.env_list(prefix="AWS_")                     # lists all AWS_ vars
+env.env_set("LOG_LEVEL", "debug")              # set for current process
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
