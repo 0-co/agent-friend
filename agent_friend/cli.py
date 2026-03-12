@@ -101,12 +101,21 @@ def main() -> None:
         action="store_true",
         help="Disable colored output",
     )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run a quick demo of @tool exports (no API key needed)",
+    )
 
     args = parser.parse_args()
 
     if args.no_color:
         global CYAN, GREEN, YELLOW, GRAY, BOLD, RESET
         CYAN = GREEN = YELLOW = GRAY = BOLD = RESET = ""
+
+    if args.demo:
+        _run_demo()
+        return
 
     if not args.message and not args.interactive:
         parser.print_help()
@@ -127,6 +136,79 @@ def main() -> None:
         _run_interactive(args, model, api_key, tools_list)
     else:
         _run_single(args, model, api_key, tools_list)
+
+
+def _run_demo() -> None:
+    """Show @tool decorator in action — no API key needed."""
+    import json
+    from .tools.function_tool import tool
+
+    print(f"\n{BOLD}agent-friend @tool demo{RESET}")
+    print(f"{GRAY}No API key required. This shows the universal export feature.{RESET}\n")
+
+    # Define the example function
+    print(f"{YELLOW}Step 1:{RESET} Define a function with @tool\n")
+    print(f"""{CYAN}from agent_friend import tool
+
+@tool
+def get_weather(city: str, units: str = "celsius") -> str:
+    \"\"\"Get current weather for a city.
+
+    Args:
+        city: City name (e.g. London, Tokyo)
+        units: Temperature units (celsius or fahrenheit)
+    \"\"\"
+    return f"Weather in {{city}}: 22°C, partly cloudy"{RESET}
+""")
+
+    @tool
+    def get_weather(city: str, units: str = "celsius") -> str:
+        """Get current weather for a city.
+
+        Args:
+            city: City name (e.g. London, Tokyo)
+            units: Temperature units (celsius or fahrenheit)
+        """
+        return f"Weather in {city}: 22°C, partly cloudy"
+
+    # Show exports
+    formats = [
+        ("OpenAI", "to_openai", "client.chat.completions.create(tools=...)"),
+        ("Anthropic", "to_anthropic", "client.messages.create(tools=...)"),
+        ("Google", "to_google", "genai.GenerativeModel(tools=...)"),
+        ("MCP", "to_mcp", "Model Context Protocol servers"),
+        ("JSON Schema", "to_json_schema", "Any framework"),
+    ]
+
+    print(f"{YELLOW}Step 2:{RESET} Export to any AI framework\n")
+
+    for name, method, usage in formats:
+        result = getattr(get_weather, method)()
+        compact = json.dumps(result[0] if isinstance(result, list) else result, indent=2)
+        lines = compact.split("\n")
+        preview = "\n".join(lines[:8])
+        if len(lines) > 8:
+            preview += f"\n  ... ({len(lines) - 8} more lines)"
+        print(f"{GREEN}get_weather.{method}(){RESET}  {GRAY}# {usage}{RESET}")
+        print(f"{GRAY}{preview}{RESET}\n")
+
+    # Call the function
+    print(f"{YELLOW}Step 3:{RESET} Call it like a normal function\n")
+    result = get_weather("Tokyo")
+    print(f"  get_weather(\"Tokyo\") → {GREEN}{result}{RESET}\n")
+
+    # Batch export
+    print(f"{YELLOW}Bonus:{RESET} Batch export with Toolkit\n")
+    print(f"""{CYAN}from agent_friend import Toolkit
+
+tk = Toolkit(tools=[get_weather, stock_price, send_email])
+tk.to_openai()     # all tools in OpenAI format
+tk.to_anthropic()  # all tools in Anthropic format{RESET}
+""")
+
+    print(f"{BOLD}Try it:{RESET}")
+    print(f"  pip install \"git+https://github.com/0-co/agent-friend.git[all]\"")
+    print(f"  {GRAY}# Then use @tool in your own code{RESET}\n")
 
 
 def _build_friend(args, model: str, api_key: str, tools_list: list):
