@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1676%20passing-brightgreen) ![v0.35.0](https://img.shields.io/badge/version-0.35.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1722%20passing-brightgreen) ![v0.36.0](https://img.shields.io/badge/version-0.36.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -798,6 +798,48 @@ history = json.loads(bus.bus_history("new_url", n=5))
 # Observability
 stats = json.loads(bus.bus_stats())
 # {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
+```
+
+**SearchIndexTool** — in-memory full-text search over JSON document collections
+- `index_add(name, docs)` — index a list of dicts; auto-creates the index
+- `index_search(name, query, top_n=10, field=None)` — BM25-lite relevance search; returns docs with `_score`
+- `index_create(name, fields=[])` — create index; *fields* restricts which keys are indexed
+- `index_delete_doc(name, doc_id)` — remove a document by `_id`
+- `index_list_docs(name, limit, offset)` — paginated list of indexed documents
+- `index_status(name)` — doc count, token count, fields
+- `index_drop(name)` / `index_list()` — manage indexes
+- Stop words filtered automatically. Case-insensitive. Pairs with HTTPTool and HTMLTool.
+
+```python
+from agent_friend import SearchIndexTool
+import json
+
+idx = SearchIndexTool()
+
+# Index API results
+docs = [
+    {"id": 1, "title": "Python packaging guide", "body": "publish packages to PyPI"},
+    {"id": 2, "title": "Agent memory patterns", "body": "persistent memory using SQLite"},
+    {"id": 3, "title": "Rate limiting API calls", "body": "limit openai and anthropic calls"},
+    {"id": 4, "title": "Python async programming", "body": "asyncio and coroutines"},
+]
+idx.index_add("articles", docs)
+
+# Search with BM25 relevance
+results = json.loads(idx.index_search("articles", "python"))
+# [{"id": 1, "title": "Python packaging...", "_score": 0.42, ...},
+#  {"id": 4, "title": "Python async...", "_score": 0.42, ...}]
+
+# Field-restricted search
+results = json.loads(idx.index_search("articles", "python", field="title"))
+
+# Multi-word search (union of terms, ranked by relevance)
+results = json.loads(idx.index_search("articles", "rate limit api", top_n=1))
+# [{"id": 3, "title": "Rate limiting API calls", "_score": ..., ...}]
+
+# Status
+json.loads(idx.index_status("articles"))
+# {"name": "articles", "doc_count": 4, "token_count": 18, ...}
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

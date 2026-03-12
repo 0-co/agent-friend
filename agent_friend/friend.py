@@ -65,6 +65,7 @@ _TOOL_NAME_MAP = {
     "map_reduce": "agent_friend.tools.map_reduce:MapReduceTool",
     "graph": "agent_friend.tools.graph:GraphTool",
     "format": "agent_friend.tools.format_tool:FormatTool",
+    "search_index": "agent_friend.tools.search_index:SearchIndexTool",
 }
 
 
@@ -464,6 +465,7 @@ class Friend:
         from .tools.map_reduce import MapReduceTool
         from .tools.graph import GraphTool
         from .tools.format_tool import FormatTool
+        from .tools.search_index import SearchIndexTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -503,6 +505,7 @@ class Friend:
             "map_reduce": MapReduceTool,
             "graph": GraphTool,
             "format": FormatTool,
+            "search_index": SearchIndexTool,
         }
 
         for spec in tool_specs:
