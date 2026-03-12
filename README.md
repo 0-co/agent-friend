@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2167%20passing-brightgreen) ![v0.44.0](https://img.shields.io/badge/version-0.44.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2211%20passing-brightgreen) ![v0.45.0](https://img.shields.io/badge/version-0.45.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1154,6 +1154,42 @@ print(r["fired"])  # True
 # History of fired events
 r = json.loads(alerts.alert_history(severity="critical", limit=10))
 print(len(r["events"]))
+```
+
+**LockTool** — named mutex-style locking to prevent concurrent operations
+- `lock_acquire(name, owner="default", ttl_s=None, wait_s=0)` — acquire lock; `ttl_s` auto-expires; `wait_s` blocking wait
+- `lock_release(name, owner)` — release; only owner may release (use `lock_expire` to force)
+- `lock_try(name, owner, ttl_s=None)` — non-blocking; returns `{acquired, held_by?}` immediately
+- `lock_status(name)` — `{held, owner?, remaining_s?}`
+- `lock_list()` / `lock_release_all(owner)` / `lock_expire(name)` — manage and force-release locks
+- `lock_stats()` — total_acquisitions, total_contentions, currently_held
+
+```python
+from agent_friend import LockTool
+import json
+
+locks = LockTool()
+
+# Acquire + release
+r = json.loads(locks.lock_acquire("db_write", owner="worker-1", ttl_s=30))
+print(r["acquired"])  # True
+
+# Try without blocking
+r = json.loads(locks.lock_try("db_write", owner="worker-2"))
+print(r["acquired"], r.get("held_by"))  # False  worker-1
+
+# Check status
+r = json.loads(locks.lock_status("db_write"))
+print(r["held"], r["remaining_s"])  # True  ~29.9
+
+locks.lock_release("db_write", owner="worker-1")
+print(json.loads(locks.lock_status("db_write"))["held"])  # False
+
+# Release all locks for a worker
+locks.lock_acquire("a", owner="worker-3")
+locks.lock_acquire("b", owner="worker-3")
+r = json.loads(locks.lock_release_all("worker-3"))
+print(r["released_count"])  # 2
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text
