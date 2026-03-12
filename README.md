@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-582%20passing-brightgreen) ![v0.14.0](https://img.shields.io/badge/version-0.14.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-605%20passing-brightgreen) ![v0.15.0](https://img.shields.io/badge/version-0.15.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -332,6 +332,31 @@ cache = CacheTool()
 cache.cache_set("weather_nyc", '{"temp": 72, "sky": "clear"}', ttl_seconds=3600)
 result = cache.cache_get("weather_nyc")  # returns value within 1 hour, else None
 print(cache.cache_stats())  # {"entries": 1, "session_hits": 1, "session_misses": 0, ...}
+```
+
+**NotifyTool** — send notifications when tasks complete (desktop, file log, or terminal bell)
+- `notify(title, message)` — best available channel (desktop → file fallback)
+- `notify_desktop(title, message)` — system notification (notify-send / osascript)
+- `notify_file(title, message, path=None)` — append to JSONL log file
+- `bell()` — terminal bell character
+- `read_notifications(n=10)` — read last N notifications from log
+
+```python
+from agent_friend import Friend
+
+# Agent that notifies you when a long task is done
+friend = Friend(
+    seed="Run the report, then notify the user when complete.",
+    tools=["scheduler", "notify"],
+)
+friend.chat("Run the daily news summary at 8:00 UTC and notify me when it's done")
+
+# Python API — useful in scripts
+from agent_friend import NotifyTool
+notifier = NotifyTool()
+notifier.notify("Report ready", "Daily news summary complete")       # desktop or file
+notifier.notify_file("Error", "API timeout after 30s retry")        # always works
+entries = notifier.read_notifications(n=5)                           # last 5 entries
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

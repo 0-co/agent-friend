@@ -44,6 +44,7 @@ _TOOL_NAME_MAP = {
     "webhook": "agent_friend.tools.webhook:WebhookTool",
     "http": "agent_friend.tools.http:HTTPTool",
     "cache": "agent_friend.tools.cache:CacheTool",
+    "notify": "agent_friend.tools.notify:NotifyTool",
 }
 
 
@@ -422,6 +423,7 @@ class Friend:
         from .tools.webhook import WebhookTool
         from .tools.http import HTTPTool
         from .tools.cache import CacheTool
+        from .tools.notify import NotifyTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -440,6 +442,7 @@ class Friend:
             "webhook": WebhookTool,
             "http": HTTPTool,
             "cache": CacheTool,
+            "notify": NotifyTool,
         }
 
         for spec in tool_specs:
