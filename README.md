@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1875%20passing-brightgreen) ![v0.39.0](https://img.shields.io/badge/version-0.39.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1919%20passing-brightgreen) ![v0.40.0](https://img.shields.io/badge/version-0.40.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -960,6 +960,46 @@ results = json.loads(vs.vector_search("docs", query, metric="euclidean"))
 # Stats
 stats = json.loads(vs.vector_stats("docs"))
 # {"count": 3, "dim": 3, "max_vectors": 10000}
+```
+
+
+**TimerTool** — named stopwatch timers, countdowns, and shell command benchmarking
+- `timer_start(name)` / `timer_stop(name)` — start/stop a named stopwatch; returns elapsed_ms and elapsed_s
+- `timer_elapsed(name)` — get elapsed time without stopping
+- `timer_lap(name)` — record a lap split; returns lap_ms, lap_number, total_elapsed_ms
+- `timer_reset(name)` / `timer_delete(name)` — reset or remove a timer
+- `timer_list()` — list all timers with current elapsed and lap splits
+- `countdown_start(name, seconds)` / `countdown_remaining(name)` — countdown timers with expiry detection
+- `timer_benchmark(command, runs=3)` — time a shell command N times; returns avg/min/max_ms
+
+```python
+from agent_friend import TimerTool
+import json
+
+t = TimerTool()
+
+# Basic stopwatch
+t.timer_start("search")
+# ... do work ...
+r = json.loads(t.timer_stop("search"))
+print(f"Search took {r['elapsed_ms']:.1f}ms")
+
+# Lap timing
+t.timer_start("pipeline")
+# stage 1
+json.loads(t.timer_lap("pipeline"))  # lap 1
+# stage 2
+r = json.loads(t.timer_stop("pipeline"))
+print(f"Laps: {r['laps']}")  # [142.3, 287.1]
+
+# Countdown
+t.countdown_start("timeout", 30)
+r = json.loads(t.countdown_remaining("timeout"))
+# {"remaining_s": 29.8, "expired": false}
+
+# Benchmark a command
+r = json.loads(t.timer_benchmark("curl -s https://example.com", runs=3))
+print(f"avg={r['avg_ms']:.1f}ms min={r['min_ms']:.1f}ms max={r['max_ms']:.1f}ms")
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

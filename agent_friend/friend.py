@@ -69,6 +69,7 @@ _TOOL_NAME_MAP = {
     "config": "agent_friend.tools.config_tool:ConfigTool",
     "chunker": "agent_friend.tools.chunker:ChunkerTool",
     "vector_store": "agent_friend.tools.vector_store:VectorStoreTool",
+    "timer": "agent_friend.tools.timer_tool:TimerTool",
 }
 
 
@@ -472,6 +473,7 @@ class Friend:
         from .tools.config_tool import ConfigTool
         from .tools.chunker import ChunkerTool
         from .tools.vector_store import VectorStoreTool
+        from .tools.timer_tool import TimerTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -515,6 +517,7 @@ class Friend:
             "config": ConfigTool,
             "chunker": ChunkerTool,
             "vector_store": VectorStoreTool,
+            "timer": TimerTool,
         }
 
         for spec in tool_specs:
