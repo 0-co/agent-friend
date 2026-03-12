@@ -23,7 +23,7 @@ With tools:
 """
 
 from .friend import Friend, ChatResponse, BudgetExceeded
-from .tools import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool
+from .tools import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool
 
 __all__ = [
     "Friend",
@@ -39,6 +39,7 @@ __all__ = [
     "VoiceTool",
     "RSSFeedTool",
     "SchedulerTool",
+    "DatabaseTool",
 ]
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

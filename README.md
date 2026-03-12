@@ -1,8 +1,8 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-353%20passing-brightgreen) ![v0.7.0](https://img.shields.io/badge/version-0.7.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-391%20passing-brightgreen) ![v0.8.0](https://img.shields.io/badge/version-0.8.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
-A personal AI agent library. Memory, web search, code execution, scheduled tasks — one pip install.
+A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
 ```bash
 # Free, no credit card required (OpenRouter)
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -213,6 +213,14 @@ friend = Friend(tools=[
 - `clear_all()` — remove all tasks
 - Stores schedule in `~/.agent_friend/scheduler.json`. Zero dependencies.
 
+**DatabaseTool** — Create and query SQLite databases (zero dependencies)
+- `db_execute(sql, params=[])` — CREATE TABLE, INSERT, UPDATE, DELETE
+- `db_query(sql, params=[])` — SELECT and return results as a formatted table
+- `db_tables()` — list all tables in the database
+- `db_schema(table)` — get the CREATE TABLE statement for any table
+- Python API: `create_table()`, `insert()`, `query()`, `run()`, `list_tables()`, `get_schema()`
+- Backed by `~/.agent_friend/agent.db`. Your agent can store and query structured data persistently.
+
 ```python
 # System TTS (zero config, works everywhere)
 friend = Friend(tools=["voice"])
@@ -221,6 +229,21 @@ friend.chat("Read this article summary aloud")
 # Neural TTS via HTTP server
 from agent_friend import VoiceTool
 friend = Friend(tools=[VoiceTool(tts_url="http://your-tts-server:8081")])
+```
+
+```python
+# Agent with a real database — create tables, insert rows, run queries
+from agent_friend import DatabaseTool
+
+friend = Friend(tools=["database"])
+friend.chat("Create a tasks table with title and done columns, then add 3 tasks")
+friend.chat("Show me all incomplete tasks")
+
+# Python API for scripting
+db = DatabaseTool()
+db.create_table("notes", "id INTEGER PRIMARY KEY, content TEXT, tag TEXT")
+db.insert("notes", {"content": "Ship agent-friend v0.8", "tag": "work"})
+rows = db.query("SELECT * FROM notes WHERE tag = ?", ["work"])
 ```
 
 ### Config file (YAML)

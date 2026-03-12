@@ -11,5 +11,6 @@ from .fetch import FetchTool
 from .voice import VoiceTool
 from .rss import RSSFeedTool
 from .scheduler import SchedulerTool
+from .database import DatabaseTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool"]

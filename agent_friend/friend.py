@@ -38,6 +38,7 @@ _TOOL_NAME_MAP = {
     "voice": "agent_friend.tools.voice:VoiceTool",
     "rss": "agent_friend.tools.rss:RSSFeedTool",
     "scheduler": "agent_friend.tools.scheduler:SchedulerTool",
+    "database": "agent_friend.tools.database:DatabaseTool",
 }
 
 
@@ -410,6 +411,7 @@ class Friend:
         from .tools.voice import VoiceTool
         from .tools.rss import RSSFeedTool
         from .tools.scheduler import SchedulerTool
+        from .tools.database import DatabaseTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -422,6 +424,7 @@ class Friend:
             "voice": VoiceTool,
             "rss": RSSFeedTool,
             "scheduler": SchedulerTool,
+            "database": DatabaseTool,
         }
 
         for spec in tool_specs:
