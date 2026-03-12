@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1531%20passing-brightgreen) ![v0.33.0](https://img.shields.io/badge/version-0.33.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1590%20passing-brightgreen) ![v0.34.0](https://img.shields.io/badge/version-0.34.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -798,6 +798,49 @@ history = json.loads(bus.bus_history("new_url", n=5))
 # Observability
 stats = json.loads(bus.bus_stats())
 # {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
+```
+
+**GraphTool** — directed graphs: dependency tracking, topological sort, cycle detection
+- `graph_create(name)` — create a named directed graph
+- `graph_add_node(name, node, meta={})` — add a node with optional metadata
+- `graph_add_edge(name, src, dst)` — add directed edge src → dst (auto-creates nodes)
+- `graph_remove_edge(name, src, dst)` / `graph_remove_node(name, node)` — remove elements
+- `graph_topo_sort(name)` — topological order (Kahn's algorithm) or error if cyclic
+- `graph_has_cycle(name)` — `{has_cycle: true/false}`
+- `graph_path(name, src, dst)` — BFS shortest path → `{reachable, path, length}`
+- `graph_ancestors(name, node)` — all nodes that can reach *node*
+- `graph_descendants(name, node)` — all nodes reachable from *node*
+- `graph_nodes(name)` / `graph_edges(name)` / `graph_status(name)` — inspection
+- Multiple named graphs. Zero dependencies.
+
+```python
+from agent_friend import GraphTool
+import json
+
+g = GraphTool()
+g.graph_create("deps")
+
+# Model a Python package dependency graph
+g.graph_add_edge("deps", "django", "sqlparse")
+g.graph_add_edge("deps", "django", "asgiref")
+g.graph_add_edge("deps", "myapp", "django")
+g.graph_add_edge("deps", "myapp", "celery")
+g.graph_add_edge("deps", "celery", "kombu")
+
+# What order should I install packages?
+order = json.loads(g.graph_topo_sort("deps"))
+# ["asgiref", "celery", "kombu", "sqlparse", "django", "myapp"] (valid install order)
+
+# What does myapp transitively depend on?
+json.loads(g.graph_descendants("deps", "myapp"))
+# ["asgiref", "celery", "django", "kombu", "sqlparse"]
+
+# Is there a path from myapp to sqlparse?
+json.loads(g.graph_path("deps", "myapp", "sqlparse"))
+# {"reachable": True, "path": ["myapp", "django", "sqlparse"], "length": 2}
+
+# Detect circular deps
+json.loads(g.graph_has_cycle("deps"))  # {"has_cycle": False}
 ```
 
 **MapReduceTool** — map, filter, sort, group, and reduce JSON arrays without CodeTool
