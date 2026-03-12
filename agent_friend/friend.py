@@ -62,6 +62,7 @@ _TOOL_NAME_MAP = {
     "queue": "agent_friend.tools.queue_tool:QueueTool",
     "event_bus": "agent_friend.tools.event_bus:EventBusTool",
     "state_machine": "agent_friend.tools.state_machine:StateMachineTool",
+    "map_reduce": "agent_friend.tools.map_reduce:MapReduceTool",
 }
 
 
@@ -458,6 +459,7 @@ class Friend:
         from .tools.queue_tool import QueueTool
         from .tools.event_bus import EventBusTool
         from .tools.state_machine import StateMachineTool
+        from .tools.map_reduce import MapReduceTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -494,6 +496,7 @@ class Friend:
             "queue": QueueTool,
             "event_bus": EventBusTool,
             "state_machine": StateMachineTool,
+            "map_reduce": MapReduceTool,
         }
 
         for spec in tool_specs:

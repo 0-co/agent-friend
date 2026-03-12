@@ -36,5 +36,6 @@ from .rate_limit import RateLimitTool
 from .queue_tool import QueueTool
 from .event_bus import EventBusTool
 from .state_machine import StateMachineTool
+from .map_reduce import MapReduceTool
 
-__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool"]
+__all__ = ["BaseTool", "MemoryTool", "CodeTool", "SearchTool", "BrowserTool", "EmailTool", "FileTool", "FetchTool", "VoiceTool", "RSSFeedTool", "SchedulerTool", "DatabaseTool", "FunctionTool", "tool", "GitTool", "TableTool", "WebhookTool", "HTTPTool", "CacheTool", "NotifyTool", "JSONTool", "DateTimeTool", "ProcessTool", "EnvTool", "CryptoTool", "ValidatorTool", "MetricsTool", "TemplateTool", "DiffTool", "RetryTool", "HTMLTool", "XMLTool", "RegexTool", "RateLimitTool", "QueueTool", "EventBusTool", "StateMachineTool", "MapReduceTool"]

@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1461%20passing-brightgreen) ![v0.32.0](https://img.shields.io/badge/version-0.32.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1531%20passing-brightgreen) ![v0.33.0](https://img.shields.io/badge/version-0.33.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -798,6 +798,52 @@ history = json.loads(bus.bus_history("new_url", n=5))
 # Observability
 stats = json.loads(bus.bus_stats())
 # {"total_events": 1, "subscriber_counts": {"scraper": 1, "logger": 1, "auditor": 1}}
+```
+
+**MapReduceTool** — map, filter, sort, group, and reduce JSON arrays without CodeTool
+- `mr_map(data, field, transform=None)` — extract a field from every item (dot-notation OK)
+- `mr_filter(data, field, operator, value)` — keep items matching a predicate (eq/ne/gt/lt/gte/lte/contains/startswith/endswith/exists)
+- `mr_reduce(data, field, operation)` — aggregate to a scalar (count, sum, avg, min, max, first, last, join, unique)
+- `mr_sort(data, field, reverse=False)` — sort by field
+- `mr_group(data, field)` — group items by field value → `{key: [items]}`
+- `mr_flatten(data)` — flatten a list of lists
+- `mr_zip(left, right)` — zip two arrays → `[{left, right}, ...]`
+- `mr_pick(data, fields)` — keep only specified keys in each dict
+- `mr_slice(data, start, end)` — slice the list
+- Chainable with JSONTool, HTTPTool, TableTool. All inputs/outputs are JSON strings.
+
+```python
+from agent_friend import MapReduceTool
+import json
+
+mr = MapReduceTool()
+
+data = json.dumps([
+    {"name": "Alice", "score": 90, "dept": "eng"},
+    {"name": "Bob", "score": 75, "dept": "mkt"},
+    {"name": "Charlie", "score": 90, "dept": "eng"},
+    {"name": "Diana", "score": 55, "dept": "mkt"},
+])
+
+# Extract all names
+mr.mr_map(data, "name")                     # '["Alice", "Bob", "Charlie", "Diana"]'
+
+# Keep scores >= 80
+high = mr.mr_filter(data, "score", "gte", 80)  # Alice + Charlie
+
+# Average score
+mr.mr_reduce(data, "score", "avg")          # '77.5'
+
+# Sort by score descending
+mr.mr_sort(data, "score", reverse=True)
+
+# Group by department
+groups = json.loads(mr.mr_group(data, "dept"))
+# {"eng": [...], "mkt": [...]}
+
+# Chain: filter then reduce
+top = mr.mr_filter(data, "score", "gte", 80)
+mr.mr_reduce(top, "name", "join", separator=" & ")  # "Alice & Charlie"
 ```
 
 **StateMachineTool** — finite state machines for agent workflow control
