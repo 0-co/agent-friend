@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-423%20passing-brightgreen) ![v0.9.0](https://img.shields.io/badge/version-0.9.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-454%20passing-brightgreen) ![v0.10.0](https://img.shields.io/badge/version-0.10.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,10 +144,10 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, tool
 
 # Use by name (recommended)
-friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database"])
+friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git"])
 
 # Or use instances for custom config
 friend = Friend(tools=[
@@ -228,6 +228,30 @@ friend = Friend(tools=["search", get_weather])
 - `db_schema(table)` — get the CREATE TABLE statement for any table
 - Python API: `create_table()`, `insert()`, `query()`, `run()`, `list_tables()`, `get_schema()`
 - Backed by `~/.agent_friend/agent.db`. Your agent can store and query structured data persistently.
+
+**GitTool** — read and commit to git repositories (requires git installed)
+- `git_status(repo_dir)` — working tree status
+- `git_diff(staged, path, repo_dir)` — unstaged or staged diff
+- `git_log(n, oneline, repo_dir)` — commit history
+- `git_add(paths, repo_dir)` — stage files for commit
+- `git_commit(message, repo_dir)` — commit staged changes
+- `git_branch_list(repo_dir)` — list all local branches
+- `git_branch_create(name, checkout, repo_dir)` — create a new branch
+- Python API: `git.status()`, `git.diff()`, `git.log()`, `git.add()`, `git.commit()`, `git.branch_list()`, `git.branch_create()`
+
+```python
+from agent_friend import Friend, GitTool
+
+# Point at a specific repo
+git = GitTool(repo_dir="/path/to/repo")
+friend = Friend(tools=["search", "code", "file", git])
+friend.chat("Show me the git status and recent commits")
+friend.chat("Stage all changes to src/ and commit with message 'Refactor auth flow'")
+
+# Default: uses current working directory
+friend = Friend(tools=["git"])
+friend.chat("What changed in the last 5 commits?")
+```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
 - Reads type hints to auto-generate the JSON schema

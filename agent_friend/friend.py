@@ -412,6 +412,7 @@ class Friend:
         from .tools.rss import RSSFeedTool
         from .tools.scheduler import SchedulerTool
         from .tools.database import DatabaseTool
+        from .tools.git import GitTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -425,6 +426,7 @@ class Friend:
             "rss": RSSFeedTool,
             "scheduler": SchedulerTool,
             "database": DatabaseTool,
+            "git": GitTool,
         }
 
         for spec in tool_specs:
