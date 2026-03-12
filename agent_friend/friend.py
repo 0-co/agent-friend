@@ -57,6 +57,7 @@ _TOOL_NAME_MAP = {
     "retry": "agent_friend.tools.retry:RetryTool",
     "html": "agent_friend.tools.html_tool:HTMLTool",
     "xml": "agent_friend.tools.xml_tool:XMLTool",
+    "regex": "agent_friend.tools.regex_tool:RegexTool",
 }
 
 
@@ -448,6 +449,7 @@ class Friend:
         from .tools.retry import RetryTool
         from .tools.html_tool import HTMLTool
         from .tools.xml_tool import XMLTool
+        from .tools.regex_tool import RegexTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -479,6 +481,7 @@ class Friend:
             "retry": RetryTool,
             "html": HTMLTool,
             "xml": XMLTool,
+            "regex": RegexTool,
         }
 
         for spec in tool_specs:

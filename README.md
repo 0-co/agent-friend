@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1214%20passing-brightgreen) ![v0.27.0](https://img.shields.io/badge/version-0.27.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1277%20passing-brightgreen) ![v0.28.0](https://img.shields.io/badge/version-0.28.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -659,6 +659,45 @@ x.xml_find(xml, ".//book[@id='2']")
 # {"found": true, "tag": "book", "text": "", "attrs": {"id": "2"}, "children": [...]}
 x.xml_to_dict(xml)  # nested dict representation
 x.xml_tags(xml)     # {"catalog": 1, "book": 2, "title": 2, "price": 2}
+```
+
+**RegexTool** — regular expression operations: match, search, findall, replace, split, extract groups
+- `regex_match(pattern, text, flags=[])` — match at the **start** of text → `{matched, match, start, end, groups, named_groups}`
+- `regex_search(pattern, text, flags=[])` — find first occurrence **anywhere** in text → same structure
+- `regex_findall(pattern, text, flags=[])` — all non-overlapping matches as a list
+- `regex_findall_with_positions(pattern, text, flags=[])` — matches with start/end positions
+- `regex_replace(pattern, replacement, text, count=0)` — replace (backreferences: `\\1`, `\\g<name>`)
+- `regex_split(pattern, text, maxsplit=0)` — split text by pattern → list of strings
+- `regex_extract_groups(pattern, text)` — all matches with captured groups
+- `regex_validate(pattern)` — `{valid: true/false}` — check a pattern is valid
+- `regex_escape(text)` — escape a string so it matches literally in a pattern
+- Flags: `IGNORECASE`, `MULTILINE`, `DOTALL`, `VERBOSE`
+
+```python
+from agent_friend import RegexTool
+
+rx = RegexTool()
+
+# Extract version numbers
+rx.regex_findall(r"\d+\.\d+\.\d+", "v0.28.0 and v0.27.0 released")
+# '["0.28.0", "0.27.0"]'
+
+# Named groups
+rx.regex_search(r"(?P<user>\w+)@(?P<domain>[\w.]+)", "Contact alice@example.com")
+# '{"matched": true, "named_groups": {"user": "alice", "domain": "example.com"}, ...}'
+
+# Replace with backreference
+rx.regex_replace(r"(\w+)\s+(\w+)", r"\2 \1", "hello world")  # "world hello"
+
+# Redact sensitive data
+rx.regex_replace(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", "****", text)
+
+# Case-insensitive findall
+rx.regex_findall("error|warning", log_text, flags=["IGNORECASE"])
+
+# Build a safe literal pattern from user input
+escaped = rx.regex_escape("$1.00 (special offer)")
+rx.regex_search(escaped, price_text)  # matches the literal string
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool
