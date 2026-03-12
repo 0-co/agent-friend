@@ -56,10 +56,27 @@ python3 examples/research_assistant.py --depth quick "AI agent tools"
 
 ---
 
+### `task_manager.py` — conversational task manager with SQLite database
+
+Creates a SQLite database, inserts tasks, queries by status. Shows both the Python API (no LLM needed) and the agent API.
+
+```bash
+# Python API only (no API key needed)
+python3 examples/task_manager.py
+
+# With agent (conversational)
+export OPENROUTER_API_KEY=sk-or-...
+python3 examples/task_manager.py
+```
+
+The Python API demo works with zero config — no API key, no external services.
+
+---
+
 ## Full demo scripts
 
 The root directory also contains:
 
 - `demo_live.py` — interactive REPL showing tool calls in real time
 - `demo_briefing.py` — daily briefing with email + search + memory
-- `demo.ipynb` — Colab notebook with 9 demos (no install required)
+- `demo.ipynb` — Colab notebook with 11 demos (no install required)
