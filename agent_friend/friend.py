@@ -36,6 +36,7 @@ _TOOL_NAME_MAP = {
     "file": "agent_friend.tools.file:FileTool",
     "fetch": "agent_friend.tools.fetch:FetchTool",
     "voice": "agent_friend.tools.voice:VoiceTool",
+    "rss": "agent_friend.tools.rss:RSSFeedTool",
 }
 
 
@@ -406,6 +407,7 @@ class Friend:
         from .tools.file import FileTool
         from .tools.fetch import FetchTool
         from .tools.voice import VoiceTool
+        from .tools.rss import RSSFeedTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -416,6 +418,7 @@ class Friend:
             "file": FileTool,
             "fetch": FetchTool,
             "voice": VoiceTool,
+            "rss": RSSFeedTool,
         }
 
         for spec in tool_specs:
