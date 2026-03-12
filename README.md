@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-966%20passing-brightgreen) ![v0.22.0](https://img.shields.io/badge/version-0.22.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-1013%20passing-brightgreen) ![v0.23.0](https://img.shields.io/badge/version-0.23.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -528,6 +528,28 @@ m.metric_export("prometheus")
 # api_calls_total 4.0
 # # TYPE queue_depth gauge
 # queue_depth 42.0
+```
+
+**TemplateTool** — parameterized string templates for prompts and content
+- `template_render(template, variables)` — render `${variable}` substitutions
+- `template_save(name, template)` — save a named template for reuse
+- `template_render_named(name, variables)` — render a saved template
+- `template_variables(template)` — extract all variable names from a template
+- `template_validate(template, variables)` — check for missing/extra variables
+- `template_list()` — list all saved templates
+- `template_get(name)` / `template_delete(name)` — manage saved templates
+
+```python
+from agent_friend import TemplateTool
+
+t = TemplateTool()
+t.template_save("search_prompt", "Search for ${topic} from ${start_date} to ${end_date}.")
+t.template_render_named("search_prompt", {"topic": "AI agents", "start_date": "2025", "end_date": "2026"})
+# "Search for AI agents from 2025 to 2026."
+
+# Check what variables a template needs before rendering
+t.template_variables("Dear ${name}, your order ${order_id} is ${status}.")
+# {"variables": ["name", "order_id", "status"], "count": 3}
 ```
 
 **Custom Tools via `@tool`** — register any Python function as an agent tool

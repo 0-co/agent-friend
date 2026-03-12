@@ -52,6 +52,7 @@ _TOOL_NAME_MAP = {
     "crypto": "agent_friend.tools.crypto:CryptoTool",
     "validator": "agent_friend.tools.validator:ValidatorTool",
     "metrics": "agent_friend.tools.metrics:MetricsTool",
+    "template": "agent_friend.tools.template:TemplateTool",
 }
 
 
@@ -438,6 +439,7 @@ class Friend:
         from .tools.crypto import CryptoTool
         from .tools.validator import ValidatorTool
         from .tools.metrics import MetricsTool
+        from .tools.template import TemplateTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -464,6 +466,7 @@ class Friend:
             "crypto": CryptoTool,
             "validator": ValidatorTool,
             "metrics": MetricsTool,
+            "template": TemplateTool,
         }
 
         for spec in tool_specs:
