@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2211%20passing-brightgreen) ![v0.45.0](https://img.shields.io/badge/version-0.45.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT License](https://img.shields.io/badge/license-MIT-green) ![Tests](https://img.shields.io/badge/tests-2263%20passing-brightgreen) ![v0.46.0](https://img.shields.io/badge/version-0.46.0-blue) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 A personal AI agent library. Memory, web search, code execution, scheduled tasks, SQLite databases — one pip install.
 
@@ -144,7 +144,7 @@ class ChatResponse:
 ### Tools
 
 ```python
-from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, tool
+from agent_friend import MemoryTool, CodeTool, SearchTool, BrowserTool, EmailTool, FileTool, FetchTool, VoiceTool, RSSFeedTool, SchedulerTool, DatabaseTool, GitTool, TableTool, WebhookTool, HTTPTool, CacheTool, NotifyTool, JSONTool, DateTimeTool, ProcessTool, EnvTool, CryptoTool, ValidatorTool, MetricsTool, TemplateTool, DiffTool, RetryTool, HTMLTool, XMLTool, RegexTool, RateLimitTool, QueueTool, EventBusTool, StateMachineTool, MapReduceTool, GraphTool, FormatTool, SearchIndexTool, ConfigTool, ChunkerTool, VectorStoreTool, TimerTool, StatsTool, SamplerTool, WorkflowTool, AlertTool, LockTool, AuditTool, tool
 
 # Use by name (recommended)
 friend = Friend(tools=["memory", "code", "search", "browser", "email", "file", "fetch", "voice", "rss", "scheduler", "database", "git", "table", "webhook", "http", "cache", "notify", "json", "datetime", "process", "env"])
@@ -1190,6 +1190,43 @@ locks.lock_acquire("a", owner="worker-3")
 locks.lock_acquire("b", owner="worker-3")
 r = json.loads(locks.lock_release_all("worker-3"))
 print(r["released_count"])  # 2
+```
+
+**AuditTool** — structured audit log for agent observability and tracing
+- `audit_log(event_type, actor, resource, metadata, severity, outcome)` — record event; returns `{id, timestamp}`
+- `audit_search(event_type, actor, resource, severity, outcome, after, before, text, limit)` — filter log
+- `audit_get(event_id)` — retrieve single event by UUID
+- `audit_stats(after, before)` — aggregate by_type, by_actor, by_resource, by_severity, by_outcome
+- `audit_export(event_type, after, before)` — JSON lines export
+- `audit_clear(before=None)` / `audit_types()` / `audit_timeline(bucket="hour"|"day")`
+- Severities: info/warning/error/critical. Outcomes: success/failure/denied/unknown.
+
+```python
+from agent_friend import AuditTool
+import json
+
+audit = AuditTool()
+
+# Log events
+audit.audit_log("user.login",  actor="alice", resource="auth", metadata={"ip": "1.1.1.1"})
+audit.audit_log("file.delete", actor="bob",   resource="doc.txt", severity="warning")
+audit.audit_log("api.call",    actor="alice", resource="/v1/data")
+audit.audit_log("user.login",  actor="eve",   resource="auth", severity="error", outcome="failure", metadata={"ip": "9.9.9.9"})
+
+# Search
+r = json.loads(audit.audit_search(actor="alice"))
+print("Alice events:", r["total"])  # 2
+
+r = json.loads(audit.audit_search(text="9.9.9.9"))
+print("Suspicious IP:", r["events"][0]["actor"])  # eve
+
+# Aggregate stats
+r = json.loads(audit.audit_stats())
+print("By type:", r["by_type"])  # {"user.login": 2, "file.delete": 1, ...}
+
+# Timeline
+r = json.loads(audit.audit_timeline(bucket="hour"))
+print("Buckets:", len(r["buckets"]))
 ```
 
 **FormatTool** — human-readable formatting for numbers, sizes, durations, and text

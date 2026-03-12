@@ -75,6 +75,7 @@ _TOOL_NAME_MAP = {
     "workflow": "agent_friend.tools.workflow_tool:WorkflowTool",
     "alert": "agent_friend.tools.alert_tool:AlertTool",
     "lock": "agent_friend.tools.lock_tool:LockTool",
+    "audit": "agent_friend.tools.audit_tool:AuditTool",
 }
 
 
@@ -484,6 +485,7 @@ class Friend:
         from .tools.workflow_tool import WorkflowTool
         from .tools.alert_tool import AlertTool
         from .tools.lock_tool import LockTool
+        from .tools.audit_tool import AuditTool
 
         name_to_class = {
             "memory": MemoryTool,
@@ -533,6 +535,7 @@ class Friend:
             "workflow": WorkflowTool,
             "alert": AlertTool,
             "lock": LockTool,
+            "audit": AuditTool,
         }
 
         for spec in tool_specs:
