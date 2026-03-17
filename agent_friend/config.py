@@ -43,6 +43,9 @@ class FriendConfig:
             return "openrouter"
         if model_lower.startswith("gpt") or model_lower.startswith("o1") or model_lower.startswith("o3"):
             return "openai"
+        # BitNet models: start with "bitnet" (e.g. "bitnet-b1.58-2B-4T")
+        if model_lower.startswith("bitnet"):
+            return "bitnet"
         # Ollama models: short names without vendor prefix (e.g. "qwen2.5:3b", "llama3.2")
         if ":" in model_lower and "/" not in model_lower and not model_lower.startswith("claude"):
             return "ollama"
@@ -58,6 +61,8 @@ class FriendConfig:
         if self.api_key:
             return self.api_key
         provider = self.resolve_provider()
+        if provider == "bitnet":
+            return "bitnet"  # BitNet doesn't need auth
         if provider == "ollama":
             return "ollama"  # Ollama doesn't need auth
         if provider == "openai":

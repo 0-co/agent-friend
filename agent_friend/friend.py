@@ -25,6 +25,8 @@ _TOKEN_COSTS: Dict[str, tuple] = {
     "meta-llama/llama-3.3-70b-instruct:free": (0.0, 0.0),
     "mistralai/mistral-7b-instruct:free": (0.0, 0.0),
     "qwen/qwen-2.5-72b-instruct:free": (0.0, 0.0),
+    # BitNet local models ($0 — runs on your hardware)
+    "bitnet-b1.58-2B-4T": (0.0, 0.0),
     # Ollama local models ($0 — runs on your hardware)
     "qwen2.5:3b": (0.0, 0.0),
     "qwen2.5:7b": (0.0, 0.0),
@@ -331,8 +333,8 @@ class Friend:
         self, response: ProviderResponse, provider_name: str
     ) -> Dict[str, Any]:
         """Build the assistant message containing tool_use blocks."""
-        if provider_name in ("openai", "openrouter", "ollama"):
-            # OpenAI/OpenRouter/Ollama: assistant message with tool_calls array
+        if provider_name in ("openai", "openrouter", "ollama", "bitnet"):
+            # OpenAI/OpenRouter/Ollama/BitNet: assistant message with tool_calls array
             return {
                 "role": "assistant",
                 "content": response.text or "",
@@ -410,7 +412,7 @@ class Friend:
         tool_results: List[Dict[str, str]],
     ) -> Dict[str, Any]:
         """Build the tool result message in provider-native format."""
-        if provider_name in ("openai", "openrouter", "ollama"):
+        if provider_name in ("openai", "openrouter", "ollama", "bitnet"):
             from .providers.openai import OpenAIProvider
             provider = OpenAIProvider()
             return provider.build_tool_result_message(response, tool_results, None)
@@ -431,7 +433,10 @@ class Friend:
         provider_name = self._config.resolve_provider()
         api_key = self._config.resolve_api_key()
 
-        if provider_name == "ollama":
+        if provider_name == "bitnet":
+            from .providers.bitnet import BitNetProvider
+            self._provider = BitNetProvider(api_key=api_key)
+        elif provider_name == "ollama":
             from .providers.ollama import OllamaProvider
             self._provider = OllamaProvider(api_key=api_key)
         elif provider_name == "openrouter":

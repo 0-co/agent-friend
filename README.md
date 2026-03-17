@@ -1,6 +1,6 @@
 # agent-friend
 
-[![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2684 tests](https://img.shields.io/badge/tests-2684%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2701 tests](https://img.shields.io/badge/tests-2701%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 **Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
 
@@ -134,7 +134,7 @@ agent-friend audit tools.json --threshold 500      # exit code 2 if over budget
 
 **51 built-in tools** — memory, search, code execution, databases, HTTP, caching, queues, state machines, vector search, and more. All stdlib, zero external dependencies. See [TOOLS.md](TOOLS.md) for the full list.
 
-**Agent runtime** — `Friend` class for multi-turn conversations with tool use across OpenAI, Anthropic, OpenRouter, and Ollama (local LLMs).
+**Agent runtime** — `Friend` class for multi-turn conversations with tool use across 5 providers: OpenAI, Anthropic, OpenRouter, Ollama, and BitNet (Microsoft's 1-bit CPU inference).
 
 **CLI** — interactive REPL, one-shot tasks, streaming. Run `agent-friend --help`.
 
