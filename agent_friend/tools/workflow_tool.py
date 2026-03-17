@@ -517,13 +517,13 @@ class WorkflowTool(BaseTool):
         return [
             {
                 "name": "workflow_define",
-                "description": "Define a named workflow. Each step: {name, fn, retries?, on_error?, default?, condition?}. Built-in fns: identity/upper/lower/strip/to_int/to_float/to_str/to_list/reverse/length/sum_list/sort/unique/flatten/noop.",
+                "description": "Define a named workflow. Steps: {name, fn, retries?, on_error?, default?, condition?}. Use builtin_fns to list available fns.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "steps": {"type": "array", "items": {"type": "object"}},
-                        "description": {"type": "string"},
+                        "name": {"type": "string", "description": "Workflow name"},
+                        "steps": {"type": "array", "items": {"type": "object"}, "description": "Ordered step definitions"},
+                        "description": {"type": "string", "description": "Workflow description"},
                     },
                     "required": ["name", "steps"],
                 },
@@ -534,9 +534,9 @@ class WorkflowTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "input": {},
-                        "context": {"type": "object"},
+                        "name": {"type": "string", "description": "Workflow name"},
+                        "input": {"description": "Input data"},
+                        "context": {"type": "object", "description": "Shared context dict"},
                     },
                     "required": ["name"],
                 },
@@ -547,8 +547,8 @@ class WorkflowTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "source": {"type": "string"},
+                        "name": {"type": "string", "description": "Step function name"},
+                        "source": {"type": "string", "description": "Python source code"},
                     },
                     "required": ["name", "source"],
                 },
@@ -567,7 +567,7 @@ class WorkflowTool(BaseTool):
                 "description": "Get full definition of a workflow by name.",
                 "input_schema": {
                     "type": "object",
-                    "properties": {"name": {"type": "string"}},
+                    "properties": {"name": {"type": "string", "description": "Workflow name"}},
                     "required": ["name"],
                 },
             },
@@ -576,7 +576,7 @@ class WorkflowTool(BaseTool):
                 "description": "Delete a workflow by name.",
                 "input_schema": {
                     "type": "object",
-                    "properties": {"name": {"type": "string"}},
+                    "properties": {"name": {"type": "string", "description": "Workflow name"}},
                     "required": ["name"],
                 },
             },

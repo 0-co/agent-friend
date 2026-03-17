@@ -273,7 +273,7 @@ class RegexTool(BaseTool):
         flags_schema = {
             "type": "array",
             "items": {"type": "string"},
-            "description": "Optional list of flags: IGNORECASE, MULTILINE, DOTALL, VERBOSE",
+            "description": "Regex flags: IGNORECASE, MULTILINE, DOTALL",
         }
         return [
             {

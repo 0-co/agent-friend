@@ -472,9 +472,9 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "source": {"type": "string"},
-                        "is_reducer": {"type": "boolean"},
+                        "name": {"type": "string", "description": "Function name"},
+                        "source": {"type": "string", "description": "Python source code"},
+                        "is_reducer": {"type": "boolean", "description": "True for reducers"},
                     },
                     "required": ["name", "source"],
                 },
@@ -485,9 +485,9 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "fn": {"type": "string"},
-                        "on_error": {"type": "string"},
+                        "items": {"type": "array", "description": "Items to process"},
+                        "fn": {"type": "string", "description": "Function name"},
+                        "on_error": {"type": "string", "description": "null/skip/raise"},
                     },
                     "required": ["items", "fn"],
                 },
@@ -498,8 +498,8 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "fn": {"type": "string"},
+                        "items": {"type": "array", "description": "Items to filter"},
+                        "fn": {"type": "string", "description": "Predicate function name"},
                     },
                     "required": ["items", "fn"],
                 },
@@ -510,9 +510,9 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "fn": {"type": "string"},
-                        "initial": {},
+                        "items": {"type": "array", "description": "Items to reduce"},
+                        "fn": {"type": "string", "description": "Reducer function name"},
+                        "initial": {"description": "Starting accumulator"},
                     },
                     "required": ["items", "fn"],
                 },
@@ -523,8 +523,8 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "fn": {"type": "string"},
+                        "items": {"type": "array", "description": "Items to partition"},
+                        "fn": {"type": "string", "description": "Predicate function name"},
                     },
                     "required": ["items", "fn"],
                 },
@@ -535,8 +535,8 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "size": {"type": "integer"},
+                        "items": {"type": "array", "description": "Items to chunk"},
+                        "size": {"type": "integer", "description": "Chunk size"},
                     },
                     "required": ["items", "size"],
                 },
@@ -547,8 +547,8 @@ class BatchTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "keys": {"type": "array", "items": {"type": "string"}},
-                        "lists": {"type": "array", "items": {"type": "array"}},
+                        "keys": {"type": "array", "items": {"type": "string"}, "description": "Dict key names"},
+                        "lists": {"type": "array", "items": {"type": "array"}, "description": "Lists to zip"},
                     },
                     "required": ["keys"],
                 },

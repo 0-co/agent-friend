@@ -372,10 +372,8 @@ class RateLimitTool(BaseTool):
                 "name": "limiter_create",
                 "description": (
                     "Create a named rate limiter. "
-                    "algorithm: 'fixed' (simple window counter), "
-                    "'sliding' (precise sliding window, no boundary burst), "
-                    "'token_bucket' (smooth rate with burst capacity). "
-                    "Example: limiter_create('openai', max_calls=10, window_seconds=60)"
+                    "algorithm: fixed (window counter), sliding (no burst), "
+                    "or token_bucket (smooth rate with burst)."
                 ),
                 "input_schema": {
                     "type": "object",

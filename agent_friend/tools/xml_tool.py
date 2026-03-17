@@ -241,7 +241,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                         "tag": {"type": "string", "description": "Tag name to extract (without namespace)"},
                     },
                     "required": ["xml_string", "tag"],
@@ -255,7 +255,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                         "tag": {"type": "string", "description": "Tag name to match"},
                     },
                     "required": ["xml_string", "tag"],
@@ -271,7 +271,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                         "xpath": {"type": "string", "description": "XPath expression"},
                     },
                     "required": ["xml_string", "xpath"],
@@ -286,7 +286,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                         "xpath": {"type": "string", "description": "XPath expression"},
                     },
                     "required": ["xml_string", "xpath"],
@@ -302,7 +302,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                     },
                     "required": ["xml_string"],
                 },
@@ -313,7 +313,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                     },
                     "required": ["xml_string"],
                 },
@@ -327,7 +327,7 @@ class XMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "xml_string": {"type": "string", "description": "XML document string"},
+                        "xml_string": {"type": "string", "description": "XML string"},
                     },
                     "required": ["xml_string"],
                 },

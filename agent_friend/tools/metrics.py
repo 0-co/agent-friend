@@ -182,10 +182,7 @@ class MetricsTool(BaseTool):
             {
                 "name": "metric_export",
                 "description": (
-                    "Export all metrics in a structured format. "
-                    "format='json' (default): returns a JSON string. "
-                    "format='prometheus': returns Prometheus text exposition format. "
-                    "Useful for saving metrics to a file or sending to a monitoring system."
+                    "Export all metrics. format: json (default) or prometheus text format."
                 ),
                 "input_schema": {
                     "type": "object",

@@ -262,10 +262,7 @@ class EnvTool(BaseTool):
                     "properties": {
                         "prefix": {
                             "type": "string",
-                            "description": (
-                                "Only include variables whose names start with this string. "
-                                "Empty string (default) lists all visible variables."
-                            ),
+                            "description": "Filter by name prefix (e.g. 'AWS_')",
                             "default": "",
                         },
                     },

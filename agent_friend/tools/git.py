@@ -60,7 +60,7 @@ class GitTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional, defaults to cwd)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                 },
             },
@@ -72,7 +72,7 @@ class GitTool(BaseTool):
                     "properties": {
                         "staged": {"type": "boolean", "description": "If true, show staged changes (default: unstaged)"},
                         "path": {"type": "string", "description": "Limit diff to a specific file or directory (optional)"},
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                 },
             },
@@ -84,7 +84,7 @@ class GitTool(BaseTool):
                     "properties": {
                         "n": {"type": "integer", "description": "Number of commits to show (default: 5)"},
                         "oneline": {"type": "boolean", "description": "Show one line per commit (default: true)"},
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                 },
             },
@@ -99,7 +99,7 @@ class GitTool(BaseTool):
                             "items": {"type": "string"},
                             "description": "File paths to stage. Use ['.'] to stage all changes.",
                         },
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                     "required": ["paths"],
                 },
@@ -111,7 +111,7 @@ class GitTool(BaseTool):
                     "type": "object",
                     "properties": {
                         "message": {"type": "string", "description": "Commit message"},
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                     "required": ["message"],
                 },
@@ -122,7 +122,7 @@ class GitTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                 },
             },
@@ -137,7 +137,7 @@ class GitTool(BaseTool):
                             "type": "boolean",
                             "description": "Switch to the new branch after creating (default: true)",
                         },
-                        "repo_dir": {"type": "string", "description": "Path to git repo (optional)"},
+                        "repo_dir": {"type": "string", "description": "Repo path (default: cwd)"},
                     },
                     "required": ["name"],
                 },

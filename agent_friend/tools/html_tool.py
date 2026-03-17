@@ -410,7 +410,7 @@ class HTMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string to parse"},
+                        "html": {"type": "string", "description": "HTML string"},
                         "max_chars": {
                             "type": "integer",
                             "description": "Max characters to return (default 20000)",
@@ -429,7 +429,7 @@ class HTMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string"},
+                        "html": {"type": "string", "description": "HTML string"},
                         "base_url": {
                             "type": "string",
                             "description": "Base URL for resolving relative links (optional)",
@@ -448,7 +448,7 @@ class HTMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string"},
+                        "html": {"type": "string", "description": "HTML string"},
                     },
                     "required": ["html"],
                 },
@@ -463,7 +463,7 @@ class HTMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string"},
+                        "html": {"type": "string", "description": "HTML string"},
                     },
                     "required": ["html"],
                 },
@@ -478,7 +478,7 @@ class HTMLTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string"},
+                        "html": {"type": "string", "description": "HTML string"},
                     },
                     "required": ["html"],
                 },
@@ -486,15 +486,13 @@ class HTMLTool(BaseTool):
             {
                 "name": "html_select",
                 "description": (
-                    "Find all elements matching a tag name and optional attributes, "
-                    "returning their text content. "
-                    "E.g. html_select(html, 'code') returns all code blocks. "
-                    "html_select(html, 'span', {'class': 'price'}) extracts prices."
+                    "Find elements by tag name and optional attrs, return text content. "
+                    "E.g. html_select(html, 'span', {'class': 'price'})."
                 ),
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "html": {"type": "string", "description": "Raw HTML string"},
+                        "html": {"type": "string", "description": "HTML string"},
                         "tag": {"type": "string", "description": "HTML tag name to select"},
                         "attrs": {
                             "type": "object",

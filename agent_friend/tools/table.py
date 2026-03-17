@@ -67,7 +67,7 @@ class TableTool(BaseTool):
                     "properties": {
                         "filepath": {
                             "type": "string",
-                            "description": "Path to the CSV/TSV file.",
+                            "description": "CSV/TSV file path",
                         },
                     },
                     "required": ["filepath"],
@@ -81,7 +81,7 @@ class TableTool(BaseTool):
                     "properties": {
                         "filepath": {
                             "type": "string",
-                            "description": "Path to the CSV/TSV file.",
+                            "description": "CSV/TSV file path",
                         },
                     },
                     "required": ["filepath"],
@@ -99,7 +99,7 @@ class TableTool(BaseTool):
                     "properties": {
                         "filepath": {
                             "type": "string",
-                            "description": "Path to the CSV/TSV file.",
+                            "description": "CSV/TSV file path",
                         },
                         "column": {
                             "type": "string",
@@ -131,7 +131,7 @@ class TableTool(BaseTool):
                     "properties": {
                         "filepath": {
                             "type": "string",
-                            "description": "Path to the CSV/TSV file.",
+                            "description": "CSV/TSV file path",
                         },
                         "column": {
                             "type": "string",

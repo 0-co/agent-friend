@@ -74,18 +74,11 @@ class HTTPTool(BaseTool):
                         },
                         "headers": {
                             "type": "object",
-                            "description": (
-                                "Optional HTTP headers as key-value pairs. "
-                                "Example: {\"Authorization\": \"Bearer sk-...\", "
-                                "\"Content-Type\": \"application/json\"}"
-                            ),
+                            "description": "HTTP headers as key-value pairs",
                         },
                         "body": {
                             "type": "object",
-                            "description": (
-                                "Optional request body (for POST/PUT/PATCH). "
-                                "Will be JSON-serialised and sent with Content-Type: application/json."
-                            ),
+                            "description": "JSON request body (POST/PUT/PATCH)",
                         },
                         "body_text": {
                             "type": "string",

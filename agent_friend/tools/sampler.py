@@ -293,10 +293,10 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "n": {"type": "integer"},
-                        "seed": {"type": "integer"},
-                        "replacement": {"type": "boolean"},
+                        "items": {"type": "array", "description": "Items to sample from"},
+                        "n": {"type": "integer", "description": "Number to sample"},
+                        "seed": {"type": "integer", "description": "Random seed"},
+                        "replacement": {"type": "boolean", "description": "Allow repeats"},
                     },
                     "required": ["items", "n"],
                 },
@@ -307,11 +307,11 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "weights": {"type": "array", "items": {"type": "number"}},
-                        "n": {"type": "integer"},
-                        "seed": {"type": "integer"},
-                        "replacement": {"type": "boolean"},
+                        "items": {"type": "array", "description": "Items to select from"},
+                        "weights": {"type": "array", "items": {"type": "number"}, "description": "Weight per item"},
+                        "n": {"type": "integer", "description": "Number to select"},
+                        "seed": {"type": "integer", "description": "Random seed"},
+                        "replacement": {"type": "boolean", "description": "Allow repeats"},
                     },
                     "required": ["items", "weights"],
                 },
@@ -322,9 +322,9 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "groups": {"type": "object", "description": "Dict mapping group name → list of items"},
-                        "n_per_group": {"type": "integer"},
-                        "seed": {"type": "integer"},
+                        "groups": {"type": "object", "description": "Group name to items list"},
+                        "n_per_group": {"type": "integer", "description": "Samples per group"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": ["groups", "n_per_group"],
                 },
@@ -335,8 +335,8 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "seed": {"type": "integer"},
+                        "items": {"type": "array", "description": "Items to shuffle"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": ["items"],
                 },
@@ -347,9 +347,9 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "ratios": {"type": "array", "items": {"type": "number"}, "description": "Partition proportions (auto-normalized)"},
-                        "seed": {"type": "integer"},
+                        "items": {"type": "array", "description": "Items to split"},
+                        "ratios": {"type": "array", "items": {"type": "number"}, "description": "Proportions (auto-normalized)"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": ["items"],
                 },
@@ -360,8 +360,8 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "items": {"type": "array"},
-                        "seed": {"type": "integer"},
+                        "items": {"type": "array", "description": "Items to pick from"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": ["items"],
                 },
@@ -372,10 +372,10 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "low": {"type": "integer"},
-                        "high": {"type": "integer"},
-                        "n": {"type": "integer"},
-                        "seed": {"type": "integer"},
+                        "low": {"type": "integer", "description": "Minimum value"},
+                        "high": {"type": "integer", "description": "Maximum value"},
+                        "n": {"type": "integer", "description": "Count (default 1)"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": ["low", "high"],
                 },
@@ -386,11 +386,11 @@ class SamplerTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "low": {"type": "number"},
-                        "high": {"type": "number"},
-                        "n": {"type": "integer"},
-                        "decimals": {"type": "integer"},
-                        "seed": {"type": "integer"},
+                        "low": {"type": "number", "description": "Minimum (default 0.0)"},
+                        "high": {"type": "number", "description": "Maximum (default 1.0)"},
+                        "n": {"type": "integer", "description": "Count (default 1)"},
+                        "decimals": {"type": "integer", "description": "Decimal places"},
+                        "seed": {"type": "integer", "description": "Random seed"},
                     },
                     "required": [],
                 },

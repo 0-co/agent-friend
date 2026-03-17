@@ -404,7 +404,7 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array", "items": {"type": "number"}},
+                        "values": {"type": "array", "items": {"type": "number"}, "description": "Numeric data"},
                         "percentiles": {"type": "array", "items": {"type": "number"}, "description": "Default [25, 50, 75]"},
                     },
                     "required": ["values"],
@@ -416,7 +416,7 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array", "items": {"type": "number"}},
+                        "values": {"type": "array", "items": {"type": "number"}, "description": "Numeric data"},
                         "bins": {"type": "integer", "description": "Number of bins (default 10)"},
                     },
                     "required": ["values"],
@@ -428,8 +428,8 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "x": {"type": "array", "items": {"type": "number"}},
-                        "y": {"type": "array", "items": {"type": "number"}},
+                        "x": {"type": "array", "items": {"type": "number"}, "description": "First series"},
+                        "y": {"type": "array", "items": {"type": "number"}, "description": "Second series"},
                     },
                     "required": ["x", "y"],
                 },
@@ -440,7 +440,7 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array", "items": {"type": "number"}},
+                        "values": {"type": "array", "items": {"type": "number"}, "description": "Numeric data"},
                         "method": {"type": "string", "description": "minmax | zscore"},
                     },
                     "required": ["values"],
@@ -452,7 +452,7 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array", "items": {"type": "number"}},
+                        "values": {"type": "array", "items": {"type": "number"}, "description": "Numeric data"},
                         "method": {"type": "string", "description": "iqr | zscore"},
                         "threshold": {"type": "number", "description": "IQR: 1.5 standard, 3.0 extreme. Z-score: 2.0 or 3.0."},
                     },
@@ -465,8 +465,8 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array", "items": {"type": "number"}},
-                        "window": {"type": "integer"},
+                        "values": {"type": "array", "items": {"type": "number"}, "description": "Numeric data"},
+                        "window": {"type": "integer", "description": "Window size (default 3)"},
                         "kind": {"type": "string", "description": "simple | exponential"},
                         "alpha": {"type": "number", "description": "EMA smoothing factor (0,1]"},
                     },
@@ -479,7 +479,7 @@ class StatsTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "values": {"type": "array"},
+                        "values": {"type": "array", "description": "Data values"},
                         "top_n": {"type": "integer", "description": "Return top N most frequent"},
                     },
                     "required": ["values"],

@@ -330,8 +330,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {"type": "object"},
-                        "keys": {"type": "array", "items": {"type": "string"}},
+                        "record": {"type": "object", "description": "Input dict"},
+                        "keys": {"type": "array", "items": {"type": "string"}, "description": "Keys to keep"},
                     },
                     "required": ["record", "keys"],
                 },
@@ -342,8 +342,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {"type": "object"},
-                        "keys": {"type": "array", "items": {"type": "string"}},
+                        "record": {"type": "object", "description": "Input dict"},
+                        "keys": {"type": "array", "items": {"type": "string"}, "description": "Keys to remove"},
                     },
                     "required": ["record", "keys"],
                 },
@@ -354,8 +354,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {"type": "object"},
-                        "mapping": {"type": "object"},
+                        "record": {"type": "object", "description": "Input dict"},
+                        "mapping": {"type": "object", "description": "{old_key: new_key}"},
                     },
                     "required": ["record", "mapping"],
                 },
@@ -366,8 +366,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {"type": "object"},
-                        "types": {"type": "object"},
+                        "record": {"type": "object", "description": "Input dict"},
+                        "types": {"type": "object", "description": "{key: target_type}"},
                     },
                     "required": ["record", "types"],
                 },
@@ -378,8 +378,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {},
-                        "sep": {"type": "string"},
+                        "record": {"description": "Nested dict or list"},
+                        "sep": {"type": "string", "description": "Separator (default '.')"},
                     },
                     "required": ["record"],
                 },
@@ -390,8 +390,8 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "record": {"type": "object"},
-                        "sep": {"type": "string"},
+                        "record": {"type": "object", "description": "Flat dot-notation dict"},
+                        "sep": {"type": "string", "description": "Separator (default '.')"},
                     },
                     "required": ["record"],
                 },
@@ -402,12 +402,12 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "records": {"type": "array"},
-                        "pick": {"type": "array", "items": {"type": "string"}},
-                        "omit": {"type": "array", "items": {"type": "string"}},
-                        "rename": {"type": "object"},
-                        "coerce": {"type": "object"},
-                        "add": {"type": "object"},
+                        "records": {"type": "array", "description": "List of dicts"},
+                        "pick": {"type": "array", "items": {"type": "string"}, "description": "Keys to keep"},
+                        "omit": {"type": "array", "items": {"type": "string"}, "description": "Keys to remove"},
+                        "rename": {"type": "object", "description": "{old: new} mapping"},
+                        "coerce": {"type": "object", "description": "{key: type} mapping"},
+                        "add": {"type": "object", "description": "Static fields to add"},
                     },
                     "required": ["records"],
                 },
@@ -418,7 +418,7 @@ class TransformTool(BaseTool):
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "dicts": {"type": "array", "items": {"type": "object"}},
+                        "dicts": {"type": "array", "items": {"type": "object"}, "description": "Dicts to merge"},
                     },
                     "required": ["dicts"],
                 },
