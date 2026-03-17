@@ -77,6 +77,12 @@ agent-friend audit tools.json
 #     google        ~245 tokens  <- cheapest
 #     mcp           ~257 tokens
 #     json_schema   ~245 tokens
+#
+#   Context window impact:
+#     GPT-4o (128K)       ~0.2%
+#     Claude (200K)       ~0.1%
+#     GPT-4 (8K)          ~3.1%  <- check your budget
+#     Gemini 2.0 (1M)     ~0.0%
 ```
 
 Or measure programmatically:
