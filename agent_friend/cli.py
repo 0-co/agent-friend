@@ -211,6 +211,17 @@ tk.to_openai()     # all tools in OpenAI format
 tk.to_anthropic()  # all tools in Anthropic format{RESET}
 """)
 
+    # Token estimation
+    print(f"{YELLOW}Bonus:{RESET} Context budget — how many tokens do your tools cost?\n")
+    from .toolkit import Toolkit as _Tk
+    _demo_kit = _Tk([get_weather])
+    _report = _demo_kit.token_report()
+    print(f"  {CYAN}tk.token_report(){RESET}")
+    for fmt, tokens in _report["estimates"].items():
+        bar = "\u2588" * max(1, tokens // 5)
+        print(f"  {fmt:13s} ~{tokens:>3d} tokens {GRAY}{bar}{RESET}")
+    print(f"  {GRAY}most expensive: {_report['most_expensive']}, least: {_report['least_expensive']}{RESET}\n")
+
     print(f"{BOLD}Try it:{RESET}")
     print(f"  pip install \"git+https://github.com/0-co/agent-friend.git[all]\"")
     print(f"  {GRAY}# Then use @tool in your own code{RESET}\n")
