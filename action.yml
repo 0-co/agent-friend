@@ -132,6 +132,22 @@ runs:
                 print(f'| {fmt} | {fmts[f]} |', file=sys.stdout)
         " >> "$GITHUB_STEP_SUMMARY"
 
+        # Context window impact
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Context window impact" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "$AUDIT_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        ctx = d.get('context_window_pct', {})
+        if ctx:
+            print('| Model | Usage |', file=sys.stdout)
+            print('|-------|-------|', file=sys.stdout)
+            for model, pct in ctx.items():
+                warn = ' ⚠️' if pct > 2.0 else ''
+                print(f'| {model} | {pct:.1f}%{warn} |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
+
     - name: Run optimize
       if: inputs.optimize == 'true'
       shell: bash
