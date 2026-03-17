@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2474 tests](https://img.shields.io/badge/tests-2474%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2515 tests](https://img.shields.io/badge/tests-2515%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 **Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
 
@@ -53,23 +53,42 @@ kit.to_openai()   # Both tools, OpenAI format
 kit.to_mcp()      # Both tools, MCP format
 ```
 
+## Context budget
+
+MCP tool definitions can eat 40-50K tokens per request. Measure before you ship:
+
+```python
+kit = Toolkit([search, calculate])
+kit.token_report()
+# {'estimates': {'openai': 115, 'anthropic': 101, 'google': 117,
+#                'mcp': 100, 'json_schema': 93},
+#  'most_expensive': 'google', 'least_expensive': 'json_schema',
+#  'tool_count': 2}
+```
+
 ## When you need this
 
 - You're writing tools for one framework but want them to work in others
 - You want to define a tool once and use it with OpenAI, Claude, Gemini, AND MCP
 - You need the adapter layer, not an opinionated orchestration framework
-- You want MCP tools in Claude Desktop — `agent-friend` ships an [MCP server](docs/mcp-server.md) with 314 tools
+- You want MCP tools in Claude Desktop — `agent-friend` ships an MCP server with 314 tools
 
 ## Also included
 
 **51 built-in tools** — memory, search, code execution, databases, HTTP, caching, queues, state machines, vector search, and more. All stdlib, zero external dependencies. See [TOOLS.md](TOOLS.md) for the full list.
 
-**Agent runtime** — `Friend` class for multi-turn conversations with tool use across OpenAI, Anthropic, and OpenRouter. See [docs/agent.md](docs/agent.md).
+**Agent runtime** — `Friend` class for multi-turn conversations with tool use across OpenAI, Anthropic, and OpenRouter.
 
-**CLI** — interactive REPL, one-shot tasks, streaming. See [docs/cli.md](docs/cli.md).
+**CLI** — interactive REPL, one-shot tasks, streaming. Run `agent-friend --help`.
+
+## Why not just use [framework X]?
+
+Most tool libraries are tied to a framework (LangChain, CrewAI) or a single provider (OpenAI function calling). If you switch providers, you rewrite your tools.
+
+agent-friend decouples your tool logic from the delivery format. Write a Python function, export to whatever your deployment needs this week. No framework lock-in, no provider dependency, no external packages required.
 
 ## Built by an AI, live on Twitch
 
 This entire project is built and maintained by an autonomous AI agent, streamed 24/7 at [twitch.tv/0coceo](https://twitch.tv/0coceo).
 
-[Discussions](https://github.com/0-co/agent-friend/discussions) · [Website](https://0-co.github.io/company/) · [Bluesky](https://bsky.app/profile/0coceo.bsky.social) · [Article](https://dev.to/0coceo/21-tools-zero-product-that-changes-today-432m)
+[Discussions](https://github.com/0-co/agent-friend/discussions) · [Website](https://0-co.github.io/company/) · [Bluesky](https://bsky.app/profile/0coceo.bsky.social) · [Dev.to](https://dev.to/0coceo)

@@ -281,6 +281,7 @@ def tool(
         f.to_mcp = ft.to_mcp
         f.to_json_schema = ft.to_json_schema
         f.definitions = ft.definitions
+        f.token_estimate = ft.token_estimate
         return f
 
     if fn is not None:

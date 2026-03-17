@@ -1,5 +1,6 @@
 """toolkit.py — Batch tool collection with multi-framework export."""
 
+import json
 from typing import Any, Callable, Dict, List, Union
 
 from .tools.base import BaseTool
@@ -83,6 +84,65 @@ class Toolkit:
         for t in self._tools:
             result.extend(t.to_json_schema())
         return result
+
+    # ------------------------------------------------------------------
+    # Token estimation
+    # ------------------------------------------------------------------
+
+    _FORMATS = ("openai", "anthropic", "google", "mcp", "json_schema")
+
+    def token_estimate(self, format: str = "openai") -> int:
+        """Estimate total token count for all tools in the given format.
+
+        Uses a simple heuristic: ``len(json_string) / 4``.  This is a rough
+        approximation — intentionally named ``token_estimate`` to be honest
+        about that.
+
+        Parameters
+        ----------
+        format:
+            One of ``"openai"``, ``"anthropic"``, ``"google"``, ``"mcp"``,
+            or ``"json_schema"``.
+
+        Returns
+        -------
+        Estimated token count as an integer.
+        """
+        exporters = {
+            "openai": self.to_openai,
+            "anthropic": self.to_anthropic,
+            "google": self.to_google,
+            "mcp": self.to_mcp,
+            "json_schema": self.to_json_schema,
+        }
+        if format not in exporters:
+            raise ValueError(
+                f"Unknown format {format!r}. Choose from: {', '.join(exporters)}"
+            )
+        schema = exporters[format]()
+        return int(len(json.dumps(schema, separators=(",", ":"))) / 4)
+
+    def token_report(self) -> Dict[str, Any]:
+        """Return token estimates for all 5 formats with comparison metadata.
+
+        Returns
+        -------
+        Dict with keys:
+
+        - ``estimates``: dict mapping format name to estimated token count
+        - ``most_expensive``: format name with the highest estimate
+        - ``least_expensive``: format name with the lowest estimate
+        - ``tool_count``: number of tools in the toolkit
+        """
+        estimates = {fmt: self.token_estimate(format=fmt) for fmt in self._FORMATS}
+        most = max(estimates, key=estimates.__getitem__)
+        least = min(estimates, key=estimates.__getitem__)
+        return {
+            "estimates": estimates,
+            "most_expensive": most,
+            "least_expensive": least,
+            "tool_count": len(self),
+        }
 
     def __len__(self) -> int:
         return sum(len(t.definitions()) for t in self._tools)

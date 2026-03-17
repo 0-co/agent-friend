@@ -1,5 +1,6 @@
 """base.py — BaseTool abstract class for agent-friend tools."""
 
+import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
@@ -139,3 +140,40 @@ class BaseTool(ABC):
             schema["description"] = defn.get("description", "")
             result.append(schema)
         return result
+
+    # ------------------------------------------------------------------
+    # Token estimation
+    # ------------------------------------------------------------------
+
+    _FORMATS = ("openai", "anthropic", "google", "mcp", "json_schema")
+
+    def token_estimate(self, format: str = "openai") -> int:
+        """Estimate token count for this tool's schema in the given format.
+
+        Uses a simple heuristic: ``len(json_string) / 4``.  This is a rough
+        approximation (no external tokenizer required) and intentionally named
+        ``token_estimate`` rather than ``token_count`` to be honest about that.
+
+        Parameters
+        ----------
+        format:
+            One of ``"openai"``, ``"anthropic"``, ``"google"``, ``"mcp"``,
+            or ``"json_schema"``.
+
+        Returns
+        -------
+        Estimated token count as an integer.
+        """
+        exporters = {
+            "openai": self.to_openai,
+            "anthropic": self.to_anthropic,
+            "google": self.to_google,
+            "mcp": self.to_mcp,
+            "json_schema": self.to_json_schema,
+        }
+        if format not in exporters:
+            raise ValueError(
+                f"Unknown format {format!r}. Choose from: {', '.join(exporters)}"
+            )
+        schema = exporters[format]()
+        return int(len(json.dumps(schema, separators=(",", ":"))) / 4)
