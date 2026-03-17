@@ -103,7 +103,10 @@ class BaseTool(ABC):
                     "type": "OBJECT",
                     "properties": {
                         k: {
-                            "type": _TYPE_MAP.get(v.get("type", "string"), v.get("type", "STRING").upper()),
+                            "type": _TYPE_MAP.get(
+                                (v.get("type", "string") if isinstance(v.get("type"), str) else (v.get("type") or ["string"])[0]),
+                                ((v.get("type", "string") if isinstance(v.get("type"), str) else (v.get("type") or ["string"])[0]).upper()),
+                            ),
                             "description": v.get("description", ""),
                         }
                         for k, v in schema.get("properties", {}).items()
