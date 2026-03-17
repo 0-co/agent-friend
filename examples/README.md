@@ -11,6 +11,20 @@ export OPENROUTER_API_KEY=sk-or-...  # free at openrouter.ai (no credit card)
 
 ## Examples
 
+### `ollama_quickstart.py` — local tool calling with Ollama (no API key)
+
+The fastest way to get tool calling working with a local LLM. Defines 3 tools with `@tool`, runs them through qwen2.5:3b, shows cross-format export.
+
+```bash
+ollama pull qwen2.5:3b
+pip install openai  # needed for Ollama's OpenAI-compatible API
+python3 examples/ollama_quickstart.py
+```
+
+No API key. No cloud. Zero cost. The same `@tool` functions export to OpenAI, Anthropic, Gemini, and MCP.
+
+---
+
 ### `voice_briefing.py` — daily news spoken aloud
 
 Searches for a topic, fetches top articles, summarizes, and speaks the result.
