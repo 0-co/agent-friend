@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.egg-info
+tests/
+examples/
+docs/
+research/
+drafts/
+*.md
+.git
+.github
+.gitignore
+demo.ipynb
