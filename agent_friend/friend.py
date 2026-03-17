@@ -25,6 +25,11 @@ _TOKEN_COSTS: Dict[str, tuple] = {
     "meta-llama/llama-3.3-70b-instruct:free": (0.0, 0.0),
     "mistralai/mistral-7b-instruct:free": (0.0, 0.0),
     "qwen/qwen-2.5-72b-instruct:free": (0.0, 0.0),
+    # Ollama local models ($0 — runs on your hardware)
+    "qwen2.5:3b": (0.0, 0.0),
+    "qwen2.5:7b": (0.0, 0.0),
+    "llama3.2:3b": (0.0, 0.0),
+    "mistral:7b": (0.0, 0.0),
 }
 
 _TOOL_NAME_MAP = {
@@ -326,11 +331,11 @@ class Friend:
         self, response: ProviderResponse, provider_name: str
     ) -> Dict[str, Any]:
         """Build the assistant message containing tool_use blocks."""
-        if provider_name in ("openai", "openrouter"):
-            # OpenAI/OpenRouter: assistant message with tool_calls array
+        if provider_name in ("openai", "openrouter", "ollama"):
+            # OpenAI/OpenRouter/Ollama: assistant message with tool_calls array
             return {
                 "role": "assistant",
-                "content": response.text or None,
+                "content": response.text or "",
                 "tool_calls": [
                     {
                         "id": tc["id"],
@@ -405,7 +410,7 @@ class Friend:
         tool_results: List[Dict[str, str]],
     ) -> Dict[str, Any]:
         """Build the tool result message in provider-native format."""
-        if provider_name in ("openai", "openrouter"):
+        if provider_name in ("openai", "openrouter", "ollama"):
             from .providers.openai import OpenAIProvider
             provider = OpenAIProvider()
             return provider.build_tool_result_message(response, tool_results, None)
@@ -426,7 +431,10 @@ class Friend:
         provider_name = self._config.resolve_provider()
         api_key = self._config.resolve_api_key()
 
-        if provider_name == "openrouter":
+        if provider_name == "ollama":
+            from .providers.ollama import OllamaProvider
+            self._provider = OllamaProvider(api_key=api_key)
+        elif provider_name == "openrouter":
             from .providers.openrouter import OpenRouterProvider
             self._provider = OpenRouterProvider(api_key=api_key)
         elif provider_name == "openai":

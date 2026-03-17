@@ -401,5 +401,140 @@ class TestConfigOpenRouterResolution(unittest.TestCase):
             self.assertEqual(c.resolve_api_key(), "sk-or-test")
 
 
+# ---------------------------------------------------------------------------
+# OllamaProvider tests
+# ---------------------------------------------------------------------------
+
+class TestOllamaProvider(unittest.TestCase):
+    def test_default_model(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        self.assertEqual(p.DEFAULT_MODEL, "qwen2.5:3b")
+
+    def test_base_url_default(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        self.assertEqual(p._base_url, "http://localhost:11434/v1")
+
+    def test_base_url_from_env(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        with patch.dict("os.environ", {"OLLAMA_HOST": "http://myhost:5000"}):
+            p = OllamaProvider()
+            self.assertEqual(p._base_url, "http://myhost:5000/v1")
+
+    def test_base_url_no_double_v1(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider(base_url="http://localhost:11434/v1")
+        self.assertEqual(p._base_url, "http://localhost:11434/v1")
+
+    def test_base_url_explicit(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider(base_url="http://remote:8080")
+        self.assertEqual(p._base_url, "http://remote:8080/v1")
+
+    def test_api_key_is_dummy(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        self.assertEqual(p.api_key, "ollama")
+
+    def test_api_key_ignored(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider(api_key="real-key-ignored")
+        self.assertEqual(p.api_key, "ollama")
+
+    def test_inherits_from_openai(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        self.assertIsInstance(p, OpenAIProvider)
+
+    def test_convert_tools_works(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        tools = [{"name": "test", "description": "Test", "input_schema": {"type": "object", "properties": {}}}]
+        result = p._convert_tools(tools)
+        self.assertEqual(result[0]["type"], "function")
+        self.assertEqual(result[0]["function"]["name"], "test")
+
+    def test_complete_delegates_to_openai(self):
+        from agent_friend.providers.ollama import OllamaProvider
+        p = OllamaProvider()
+        mock_client = MagicMock()
+        choice = MagicMock()
+        choice.message.content = "Hello from Ollama"
+        choice.message.tool_calls = None
+        choice.finish_reason = "stop"
+        response = MagicMock()
+        response.choices = [choice]
+        response.model = "qwen2.5:3b"
+        response.usage.prompt_tokens = 10
+        response.usage.completion_tokens = 5
+        mock_client.chat.completions.create.return_value = response
+        p._client = mock_client
+
+        result = p.complete(
+            messages=[{"role": "user", "content": "Hello"}],
+            system="You are helpful.",
+            model="qwen2.5:3b",
+        )
+        self.assertEqual(result.text, "Hello from Ollama")
+        self.assertEqual(result.model, "qwen2.5:3b")
+
+
+# ---------------------------------------------------------------------------
+# Config resolution tests for Ollama
+# ---------------------------------------------------------------------------
+
+class TestConfigOllamaResolution(unittest.TestCase):
+    def _make_config(self, **kwargs):
+        from agent_friend.config import FriendConfig
+        return FriendConfig(**kwargs)
+
+    def test_colon_model_resolves_to_ollama(self):
+        c = self._make_config(model="qwen2.5:3b")
+        self.assertEqual(c.resolve_provider(), "ollama")
+
+    def test_llama_model_resolves_to_ollama(self):
+        c = self._make_config(model="llama3.2:3b")
+        self.assertEqual(c.resolve_provider(), "ollama")
+
+    def test_mistral_local_resolves_to_ollama(self):
+        c = self._make_config(model="mistral:7b")
+        self.assertEqual(c.resolve_provider(), "ollama")
+
+    def test_explicit_ollama_provider(self):
+        c = self._make_config(provider="ollama", model="anything")
+        self.assertEqual(c.resolve_provider(), "ollama")
+
+    def test_claude_not_ollama(self):
+        c = self._make_config(model="claude-haiku-4-5-20251001")
+        self.assertNotEqual(c.resolve_provider(), "ollama")
+
+    def test_openrouter_slash_not_ollama(self):
+        c = self._make_config(model="google/gemini-2.0-flash-exp:free")
+        self.assertEqual(c.resolve_provider(), "openrouter")
+
+    def test_api_key_returns_ollama_string(self):
+        c = self._make_config(model="qwen2.5:3b")
+        self.assertEqual(c.resolve_api_key(), "ollama")
+
+
+# ---------------------------------------------------------------------------
+# Ollama cost calculation tests
+# ---------------------------------------------------------------------------
+
+class TestOllamaCost(unittest.TestCase):
+    def test_qwen_3b_is_free(self):
+        cost = _calculate_cost(1_000_000, 1_000_000, "qwen2.5:3b")
+        self.assertEqual(cost, 0.0)
+
+    def test_llama_3b_is_free(self):
+        cost = _calculate_cost(1_000_000, 1_000_000, "llama3.2:3b")
+        self.assertEqual(cost, 0.0)
+
+    def test_mistral_7b_is_free(self):
+        cost = _calculate_cost(1_000_000, 1_000_000, "mistral:7b")
+        self.assertEqual(cost, 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

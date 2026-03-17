@@ -43,6 +43,9 @@ class FriendConfig:
             return "openrouter"
         if model_lower.startswith("gpt") or model_lower.startswith("o1") or model_lower.startswith("o3"):
             return "openai"
+        # Ollama models: short names without vendor prefix (e.g. "qwen2.5:3b", "llama3.2")
+        if ":" in model_lower and "/" not in model_lower and not model_lower.startswith("claude"):
+            return "ollama"
         # Infer from explicit api_key prefix (e.g. Friend(api_key="sk-or-...") without setting model)
         if self.api_key and self.api_key.startswith("sk-or-"):
             return "openrouter"
@@ -55,6 +58,8 @@ class FriendConfig:
         if self.api_key:
             return self.api_key
         provider = self.resolve_provider()
+        if provider == "ollama":
+            return "ollama"  # Ollama doesn't need auth
         if provider == "openai":
             return os.environ.get("OPENAI_API_KEY")
         if provider == "openrouter":
