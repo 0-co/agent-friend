@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2579 tests](https://img.shields.io/badge/tests-2579%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2654 tests](https://img.shields.io/badge/tests-2654%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 **Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
 
@@ -85,6 +85,24 @@ kit.token_report()
 ```
 
 Accepts OpenAI, Anthropic, MCP, Google, or JSON Schema format. Auto-detects.
+
+## Optimize
+
+Found the bloat? Fix it:
+
+```bash
+agent-friend optimize tools.json
+
+# Tool: search_inventory
+#   ⚡ Description prefix: "This tool allows you to search..." → "Search..."
+#      Saves ~6 tokens
+#   ⚡ Parameter 'query': description "The query" restates parameter name
+#      Saves ~3 tokens
+#
+# Summary: 5 suggestions, ~42 tokens saved (21% reduction)
+```
+
+7 heuristic rules: verbose prefixes, long descriptions, redundant params, missing descriptions, cross-tool duplicates, deep nesting. Machine-readable output with `--json`.
 
 ## When you need this
 
