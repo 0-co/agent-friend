@@ -44,6 +44,11 @@ def _get_api_key() -> str | None:
 
 def main() -> None:
     """Main entry point for the agent-friend CLI."""
+    # Route subcommands before argparse (which uses a flat positional arg)
+    if len(sys.argv) > 1 and sys.argv[1] == "audit":
+        _run_audit_command(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(
         prog="agent-friend",
         description=(
@@ -51,7 +56,8 @@ def main() -> None:
             "Quick start:\n"
             "  agent-friend --demo                   # see @tool exports (no API key)\n"
             "  agent-friend --version                # show version\n"
-            "  agent-friend -i                       # interactive chat (needs API key)"
+            "  agent-friend -i                       # interactive chat (needs API key)\n"
+            "  agent-friend audit <file.json>        # token cost report for tool defs"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -141,6 +147,32 @@ def main() -> None:
         _run_interactive(args, model, api_key, tools_list)
     else:
         _run_single(args, model, api_key, tools_list)
+
+
+def _run_audit_command(argv: list) -> None:
+    """Handle `agent-friend audit <file.json>` subcommand."""
+    audit_parser = argparse.ArgumentParser(
+        prog="agent-friend audit",
+        description="Analyze tool definitions and report token cost across all 5 formats.",
+    )
+    audit_parser.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
+    )
+    audit_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    audit_args = audit_parser.parse_args(argv)
+
+    from .audit import run_audit
+
+    use_color = not audit_args.no_color
+    exit_code = run_audit(audit_args.file, use_color=use_color)
+    sys.exit(exit_code)
 
 
 def _run_demo() -> None:

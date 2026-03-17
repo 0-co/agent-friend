@@ -1,6 +1,6 @@
 # agent-friend
 
-[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2515 tests](https://img.shields.io/badge/tests-2515%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2579 tests](https://img.shields.io/badge/tests-2579%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 **Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
 
@@ -55,16 +55,36 @@ kit.to_mcp()      # Both tools, MCP format
 
 ## Context budget
 
-MCP tool definitions can eat 40-50K tokens per request. Measure before you ship:
+MCP tool definitions can eat 40-50K tokens per request. Audit your tools from the CLI:
+
+```bash
+agent-friend audit tools.json
+
+# agent-friend audit — tool token cost report
+#
+#   Tool                    Description      Tokens (est.)
+#   get_weather             67 chars        ~79 tokens
+#   search_web              145 chars       ~99 tokens
+#   send_email              28 chars        ~79 tokens
+#   ──────────────────────────────────────────────────────
+#   Total (3 tools)                        ~257 tokens
+#
+#   Format comparison (total):
+#     openai        ~279 tokens
+#     anthropic     ~257 tokens
+#     google        ~245 tokens  <- cheapest
+#     mcp           ~257 tokens
+#     json_schema   ~245 tokens
+```
+
+Or measure programmatically:
 
 ```python
 kit = Toolkit([search, calculate])
 kit.token_report()
-# {'estimates': {'openai': 115, 'anthropic': 101, 'google': 117,
-#                'mcp': 100, 'json_schema': 93},
-#  'most_expensive': 'google', 'least_expensive': 'json_schema',
-#  'tool_count': 2}
 ```
+
+Accepts OpenAI, Anthropic, MCP, Google, or JSON Schema format. Auto-detects.
 
 ## When you need this
 
