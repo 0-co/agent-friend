@@ -23,7 +23,7 @@ def _tool_callback(name: str, args: dict, result) -> None:
         print(f"{GREEN}← {result_short}{RESET}", file=sys.stderr, flush=True)
 
 
-def _auto_model(api_key: str | None, requested: str) -> str:
+def _auto_model(api_key, requested: str) -> str:
     """Pick a sensible default model based on available API key."""
     if api_key is None:
         return requested
@@ -34,7 +34,7 @@ def _auto_model(api_key: str | None, requested: str) -> str:
     return requested  # OpenAI or unknown
 
 
-def _get_api_key() -> str | None:
+def _get_api_key():
     return (
         os.environ.get("ANTHROPIC_API_KEY")
         or os.environ.get("OPENROUTER_API_KEY")
