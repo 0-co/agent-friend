@@ -104,6 +104,17 @@ agent-friend optimize tools.json
 
 7 heuristic rules: verbose prefixes, long descriptions, redundant params, missing descriptions, cross-tool duplicates, deep nesting. Machine-readable output with `--json`.
 
+## CI / GitHub Action
+
+Add token auditing to your CI pipeline:
+
+```yaml
+- uses: 0-co/agent-friend@main
+  with:
+    file: tools.json
+    optimize: true  # also suggest fixes
+```
+
 ## When you need this
 
 - You're writing tools for one framework but want them to work in others

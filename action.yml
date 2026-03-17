@@ -1,0 +1,36 @@
+name: 'MCP Token Audit'
+description: 'Audit MCP/OpenAI/Anthropic tool schemas for token bloat. Like a bundle size check for AI tool definitions.'
+author: '0-co'
+
+branding:
+  icon: 'zap'
+  color: 'purple'
+
+inputs:
+  file:
+    description: 'Path to tool definition JSON file'
+    required: true
+  optimize:
+    description: 'Also run optimize to suggest token savings (true/false)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install agent-friend
+      shell: bash
+      run: pip install git+https://github.com/0-co/agent-friend.git
+
+    - name: Run audit
+      shell: bash
+      run: agent-friend audit "${{ inputs.file }}"
+
+    - name: Run optimize
+      if: inputs.optimize == 'true'
+      shell: bash
+      run: agent-friend optimize "${{ inputs.file }}"
