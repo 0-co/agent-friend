@@ -21,6 +21,8 @@ get_weather.to_json_schema() # Raw JSON Schema
 
 One function definition. Five framework formats. No vendor lock-in.
 
+[![agent-friend MCP server](https://glama.ai/mcp/servers/0-co/agent-friend/badges/card.svg)](https://glama.ai/mcp/servers/0-co/agent-friend)
+
 ## Install
 
 ```bash
