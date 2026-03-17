@@ -12,6 +12,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from .tools.function_tool import FunctionTool
 from .toolkit import Toolkit
 
+# Common model context windows (tokens)
+_MODEL_CONTEXT_WINDOWS = {
+    "GPT-4o (128K)": 128_000,
+    "Claude (200K)": 200_000,
+    "GPT-4 (8K)": 8_192,
+    "Gemini 2.0 (1M)": 1_000_000,
+}
+
 
 # ---------------------------------------------------------------------------
 # Format detection
@@ -204,6 +212,13 @@ def generate_report(
         marker = f"  {CYAN}<- cheapest{RESET}" if fmt == least else ""
         lines.append(f"    {fmt:<14s}{GREEN}~{est} tokens{RESET}{marker}")
 
+    # Context window impact
+    lines.append(f"\n  {BOLD}Context window impact:{RESET}")
+    for model_name, window_size in _MODEL_CONTEXT_WINDOWS.items():
+        pct = (total_tokens / window_size) * 100
+        warn = f"  {YELLOW}<- check your budget{RESET}" if pct > 2.0 else ""
+        lines.append(f"    {model_name:<20s}{GREEN}~{pct:.1f}%{RESET}{warn}")
+
     # Recommendations
     if long_descriptions:
         lines.append("")
@@ -237,10 +252,15 @@ def generate_json_report(tools: List[FunctionTool]) -> Dict[str, Any]:
 
     total_tokens = sum(t["tokens"] for t in per_tool)
 
+    context_impact = {}
+    for model_name, window_size in _MODEL_CONTEXT_WINDOWS.items():
+        context_impact[model_name] = round((total_tokens / window_size) * 100, 2) if total_tokens else 0.0
+
     return {
         "tool_count": len(tools),
         "total_tokens": total_tokens,
         "format_estimates": report.get("estimates", {}),
+        "context_window_pct": context_impact,
         "tools": sorted(per_tool, key=lambda x: -x["tokens"]),
     }
 

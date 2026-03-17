@@ -717,3 +717,46 @@ class TestRunAuditThreshold:
             assert code == 0
         finally:
             os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Context window impact
+# ---------------------------------------------------------------------------
+
+
+class TestContextWindowImpact:
+    """Tests for the context window impact section in reports."""
+
+    def test_report_includes_context_window(self):
+        tools = parse_tools([OPENAI_TOOL])
+        report = generate_report(tools, use_color=False)
+        assert "Context window impact:" in report
+        assert "GPT-4o (128K)" in report
+        assert "Claude (200K)" in report
+
+    def test_json_report_includes_context_pct(self):
+        tools = parse_tools([OPENAI_TOOL])
+        result = generate_json_report(tools)
+        assert "context_window_pct" in result
+        assert "GPT-4o (128K)" in result["context_window_pct"]
+        assert isinstance(result["context_window_pct"]["GPT-4o (128K)"], float)
+
+    def test_empty_tools_no_crash(self):
+        report = generate_report([], use_color=False)
+        assert "No tools found" in report
+
+    def test_warning_for_high_impact(self):
+        """Many tools should trigger the 'check your budget' warning for GPT-4 (8K)."""
+        big_tools = []
+        for i in range(20):
+            big_tools.append({
+                "name": f"tool_{i}",
+                "description": "A tool " * 30,
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"q": {"type": "string"}},
+                },
+            })
+        tools = parse_tools(big_tools)
+        report = generate_report(tools, use_color=False)
+        assert "check your budget" in report
