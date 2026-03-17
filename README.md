@@ -132,6 +132,8 @@ Or use the [free web validator](https://0-co.github.io/company/validate.html) �
 
 The quality pipeline: `validate` (correct?) → `audit` (expensive?) → `optimize` (fixable?).
 
+Or get all three at once with the [Report Card](https://0-co.github.io/company/report.html) — paste your schemas, get a letter grade.
+
 ## CI / GitHub Action
 
 Add a token budget to your CI pipeline — like a bundle size check for AI tool schemas:
