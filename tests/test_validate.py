@@ -1,0 +1,1511 @@
+"""Tests for the agent-friend validate CLI subcommand and validate module."""
+
+import json
+import io
+import os
+import sys
+import tempfile
+
+import pytest
+
+from agent_friend.validate import (
+    Issue,
+    validate_tools,
+    generate_report,
+    generate_json_output,
+    run_validate,
+    _check_name_present,
+    _check_name_valid,
+    _check_description_present,
+    _check_description_not_empty,
+    _check_no_duplicate_names,
+    _check_parameters_valid_type,
+    _check_required_params_exist,
+    _check_enum_is_array,
+    _check_properties_is_object,
+    _check_nested_objects_have_properties,
+)
+
+
+# ---------------------------------------------------------------------------
+# Sample tool definitions in each format
+# ---------------------------------------------------------------------------
+
+VALID_ANTHROPIC_TOOL = {
+    "name": "get_weather",
+    "description": "Get current weather for a city.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": "City name"},
+            "units": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+        },
+        "required": ["city"],
+    },
+}
+
+VALID_OPENAI_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get current weather for a city.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {"type": "string", "description": "City name"},
+            },
+            "required": ["city"],
+        },
+    },
+}
+
+VALID_MCP_TOOL = {
+    "name": "get_weather",
+    "description": "Get current weather for a city.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": "City name"},
+        },
+        "required": ["city"],
+    },
+}
+
+VALID_SIMPLE_TOOL = {
+    "name": "get_weather",
+    "description": "Get current weather for a city.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": "City name"},
+        },
+        "required": ["city"],
+    },
+}
+
+VALID_JSON_SCHEMA_TOOL = {
+    "type": "object",
+    "title": "get_weather",
+    "description": "Get current weather for a city.",
+    "properties": {
+        "city": {"type": "string", "description": "City name"},
+    },
+    "required": ["city"],
+}
+
+
+# ---------------------------------------------------------------------------
+# Check 1: valid_json (tested via run_validate)
+# ---------------------------------------------------------------------------
+
+
+class TestValidJson:
+    def test_invalid_json_returns_error(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            f.write("{not valid json}")
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 1
+            err = capsys.readouterr().err
+            assert "invalid JSON" in err
+        finally:
+            os.unlink(path)
+
+    def test_invalid_json_with_json_flag(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            f.write("{bad}")
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False, json_output=True)
+            assert code == 1
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["errors"] == 1
+            assert data["passed"] is False
+            assert data["issues"][0]["check"] == "valid_json"
+        finally:
+            os.unlink(path)
+
+    def test_valid_json_passes(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 0
+        finally:
+            os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Check 2: format_detected
+# ---------------------------------------------------------------------------
+
+
+class TestFormatDetected:
+    def test_undetectable_format(self):
+        issues, stats = validate_tools({"foo": "bar"})
+        checks = [i.check for i in issues]
+        assert "format_detected" in checks
+        assert any(i.severity == "error" for i in issues if i.check == "format_detected")
+
+    def test_detectable_format_passes(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        checks = [i.check for i in issues]
+        assert "format_detected" not in checks
+
+
+# ---------------------------------------------------------------------------
+# Check 3: name_present
+# ---------------------------------------------------------------------------
+
+
+class TestNamePresent:
+    def test_missing_name_anthropic(self):
+        issue = _check_name_present(
+            {"description": "foo", "input_schema": {"type": "object", "properties": {}}},
+            "anthropic", 0,
+        )
+        assert issue is not None
+        assert issue.check == "name_present"
+        assert issue.severity == "error"
+
+    def test_empty_name(self):
+        issue = _check_name_present(
+            {"name": "", "description": "foo", "input_schema": {"type": "object", "properties": {}}},
+            "anthropic", 0,
+        )
+        assert issue is not None
+        assert issue.check == "name_present"
+
+    def test_present_name_passes(self):
+        issue = _check_name_present(
+            {"name": "my_tool", "description": "foo", "input_schema": {"type": "object", "properties": {}}},
+            "anthropic", 0,
+        )
+        assert issue is None
+
+    def test_missing_name_openai(self):
+        issue = _check_name_present(
+            {"type": "function", "function": {"description": "foo", "parameters": {}}},
+            "openai", 0,
+        )
+        assert issue is not None
+        assert issue.check == "name_present"
+
+    def test_present_name_openai(self):
+        issue = _check_name_present(
+            {"type": "function", "function": {"name": "tool1", "description": "foo", "parameters": {}}},
+            "openai", 0,
+        )
+        assert issue is None
+
+    def test_missing_name_in_full_validation(self):
+        # OpenAI format can be detected without a name (via type=function + function key)
+        tool = {
+            "type": "function",
+            "function": {
+                "description": "foo",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = [i.check for i in issues]
+        assert "name_present" in checks
+
+
+# ---------------------------------------------------------------------------
+# Check 4: name_valid
+# ---------------------------------------------------------------------------
+
+
+class TestNameValid:
+    def test_valid_identifier(self):
+        issue = _check_name_valid("get_weather")
+        assert issue is None
+
+    def test_alphanumeric_with_underscore(self):
+        issue = _check_name_valid("tool_123_abc")
+        assert issue is None
+
+    def test_spaces_in_name(self):
+        issue = _check_name_valid("get weather")
+        assert issue is not None
+        assert issue.check == "name_valid"
+        assert issue.severity == "warn"
+
+    def test_dashes_in_name(self):
+        issue = _check_name_valid("get-weather")
+        assert issue is not None
+        assert issue.check == "name_valid"
+
+    def test_special_characters(self):
+        issue = _check_name_valid("get@weather!")
+        assert issue is not None
+
+    def test_empty_string(self):
+        issue = _check_name_valid("")
+        assert issue is not None
+
+
+# ---------------------------------------------------------------------------
+# Check 5: description_present
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionPresent:
+    def test_missing_description_anthropic(self):
+        issue = _check_description_present(
+            "tool1",
+            {"name": "tool1", "input_schema": {"type": "object", "properties": {}}},
+            "anthropic",
+        )
+        assert issue is not None
+        assert issue.check == "description_present"
+        assert issue.severity == "warn"
+
+    def test_present_description(self):
+        issue = _check_description_present(
+            "tool1",
+            {"name": "tool1", "description": "Does stuff", "input_schema": {}},
+            "anthropic",
+        )
+        assert issue is None
+
+    def test_missing_description_openai(self):
+        issue = _check_description_present(
+            "tool1",
+            {"type": "function", "function": {"name": "tool1", "parameters": {}}},
+            "openai",
+        )
+        assert issue is not None
+        assert issue.check == "description_present"
+
+    def test_present_description_openai(self):
+        issue = _check_description_present(
+            "tool1",
+            {"type": "function", "function": {"name": "tool1", "description": "Hi", "parameters": {}}},
+            "openai",
+        )
+        assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 6: description_not_empty
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionNotEmpty:
+    def test_empty_description(self):
+        issue = _check_description_not_empty(
+            "tool1",
+            {"name": "tool1", "description": "", "input_schema": {}},
+            "anthropic",
+        )
+        assert issue is not None
+        assert issue.check == "description_not_empty"
+        assert issue.severity == "warn"
+
+    def test_whitespace_only_description(self):
+        issue = _check_description_not_empty(
+            "tool1",
+            {"name": "tool1", "description": "   ", "input_schema": {}},
+            "anthropic",
+        )
+        assert issue is not None
+        assert issue.check == "description_not_empty"
+
+    def test_nonempty_description(self):
+        issue = _check_description_not_empty(
+            "tool1",
+            {"name": "tool1", "description": "Does stuff", "input_schema": {}},
+            "anthropic",
+        )
+        assert issue is None
+
+    def test_missing_description_not_flagged(self):
+        # If description is absent entirely, description_present catches it, not this check
+        issue = _check_description_not_empty(
+            "tool1",
+            {"name": "tool1", "input_schema": {}},
+            "anthropic",
+        )
+        assert issue is None
+
+    def test_empty_description_openai(self):
+        issue = _check_description_not_empty(
+            "tool1",
+            {"type": "function", "function": {"name": "tool1", "description": "", "parameters": {}}},
+            "openai",
+        )
+        assert issue is not None
+        assert issue.check == "description_not_empty"
+
+
+# ---------------------------------------------------------------------------
+# Check 7: no_duplicate_names
+# ---------------------------------------------------------------------------
+
+
+class TestNoDuplicateNames:
+    def test_no_duplicates(self):
+        issues = _check_no_duplicate_names(["tool1", "tool2", "tool3"])
+        assert len(issues) == 0
+
+    def test_duplicates_found(self):
+        issues = _check_no_duplicate_names(["tool1", "tool2", "tool1"])
+        assert len(issues) == 1
+        assert issues[0].check == "no_duplicate_names"
+        assert issues[0].severity == "error"
+        assert "2 times" in issues[0].message
+
+    def test_triple_duplicate(self):
+        issues = _check_no_duplicate_names(["tool1", "tool1", "tool1"])
+        assert len(issues) == 1
+        assert "3 times" in issues[0].message
+
+    def test_multiple_different_duplicates(self):
+        issues = _check_no_duplicate_names(["a", "b", "a", "b", "c"])
+        assert len(issues) == 2
+
+    def test_empty_list(self):
+        issues = _check_no_duplicate_names([])
+        assert len(issues) == 0
+
+    def test_single_name(self):
+        issues = _check_no_duplicate_names(["tool1"])
+        assert len(issues) == 0
+
+    def test_duplicate_in_full_validation(self):
+        tools = [
+            {"name": "dupe", "description": "First", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "dupe", "description": "Second", "input_schema": {"type": "object", "properties": {}}},
+        ]
+        issues, stats = validate_tools(tools)
+        checks = [i.check for i in issues]
+        assert "no_duplicate_names" in checks
+
+
+# ---------------------------------------------------------------------------
+# Check 8: parameters_valid_type
+# ---------------------------------------------------------------------------
+
+
+class TestParametersValidType:
+    def test_valid_types(self):
+        schema = {
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "number"},
+                "c": {"type": "integer"},
+                "d": {"type": "boolean"},
+                "e": {"type": "array"},
+                "f": {"type": "object"},
+                "g": {"type": "null"},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 0
+
+    def test_invalid_type(self):
+        schema = {
+            "properties": {
+                "a": {"type": "date"},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "parameters_valid_type"
+        assert issues[0].severity == "error"
+        assert "date" in issues[0].message
+
+    def test_multiple_invalid_types(self):
+        schema = {
+            "properties": {
+                "a": {"type": "date"},
+                "b": {"type": "float"},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 2
+
+    def test_type_as_list(self):
+        schema = {
+            "properties": {
+                "a": {"type": ["string", "null"]},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 0
+
+    def test_type_as_list_with_invalid(self):
+        schema = {
+            "properties": {
+                "a": {"type": ["string", "date"]},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 1
+        assert "date" in issues[0].message
+
+    def test_no_type_field_passes(self):
+        schema = {
+            "properties": {
+                "a": {"description": "no type defined"},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 0
+
+    def test_type_is_not_string_or_list(self):
+        schema = {
+            "properties": {
+                "a": {"type": 123},
+            },
+        }
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 1
+
+    def test_empty_properties(self):
+        schema = {"properties": {}}
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 0
+
+    def test_no_properties_key(self):
+        schema = {}
+        issues = _check_parameters_valid_type("t", schema)
+        assert len(issues) == 0
+
+
+# ---------------------------------------------------------------------------
+# Check 9: required_params_exist
+# ---------------------------------------------------------------------------
+
+
+class TestRequiredParamsExist:
+    def test_all_required_exist(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+                "units": {"type": "string"},
+            },
+            "required": ["city"],
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 0
+
+    def test_required_param_missing(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+            },
+            "required": ["city", "humidity"],
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "required_params_exist"
+        assert issues[0].severity == "error"
+        assert "humidity" in issues[0].message
+
+    def test_multiple_missing_required(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+            },
+            "required": ["city", "humidity", "wind_speed"],
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 2
+
+    def test_no_required_field(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+            },
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 0
+
+    def test_empty_required(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+            },
+            "required": [],
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 0
+
+    def test_no_properties_key(self):
+        schema = {
+            "required": ["city"],
+        }
+        issues = _check_required_params_exist("t", schema)
+        assert len(issues) == 1
+        assert "city" in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 10: enum_is_array
+# ---------------------------------------------------------------------------
+
+
+class TestEnumIsArray:
+    def test_valid_enum(self):
+        schema = {
+            "properties": {
+                "units": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+            },
+        }
+        issues = _check_enum_is_array("t", schema)
+        assert len(issues) == 0
+
+    def test_enum_is_string(self):
+        schema = {
+            "properties": {
+                "units": {"type": "string", "enum": "celsius"},
+            },
+        }
+        issues = _check_enum_is_array("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "enum_is_array"
+        assert issues[0].severity == "error"
+        assert "str" in issues[0].message
+
+    def test_enum_is_number(self):
+        schema = {
+            "properties": {
+                "level": {"type": "integer", "enum": 5},
+            },
+        }
+        issues = _check_enum_is_array("t", schema)
+        assert len(issues) == 1
+        assert "int" in issues[0].message
+
+    def test_no_enum_passes(self):
+        schema = {
+            "properties": {
+                "name": {"type": "string"},
+            },
+        }
+        issues = _check_enum_is_array("t", schema)
+        assert len(issues) == 0
+
+    def test_multiple_enum_errors(self):
+        schema = {
+            "properties": {
+                "a": {"type": "string", "enum": "x"},
+                "b": {"type": "string", "enum": "y"},
+            },
+        }
+        issues = _check_enum_is_array("t", schema)
+        assert len(issues) == 2
+
+
+# ---------------------------------------------------------------------------
+# Check 11: properties_is_object
+# ---------------------------------------------------------------------------
+
+
+class TestPropertiesIsObject:
+    def test_valid_properties(self):
+        schema = {
+            "properties": {
+                "city": {"type": "string"},
+            },
+        }
+        issue = _check_properties_is_object("t", schema)
+        assert issue is None
+
+    def test_properties_is_array(self):
+        schema = {
+            "properties": [{"name": "city", "type": "string"}],
+        }
+        issue = _check_properties_is_object("t", schema)
+        assert issue is not None
+        assert issue.check == "properties_is_object"
+        assert issue.severity == "error"
+        assert "list" in issue.message
+
+    def test_properties_is_string(self):
+        schema = {
+            "properties": "city: string",
+        }
+        issue = _check_properties_is_object("t", schema)
+        assert issue is not None
+        assert "str" in issue.message
+
+    def test_no_properties_key_passes(self):
+        schema = {}
+        issue = _check_properties_is_object("t", schema)
+        assert issue is None
+
+    def test_properties_none_passes(self):
+        # None means the key doesn't exist (or was set to None)
+        schema = {"properties": None}
+        # Should not flag since None means missing
+        issue = _check_properties_is_object("t", schema)
+        assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 12: nested_objects_have_properties
+# ---------------------------------------------------------------------------
+
+
+class TestNestedObjectsHaveProperties:
+    def test_object_with_properties(self):
+        schema = {
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_objects_have_properties("t", schema)
+        assert len(issues) == 0
+
+    def test_object_without_properties(self):
+        schema = {
+            "properties": {
+                "filters": {"type": "object"},
+            },
+        }
+        issues = _check_nested_objects_have_properties("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "nested_objects_have_properties"
+        assert issues[0].severity == "warn"
+        assert "filters" in issues[0].message
+
+    def test_non_object_type_passes(self):
+        schema = {
+            "properties": {
+                "name": {"type": "string"},
+                "count": {"type": "integer"},
+            },
+        }
+        issues = _check_nested_objects_have_properties("t", schema)
+        assert len(issues) == 0
+
+    def test_multiple_objects_without_properties(self):
+        schema = {
+            "properties": {
+                "config": {"type": "object"},
+                "metadata": {"type": "object"},
+            },
+        }
+        issues = _check_nested_objects_have_properties("t", schema)
+        assert len(issues) == 2
+
+    def test_empty_properties_counts(self):
+        schema = {
+            "properties": {
+                "config": {"type": "object", "properties": {}},
+            },
+        }
+        issues = _check_nested_objects_have_properties("t", schema)
+        assert len(issues) == 0
+
+
+# ---------------------------------------------------------------------------
+# validate_tools() integration
+# ---------------------------------------------------------------------------
+
+
+class TestValidateTools:
+    def test_clean_tool_no_issues(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        assert len(issues) == 0
+        assert stats["tool_count"] == 1
+        assert stats["errors"] == 0
+        assert stats["warnings"] == 0
+        assert stats["passed"] is True
+
+    def test_multiple_clean_tools(self):
+        tools = [VALID_ANTHROPIC_TOOL, VALID_MCP_TOOL]
+        issues, stats = validate_tools(tools)
+        # May have duplicate name issue since both are named "get_weather"
+        error_issues = [i for i in issues if i.check != "no_duplicate_names"]
+        assert len(error_issues) == 0
+
+    def test_empty_list(self):
+        issues, stats = validate_tools([])
+        assert len(issues) == 0
+        assert stats["tool_count"] == 0
+        assert stats["passed"] is True
+
+    def test_tool_with_multiple_errors(self):
+        tool = {
+            "name": "bad tool",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "date"},
+                    "y": {"type": "object"},
+                },
+                "required": ["x", "z"],
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "name_valid" in checks
+        assert "description_not_empty" in checks
+        assert "parameters_valid_type" in checks
+        assert "required_params_exist" in checks
+        assert "nested_objects_have_properties" in checks
+        assert stats["errors"] > 0
+        assert stats["passed"] is False
+
+    def test_stats_counting(self):
+        tool = {
+            "name": "bad tool",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "date"},
+                },
+                "required": ["missing"],
+            },
+        }
+        issues, stats = validate_tools(tool)
+        errors = sum(1 for i in issues if i.severity == "error")
+        warns = sum(1 for i in issues if i.severity == "warn")
+        assert stats["errors"] == errors
+        assert stats["warnings"] == warns
+
+
+# ---------------------------------------------------------------------------
+# Input format tests
+# ---------------------------------------------------------------------------
+
+
+class TestInputFormats:
+    def test_openai_format(self):
+        issues, stats = validate_tools(VALID_OPENAI_TOOL)
+        assert stats["tool_count"] == 1
+        assert stats["passed"] is True
+        assert len(issues) == 0
+
+    def test_anthropic_format(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        assert stats["tool_count"] == 1
+        assert stats["passed"] is True
+        assert len(issues) == 0
+
+    def test_mcp_format(self):
+        issues, stats = validate_tools(VALID_MCP_TOOL)
+        assert stats["tool_count"] == 1
+        assert stats["passed"] is True
+        assert len(issues) == 0
+
+    def test_simple_format(self):
+        issues, stats = validate_tools(VALID_SIMPLE_TOOL)
+        assert stats["tool_count"] == 1
+        assert stats["passed"] is True
+        assert len(issues) == 0
+
+    def test_json_schema_format(self):
+        issues, stats = validate_tools(VALID_JSON_SCHEMA_TOOL)
+        assert stats["tool_count"] == 1
+        assert stats["passed"] is True
+        assert len(issues) == 0
+
+    def test_openai_with_errors(self):
+        tool = {
+            "type": "function",
+            "function": {
+                "name": "bad tool",
+                "description": "",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "date"},
+                    },
+                    "required": ["missing"],
+                },
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "name_valid" in checks
+        assert "description_not_empty" in checks
+        assert "parameters_valid_type" in checks
+        assert "required_params_exist" in checks
+
+    def test_mcp_with_errors(self):
+        tool = {
+            "name": "bad tool",
+            "description": "",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "float"},
+                },
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "name_valid" in checks
+        assert "description_not_empty" in checks
+        assert "parameters_valid_type" in checks
+
+    def test_json_schema_with_errors(self):
+        tool = {
+            "type": "object",
+            "title": "bad tool",
+            "description": "",
+            "properties": {
+                "x": {"type": "timestamp"},
+            },
+            "required": ["missing"],
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "name_valid" in checks
+        assert "description_not_empty" in checks
+        assert "parameters_valid_type" in checks
+        assert "required_params_exist" in checks
+
+    def test_simple_with_errors(self):
+        tool = {
+            "name": "bad tool",
+            "description": "",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "blob"},
+                },
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "name_valid" in checks
+        assert "description_not_empty" in checks
+        assert "parameters_valid_type" in checks
+
+
+# ---------------------------------------------------------------------------
+# Report generation
+# ---------------------------------------------------------------------------
+
+
+class TestReport:
+    def test_empty_report(self):
+        report = generate_report(
+            [], {"tool_count": 0, "errors": 0, "warnings": 0, "passed": True},
+            use_color=False,
+        )
+        assert "No tools found" in report
+
+    def test_clean_report(self):
+        report = generate_report(
+            [], {"tool_count": 3, "errors": 0, "warnings": 0, "passed": True},
+            use_color=False,
+        )
+        assert "3 tools validated" in report
+        assert "0 errors" in report
+        assert "0 warnings" in report
+        assert "PASS" in report
+
+    def test_report_with_errors(self):
+        issues = [
+            Issue("get_weather", "error", "required_params_exist", "required param 'humidity' not found in properties"),
+        ]
+        stats = {"tool_count": 1, "errors": 1, "warnings": 0, "passed": False}
+        report = generate_report(issues, stats, use_color=False)
+        assert "get_weather" in report
+        assert "ERROR" in report
+        assert "humidity" in report
+        assert "FAIL" in report
+
+    def test_report_with_warnings(self):
+        issues = [
+            Issue("send_email", "warn", "description_not_empty", "description is empty"),
+        ]
+        stats = {"tool_count": 1, "errors": 0, "warnings": 1, "passed": True}
+        report = generate_report(issues, stats, use_color=False)
+        assert "send_email" in report
+        assert "WARN" in report
+        assert "PASS" in report
+
+    def test_report_mixed_issues(self):
+        issues = [
+            Issue("tool1", "error", "required_params_exist", "required param 'x' not found"),
+            Issue("tool2", "warn", "description_not_empty", "description is empty"),
+        ]
+        stats = {"tool_count": 2, "errors": 1, "warnings": 1, "passed": False}
+        report = generate_report(issues, stats, use_color=False)
+        assert "tool1" in report
+        assert "tool2" in report
+        assert "ERROR" in report
+        assert "WARN" in report
+        assert "FAIL" in report
+
+    def test_report_no_ansi_when_disabled(self):
+        issues = [
+            Issue("tool1", "error", "required_params_exist", "msg"),
+        ]
+        stats = {"tool_count": 1, "errors": 1, "warnings": 0, "passed": False}
+        report = generate_report(issues, stats, use_color=False)
+        assert "\033[" not in report
+
+    def test_report_summary_counts(self):
+        issues = [
+            Issue("t", "error", "c1", "m1"),
+            Issue("t", "error", "c2", "m2"),
+            Issue("t", "warn", "c3", "m3"),
+        ]
+        stats = {"tool_count": 5, "errors": 2, "warnings": 1, "passed": False}
+        report = generate_report(issues, stats, use_color=False)
+        assert "5 tools" in report
+        assert "2 errors" in report
+        assert "1 warning" in report
+
+    def test_single_tool_singular(self):
+        report = generate_report(
+            [], {"tool_count": 1, "errors": 0, "warnings": 0, "passed": True},
+            use_color=False,
+        )
+        assert "1 tool validated" in report
+        # Should NOT say "1 tools"
+        assert "1 tools" not in report
+
+
+# ---------------------------------------------------------------------------
+# JSON output
+# ---------------------------------------------------------------------------
+
+
+class TestJsonOutput:
+    def test_json_output_structure(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        output = generate_json_output(issues, stats)
+        data = json.loads(output)
+        assert "tool_count" in data
+        assert "errors" in data
+        assert "warnings" in data
+        assert "passed" in data
+        assert "issues" in data
+        assert isinstance(data["issues"], list)
+
+    def test_json_with_issues(self):
+        tool = {
+            "name": "bad tool",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "date"},
+                },
+                "required": ["missing"],
+            },
+        }
+        issues, stats = validate_tools(tool)
+        output = generate_json_output(issues, stats)
+        data = json.loads(output)
+        assert data["errors"] > 0
+        assert data["passed"] is False
+        assert len(data["issues"]) > 0
+        # Each issue has the right fields
+        for issue in data["issues"]:
+            assert "tool" in issue
+            assert "severity" in issue
+            assert "check" in issue
+            assert "message" in issue
+
+    def test_json_empty(self):
+        output = generate_json_output(
+            [], {"tool_count": 0, "errors": 0, "warnings": 0, "passed": True},
+        )
+        data = json.loads(output)
+        assert data["tool_count"] == 0
+        assert data["issues"] == []
+        assert data["passed"] is True
+
+    def test_json_clean_tool(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        output = generate_json_output(issues, stats)
+        data = json.loads(output)
+        assert data["tool_count"] == 1
+        assert data["errors"] == 0
+        assert data["warnings"] == 0
+        assert data["passed"] is True
+        assert data["issues"] == []
+
+
+# ---------------------------------------------------------------------------
+# Strict mode
+# ---------------------------------------------------------------------------
+
+
+class TestStrictMode:
+    def test_strict_promotes_warnings(self, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            # Without strict: PASS (only warnings)
+            code = run_validate(path, use_color=False, strict=False)
+            assert code == 0
+
+            # With strict: FAIL (warnings become errors)
+            code = run_validate(path, use_color=False, strict=True)
+            assert code == 1
+        finally:
+            os.unlink(path)
+
+    def test_strict_json_output(self, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False, json_output=True, strict=True)
+            assert code == 1
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["passed"] is False
+            # All issues should be errors after strict promotion
+            for issue in data["issues"]:
+                assert issue["severity"] == "error"
+        finally:
+            os.unlink(path)
+
+    def test_strict_no_warnings_still_passes(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False, strict=True)
+            assert code == 0
+        finally:
+            os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# run_validate() — file and stdin handling
+# ---------------------------------------------------------------------------
+
+
+class TestRunValidate:
+    def test_file_input(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 0
+            out = capsys.readouterr().out
+            assert "PASS" in out
+        finally:
+            os.unlink(path)
+
+    def test_stdin_input(self, monkeypatch, capsys):
+        data = json.dumps(VALID_ANTHROPIC_TOOL)
+        monkeypatch.setattr("sys.stdin", io.StringIO(data))
+        code = run_validate("-", use_color=False)
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "PASS" in out
+
+    def test_file_not_found(self, capsys):
+        code = run_validate("/nonexistent/file.json", use_color=False)
+        assert code == 2
+        err = capsys.readouterr().err
+        assert "file not found" in err
+
+    def test_invalid_json(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            f.write("{not valid json}")
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 1
+            err = capsys.readouterr().err
+            assert "invalid JSON" in err
+        finally:
+            os.unlink(path)
+
+    def test_empty_file(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            f.write("")
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 0
+            out = capsys.readouterr().out
+            assert "No tools found" in out
+        finally:
+            os.unlink(path)
+
+    def test_json_flag(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False, json_output=True)
+            assert code == 0
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["passed"] is True
+        finally:
+            os.unlink(path)
+
+    def test_undetectable_format(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump({"foo": "bar"}, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 1
+            out = capsys.readouterr().out
+            assert "FAIL" in out
+        finally:
+            os.unlink(path)
+
+    def test_errors_exit_code_1(self, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "ok",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+                "required": ["x", "missing"],
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 1
+        finally:
+            os.unlink(path)
+
+    def test_warnings_only_exit_code_0(self, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_validate(path, use_color=False)
+            assert code == 0
+        finally:
+            os.unlink(path)
+
+    def test_stdin_none(self, monkeypatch, capsys):
+        data = json.dumps(VALID_ANTHROPIC_TOOL)
+        monkeypatch.setattr("sys.stdin", io.StringIO(data))
+        code = run_validate(None, use_color=False)
+        assert code == 0
+
+
+# ---------------------------------------------------------------------------
+# CLI integration
+# ---------------------------------------------------------------------------
+
+
+class TestCLIIntegration:
+    def test_validate_help(self, monkeypatch):
+        """Verify validate --help doesn't crash."""
+        monkeypatch.setattr("sys.argv", ["agent-friend", "validate", "--help"])
+        with pytest.raises(SystemExit) as exc_info:
+            from agent_friend.cli import main
+            main()
+        assert exc_info.value.code == 0
+
+    def test_validate_with_file(self, monkeypatch, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            monkeypatch.setattr(
+                "sys.argv", ["agent-friend", "validate", path, "--no-color"]
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                from agent_friend.cli import main
+                main()
+            assert exc_info.value.code == 0
+            out = capsys.readouterr().out
+            assert "PASS" in out
+        finally:
+            os.unlink(path)
+
+    def test_validate_with_json_flag(self, monkeypatch, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(VALID_ANTHROPIC_TOOL, f)
+            f.flush()
+            path = f.name
+
+        try:
+            monkeypatch.setattr(
+                "sys.argv", ["agent-friend", "validate", path, "--json"]
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                from agent_friend.cli import main
+                main()
+            assert exc_info.value.code == 0
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["passed"] is True
+        finally:
+            os.unlink(path)
+
+    def test_validate_with_strict_flag(self, monkeypatch, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            monkeypatch.setattr(
+                "sys.argv", ["agent-friend", "validate", path, "--strict", "--no-color"]
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                from agent_friend.cli import main
+                main()
+            assert exc_info.value.code == 1
+        finally:
+            os.unlink(path)
+
+    def test_validate_errors_exit_1(self, monkeypatch, capsys):
+        tool = {
+            "name": "tool1",
+            "description": "ok",
+            "input_schema": {
+                "type": "object",
+                "properties": {},
+                "required": ["missing"],
+            },
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(tool, f)
+            f.flush()
+            path = f.name
+
+        try:
+            monkeypatch.setattr(
+                "sys.argv", ["agent-friend", "validate", path, "--no-color"]
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                from agent_friend.cli import main
+                main()
+            assert exc_info.value.code == 1
+        finally:
+            os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Issue class
+# ---------------------------------------------------------------------------
+
+
+class TestIssue:
+    def test_to_dict(self):
+        i = Issue("tool1", "error", "check1", "msg1")
+        d = i.to_dict()
+        assert d["tool"] == "tool1"
+        assert d["severity"] == "error"
+        assert d["check"] == "check1"
+        assert d["message"] == "msg1"
+
+    def test_attributes(self):
+        i = Issue("t", "warn", "c", "m")
+        assert i.tool == "t"
+        assert i.severity == "warn"
+        assert i.check == "c"
+        assert i.message == "m"
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestEdgeCases:
+    def test_single_tool_dict(self):
+        issues, stats = validate_tools(VALID_ANTHROPIC_TOOL)
+        assert stats["tool_count"] == 1
+
+    def test_single_tool_in_list(self):
+        issues, stats = validate_tools([VALID_ANTHROPIC_TOOL])
+        assert stats["tool_count"] == 1
+
+    def test_non_dict_non_list_input(self):
+        issues, stats = validate_tools("not a dict or list")
+        assert stats["tool_count"] == 0
+
+    def test_properties_not_dict_in_param_checks(self):
+        # Properties is a list — should trigger properties_is_object but not crash other checks
+        tool = {
+            "name": "tool1",
+            "description": "ok",
+            "input_schema": {
+                "type": "object",
+                "properties": ["bad"],
+            },
+        }
+        issues, stats = validate_tools(tool)
+        checks = set(i.check for i in issues)
+        assert "properties_is_object" in checks
+
+    def test_param_schema_not_dict(self):
+        # A property value that isn't a dict shouldn't crash
+        tool = {
+            "name": "tool1",
+            "description": "ok",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "bad_param": "not a dict",
+                },
+            },
+        }
+        # Should not raise
+        issues, stats = validate_tools(tool)
+        assert stats["tool_count"] == 1
+
+    def test_mixed_valid_and_invalid_tools(self):
+        tools = [
+            VALID_ANTHROPIC_TOOL,
+            {
+                "name": "bad tool",
+                "description": "",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "date"},
+                    },
+                    "required": ["missing"],
+                },
+            },
+        ]
+        issues, stats = validate_tools(tools)
+        assert stats["tool_count"] == 2
+        assert stats["errors"] > 0
+        assert stats["passed"] is False
+
+    def test_required_not_a_list(self):
+        # required is not a list — should not crash
+        tool = {
+            "name": "tool1",
+            "description": "ok",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "x": {"type": "string"},
+                },
+                "required": "x",
+            },
+        }
+        issues, stats = validate_tools(tool)
+        # Should not crash, just not find issues for required
+        assert stats["tool_count"] == 1

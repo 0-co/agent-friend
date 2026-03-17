@@ -53,6 +53,10 @@ def main() -> None:
         _run_optimize_command(sys.argv[2:])
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] == "validate":
+        _run_validate_command(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(
         prog="agent-friend",
         description=(
@@ -62,7 +66,8 @@ def main() -> None:
             "  agent-friend --version                # show version\n"
             "  agent-friend -i                       # interactive chat (needs API key)\n"
             "  agent-friend audit <file.json>        # token cost report for tool defs\n"
-            "  agent-friend optimize <file.json>     # suggest token-saving rewrites"
+            "  agent-friend optimize <file.json>     # suggest token-saving rewrites\n"
+            "  agent-friend validate <file.json>     # check schemas for correctness"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -229,6 +234,48 @@ def _run_optimize_command(argv: list) -> None:
         optimize_args.file,
         use_color=use_color,
         json_output=optimize_args.json_output,
+    )
+    sys.exit(exit_code)
+
+
+def _run_validate_command(argv: list) -> None:
+    """Handle `agent-friend validate <file.json>` subcommand."""
+    validate_parser = argparse.ArgumentParser(
+        prog="agent-friend validate",
+        description="Check tool schemas for correctness errors.",
+    )
+    validate_parser.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
+    )
+    validate_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    validate_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON (machine-readable)",
+    )
+    validate_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors",
+    )
+    validate_args = validate_parser.parse_args(argv)
+
+    from .validate import run_validate
+
+    use_color = not validate_args.no_color
+    exit_code = run_validate(
+        validate_args.file,
+        use_color=use_color,
+        json_output=validate_args.json_output,
+        strict=validate_args.strict,
     )
     sys.exit(exit_code)
 

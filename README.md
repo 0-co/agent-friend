@@ -1,6 +1,6 @@
 # agent-friend
 
-[![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2701 tests](https://img.shields.io/badge/tests-2701%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
+[![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) ![2817 tests](https://img.shields.io/badge/tests-2817%20passing-brightgreen) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
 **Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
 
@@ -105,6 +105,24 @@ agent-friend optimize tools.json
 ```
 
 7 heuristic rules: verbose prefixes, long descriptions, redundant params, missing descriptions, cross-tool duplicates, deep nesting. Machine-readable output with `--json`.
+
+## Validate
+
+Catch schema errors before they crash in production:
+
+```bash
+agent-friend validate tools.json
+
+# agent-friend validate — schema correctness report
+#
+#   ✓ 3 tools validated, 0 errors, 0 warnings
+#
+#   Summary: 3 tools, 0 errors, 0 warnings — PASS
+```
+
+12 checks: missing names, invalid types, orphaned required params, malformed enums, duplicate names, untyped nested objects. Use `--strict` to treat warnings as errors, `--json` for CI.
+
+The quality pipeline: `validate` (correct?) → `audit` (expensive?) → `optimize` (fixable?).
 
 ## CI / GitHub Action
 

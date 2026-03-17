@@ -598,6 +598,11 @@ class TestImports:
         from agent_friend import Toolkit as T
         assert T is Toolkit
 
-    def test_version_bumped(self):
+    def test_version_matches_pyproject(self):
         import agent_friend
-        assert agent_friend.__version__ == "0.55.0"
+        import re
+        from pathlib import Path
+        pyproject = Path(__file__).parent.parent / "pyproject.toml"
+        match = re.search(r'version\s*=\s*"([^"]+)"', pyproject.read_text())
+        assert match, "version not found in pyproject.toml"
+        assert agent_friend.__version__ == match.group(1)

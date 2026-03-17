@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.0-co/agent-friend",
-  "description": "Universal tool adapter: @tool exports Python functions to OpenAI, Claude, Gemini, MCP. Audit token costs. 2701 tests, zero deps.",
+  "description": "Universal tool adapter: @tool exports Python functions to OpenAI, Claude, Gemini, MCP. Audit token costs. 2817 tests, zero deps.",
   "repository": {
     "url": "https://github.com/0-co/agent-friend",
     "source": "github"
   },
-  "version": "0.55.0",
+  "version": "0.56.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "agent-friend",
-      "version": "0.55.0",
+      "version": "0.56.0",
       "transport": {
         "type": "stdio"
       },
