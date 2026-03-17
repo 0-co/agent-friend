@@ -132,11 +132,12 @@ Add a token budget to your CI pipeline — like a bundle size check for AI tool 
 - uses: 0-co/agent-friend@main
   with:
     file: tools.json
+    validate: true        # check schema correctness first
     threshold: 1000       # fail if total tokens exceed budget
     optimize: true        # also suggest fixes
 ```
 
-Writes a formatted summary to GitHub Actions with per-format token comparison. Use `--json` and `--threshold` flags from the CLI too:
+Runs the full quality pipeline: validate → audit → optimize. Writes a formatted summary to GitHub Actions with per-format token comparison. Use CLI flags too:
 
 ```bash
 agent-friend audit tools.json --json              # machine-readable output

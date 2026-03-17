@@ -1,5 +1,5 @@
-name: 'MCP Token Audit'
-description: 'Audit MCP/OpenAI/Anthropic tool schemas for token bloat. Like a bundle size check for AI tool definitions.'
+name: 'MCP Tool Quality'
+description: 'Validate, audit, and optimize MCP/OpenAI/Anthropic tool schemas. Like a bundle size check for AI tool definitions.'
 author: '0-co'
 
 branding:
@@ -14,6 +14,14 @@ inputs:
     description: 'Max allowed tokens — fail the check if exceeded (like a bundle size budget)'
     required: false
     default: ''
+  validate:
+    description: 'Run schema correctness checks before audit (true/false)'
+    required: false
+    default: 'false'
+  validate_strict:
+    description: 'Treat validation warnings as errors (true/false)'
+    required: false
+    default: 'false'
   optimize:
     description: 'Also run optimize to suggest token savings (true/false)'
     required: false
@@ -37,6 +45,41 @@ runs:
     - name: Install agent-friend
       shell: bash
       run: pip install git+https://github.com/0-co/agent-friend.git
+
+    - name: Run validate
+      if: inputs.validate == 'true'
+      shell: bash
+      run: |
+        STRICT_FLAG=""
+        if [ "${{ inputs.validate_strict }}" = "true" ]; then
+          STRICT_FLAG="--strict"
+        fi
+
+        echo "## Schema Validation" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        VALIDATE_JSON=$(agent-friend validate "${{ inputs.file }}" --json $STRICT_FLAG)
+        ERRORS=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['errors'])")
+        WARNINGS=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['warnings'])")
+        PASSED=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['passed'])")
+
+        echo "| Check | Count |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Errors | $ERRORS |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Warnings | $WARNINGS |" >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$PASSED" = "False" ]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          agent-friend validate "${{ inputs.file }}" --no-color $STRICT_FLAG >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Schema validation failed: $ERRORS errors, $WARNINGS warnings"
+          exit 1
+        else
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> Schema validation passed" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Run audit
       id: audit
