@@ -222,8 +222,36 @@ def generate_report(
 # ---------------------------------------------------------------------------
 
 
-def run_audit(file_path: Optional[str] = None, use_color: bool = True) -> int:
-    """Run the audit command. Returns exit code (0 = success, 1 = error).
+def generate_json_report(tools: List[FunctionTool]) -> Dict[str, Any]:
+    """Generate a machine-readable JSON audit report."""
+    kit = Toolkit(tools) if tools else None
+    report = kit.token_report() if kit else {"estimates": {}, "tool_count": 0}
+
+    per_tool = []
+    for ft in tools:
+        per_tool.append({
+            "name": ft.name,
+            "description_length": len(ft.description),
+            "tokens": ft.token_estimate(format="anthropic"),
+        })
+
+    total_tokens = sum(t["tokens"] for t in per_tool)
+
+    return {
+        "tool_count": len(tools),
+        "total_tokens": total_tokens,
+        "format_estimates": report.get("estimates", {}),
+        "tools": sorted(per_tool, key=lambda x: -x["tokens"]),
+    }
+
+
+def run_audit(
+    file_path: Optional[str] = None,
+    use_color: bool = True,
+    json_output: bool = False,
+    threshold: Optional[int] = None,
+) -> int:
+    """Run the audit command. Returns exit code (0 = success, 1 = error, 2 = threshold exceeded).
 
     Parameters
     ----------
@@ -231,6 +259,10 @@ def run_audit(file_path: Optional[str] = None, use_color: bool = True) -> int:
         Path to a JSON file, or "-" for stdin, or None to read from stdin.
     use_color:
         Whether to use ANSI color codes in output.
+    json_output:
+        If True, output JSON instead of colored text.
+    threshold:
+        If set, exit with code 2 when total tokens exceed this value.
     """
     try:
         if file_path is None or file_path == "-":
@@ -247,7 +279,10 @@ def run_audit(file_path: Optional[str] = None, use_color: bool = True) -> int:
 
     raw = raw.strip()
     if not raw:
-        print(generate_report([], use_color=use_color))
+        if json_output:
+            print(json.dumps(generate_json_report([]), indent=2))
+        else:
+            print(generate_report([], use_color=use_color))
         return 0
 
     try:
@@ -262,5 +297,20 @@ def run_audit(file_path: Optional[str] = None, use_color: bool = True) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    print(generate_report(tools, use_color=use_color))
+    if json_output:
+        result = generate_json_report(tools)
+        print(json.dumps(result, indent=2))
+    else:
+        print(generate_report(tools, use_color=use_color))
+
+    # Threshold check
+    if threshold is not None:
+        total = sum(ft.token_estimate(format="anthropic") for ft in tools)
+        if total > threshold:
+            print(
+                f"Threshold exceeded: {total} tokens > {threshold} limit",
+                file=sys.stderr,
+            )
+            return 2
+
     return 0

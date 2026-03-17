@@ -171,12 +171,29 @@ def _run_audit_command(argv: list) -> None:
         action="store_true",
         help="Disable colored output",
     )
+    audit_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON (machine-readable)",
+    )
+    audit_parser.add_argument(
+        "--threshold",
+        type=int,
+        default=None,
+        help="Fail (exit 2) if total tokens exceed this value",
+    )
     audit_args = audit_parser.parse_args(argv)
 
     from .audit import run_audit
 
     use_color = not audit_args.no_color
-    exit_code = run_audit(audit_args.file, use_color=use_color)
+    exit_code = run_audit(
+        audit_args.file,
+        use_color=use_color,
+        json_output=audit_args.json_output,
+        threshold=audit_args.threshold,
+    )
     sys.exit(exit_code)
 
 

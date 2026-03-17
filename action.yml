@@ -10,10 +10,22 @@ inputs:
   file:
     description: 'Path to tool definition JSON file'
     required: true
+  threshold:
+    description: 'Max allowed tokens — fail the check if exceeded (like a bundle size budget)'
+    required: false
+    default: ''
   optimize:
     description: 'Also run optimize to suggest token savings (true/false)'
     required: false
     default: 'false'
+
+outputs:
+  total_tokens:
+    description: 'Total estimated tokens across all tools'
+    value: ${{ steps.audit.outputs.total_tokens }}
+  tool_count:
+    description: 'Number of tools analyzed'
+    value: ${{ steps.audit.outputs.tool_count }}
 
 runs:
   using: 'composite'
@@ -27,10 +39,63 @@ runs:
       run: pip install git+https://github.com/0-co/agent-friend.git
 
     - name: Run audit
+      id: audit
       shell: bash
-      run: agent-friend audit "${{ inputs.file }}"
+      run: |
+        # Run JSON audit to capture data
+        AUDIT_JSON=$(agent-friend audit "${{ inputs.file }}" --json)
+        echo "$AUDIT_JSON"
+
+        # Extract metrics
+        TOTAL=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['total_tokens'])")
+        COUNT=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tool_count'])")
+        echo "total_tokens=$TOTAL" >> "$GITHUB_OUTPUT"
+        echo "tool_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+        # Write step summary
+        echo "## MCP Token Audit" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Tools | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Total tokens | $TOTAL |" >> "$GITHUB_STEP_SUMMARY"
+
+        # Threshold check
+        if [ -n "${{ inputs.threshold }}" ]; then
+          echo "| Threshold | ${{ inputs.threshold }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TOTAL" -gt "${{ inputs.threshold }}" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Token budget exceeded:** $TOTAL > ${{ inputs.threshold }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Token budget exceeded: $TOTAL tokens > ${{ inputs.threshold }} threshold"
+            exit 1
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Token budget OK: $TOTAL <= ${{ inputs.threshold }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+
+        # Format comparison
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Format comparison" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "$AUDIT_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        fmts = d.get('format_estimates', {})
+        if fmts:
+            print('| Format | Tokens |', file=sys.stdout)
+            print('|--------|--------|', file=sys.stdout)
+            for fmt in sorted(fmts, key=lambda f: fmts[f]):
+                print(f'| {fmt} | {fmts[f]} |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
 
     - name: Run optimize
       if: inputs.optimize == 'true'
       shell: bash
-      run: agent-friend optimize "${{ inputs.file }}"
+      run: |
+        agent-friend optimize "${{ inputs.file }}"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Optimization suggestions" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        agent-friend optimize "${{ inputs.file }}" --no-color >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"

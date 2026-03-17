@@ -600,4 +600,4 @@ class TestImports:
 
     def test_version_bumped(self):
         import agent_friend
-        assert agent_friend.__version__ == "0.52.0"
+        assert agent_friend.__version__ == "0.54.0"

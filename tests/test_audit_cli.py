@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from agent_friend.audit import detect_format, parse_tools, generate_report, run_audit
+from agent_friend.audit import detect_format, parse_tools, generate_report, generate_json_report, run_audit
 from agent_friend.tools.function_tool import FunctionTool
 
 
@@ -567,5 +567,153 @@ class TestCLIIntegration:
             assert exc_info.value.code == 0
             out = capsys.readouterr().out
             assert "\033[" not in out
+        finally:
+            os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# generate_json_report()
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateJsonReport:
+    def test_empty_tools(self):
+        result = generate_json_report([])
+        assert result["tool_count"] == 0
+        assert result["total_tokens"] == 0
+        assert result["tools"] == []
+
+    def test_single_tool(self):
+        tools = parse_tools(ANTHROPIC_TOOL)
+        result = generate_json_report(tools)
+        assert result["tool_count"] == 1
+        assert result["total_tokens"] > 0
+        assert len(result["tools"]) == 1
+        assert result["tools"][0]["name"] == "get_weather"
+        assert result["tools"][0]["tokens"] > 0
+        assert result["tools"][0]["description_length"] == len("Get current weather for a city.")
+
+    def test_multiple_tools(self):
+        data = [ANTHROPIC_TOOL, LONG_DESC_TOOL]
+        tools = parse_tools(data)
+        result = generate_json_report(tools)
+        assert result["tool_count"] == 2
+        assert result["total_tokens"] > 0
+        # Sorted by tokens descending
+        assert result["tools"][0]["tokens"] >= result["tools"][1]["tokens"]
+
+    def test_format_estimates_present(self):
+        tools = parse_tools(ANTHROPIC_TOOL)
+        result = generate_json_report(tools)
+        fmts = result["format_estimates"]
+        assert "openai" in fmts
+        assert "anthropic" in fmts
+        assert "google" in fmts
+        assert "mcp" in fmts
+        assert "json_schema" in fmts
+        assert all(v > 0 for v in fmts.values())
+
+
+# ---------------------------------------------------------------------------
+# run_audit() — JSON output and threshold
+# ---------------------------------------------------------------------------
+
+
+class TestRunAuditJson:
+    def test_json_output(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump([ANTHROPIC_TOOL], f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, json_output=True)
+            assert code == 0
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["tool_count"] == 1
+            assert data["total_tokens"] > 0
+        finally:
+            os.unlink(path)
+
+    def test_json_output_empty(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            f.write("")
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, json_output=True)
+            assert code == 0
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["tool_count"] == 0
+        finally:
+            os.unlink(path)
+
+
+class TestRunAuditThreshold:
+    def test_under_threshold(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump([ANTHROPIC_TOOL], f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, threshold=10000)
+            assert code == 0
+        finally:
+            os.unlink(path)
+
+    def test_over_threshold(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump([ANTHROPIC_TOOL], f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, threshold=1)
+            assert code == 2
+            err = capsys.readouterr().err
+            assert "Threshold exceeded" in err
+        finally:
+            os.unlink(path)
+
+    def test_threshold_with_json(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump([ANTHROPIC_TOOL], f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, json_output=True, threshold=1)
+            assert code == 2
+            out = capsys.readouterr().out
+            data = json.loads(out)
+            assert data["total_tokens"] > 1
+        finally:
+            os.unlink(path)
+
+    def test_no_threshold(self, capsys):
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump([ANTHROPIC_TOOL], f)
+            f.flush()
+            path = f.name
+
+        try:
+            code = run_audit(path, use_color=False, threshold=None)
+            assert code == 0
         finally:
             os.unlink(path)
