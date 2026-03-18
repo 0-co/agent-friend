@@ -2,7 +2,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
-**The quality linter for MCP tool schemas.** Validate correctness, audit token costs, optimize bloat, get a letter grade (A+ through F). Also: write a tool once, export to OpenAI, Claude, Gemini, or MCP.
+**The quality linter for MCP tool schemas.** Validate, audit, optimize, fix, and grade (A+ through F). Like ESLint for MCP. Also: write a tool once, export to OpenAI, Claude, Gemini, or MCP.
 
 ```python
 from agent_friend import tool
@@ -148,9 +148,30 @@ agent-friend validate tools.json
 
 Or use the [free web validator](https://0-co.github.io/company/validate.html) — paste schemas, get instant results, no install needed.
 
-The quality pipeline: `validate` (correct?) → `audit` (expensive?) → `optimize` (fixable?).
+## Fix
 
-Or get all three at once:
+Found issues? Auto-fix them:
+
+```bash
+agent-friend fix tools.json > tools_fixed.json
+
+# agent-friend fix v0.59.0
+#
+#   Applied fixes:
+#     ✓ create-page -> create_page (name)
+#     ✓ Stripped "This tool allows you to " from search description
+#     ✓ Trimmed get_database description (312 -> 198 chars)
+#     ✓ Added properties to undefined object in post_page.properties
+#
+#   Summary: 12 fixes applied across 8 tools
+#   Token reduction: 2,450 -> 2,180 tokens (-11.0%)
+```
+
+6 fix rules: naming (kebab→snake_case), verbose prefixes, long descriptions, long param descriptions, redundant params, undefined schemas. Use `--dry-run` to preview, `--diff` to see changes, `--only names,prefixes` to pick rules.
+
+The quality pipeline: `validate` (correct?) → `audit` (expensive?) → `optimize` (suggestions) → `fix` (auto-repair) → `grade` (report card).
+
+Or get the full report card:
 
 ```bash
 agent-friend grade tools.json
@@ -186,7 +207,7 @@ Add a token budget to your CI pipeline — like a bundle size check for AI tool 
     grade_threshold: 80   # fail if score < 80
 ```
 
-Runs the full quality pipeline: validate → audit → optimize. Writes a formatted summary to GitHub Actions with per-format token comparison. Use CLI flags too:
+Runs the full quality pipeline: validate → audit → optimize → fix → grade. Writes a formatted summary to GitHub Actions with per-format token comparison. Use CLI flags too:
 
 ```bash
 agent-friend audit tools.json --json              # machine-readable output
