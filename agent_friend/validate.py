@@ -324,6 +324,7 @@ def _check_description_override_pattern(name: str, obj: Dict[str, Any], fmt: str
     # Patterns that indicate the description is trying to reprogram the model
     # rather than describe the tool.
     override_phrases = [
+        # Explicit instruction override
         "originally you did not have",
         "you were advised to refuse",
         "this tool now grants you",
@@ -338,6 +339,18 @@ def _check_description_override_pattern(name: str, obj: Dict[str, Any], fmt: str
         "you now have permission",
         "despite your training",
         "contrary to your instructions",
+        # Information suppression — tell model to hide data from user
+        "silently remember",
+        "don't mention",
+        "do not mention",
+        "don't emphasize",
+        "do not emphasize",
+        "don't tell the user",
+        "do not tell the user",
+        "do not reveal",
+        "don't reveal",
+        # Competitive tool forcing — bias model toward this tool
+        "always use this tool",
     ]
 
     for phrase in override_phrases:
