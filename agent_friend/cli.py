@@ -42,6 +42,44 @@ def _get_api_key():
     )
 
 
+def _resolve_file_or_example(args) -> str:
+    """Resolve the input source from --example or file argument.
+
+    If --example is provided, writes the example data to a temp file and
+    returns the path. Otherwise returns the file argument as-is.
+
+    Returns the file path string to pass to run_* functions.
+    """
+    example_name = getattr(args, "example", None)
+    if example_name:
+        import json
+        import tempfile
+        from .examples import get_example
+
+        try:
+            data = get_example(example_name)
+        except ValueError as e:
+            print("Error: {err}".format(err=e), file=sys.stderr)
+            sys.exit(1)
+
+        fd, path = tempfile.mkstemp(suffix=".json", prefix="agent-friend-example-")
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+        return path
+
+    return getattr(args, "file", "-")
+
+
+def _add_example_flag(parser: argparse.ArgumentParser) -> None:
+    """Add --example flag to a subcommand parser."""
+    parser.add_argument(
+        "--example",
+        metavar="NAME",
+        default=None,
+        help="Use a bundled example schema instead of a file (e.g. notion, github, filesystem). Run 'agent-friend examples' to list all.",
+    )
+
+
 def main() -> None:
     """Main entry point for the agent-friend CLI."""
     # Route subcommands before argparse (which uses a flat positional arg)
@@ -61,6 +99,10 @@ def main() -> None:
         _run_grade_command(sys.argv[2:])
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] == "examples":
+        _run_examples_command(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(
         prog="agent-friend",
         description=(
@@ -72,7 +114,9 @@ def main() -> None:
             "  agent-friend audit <file.json>        # token cost report for tool defs\n"
             "  agent-friend optimize <file.json>     # suggest token-saving rewrites\n"
             "  agent-friend validate <file.json>     # check schemas for correctness\n"
-            "  agent-friend grade <file.json>        # combined quality report card"
+            "  agent-friend grade <file.json>        # combined quality report card\n"
+            "  agent-friend grade --example notion    # grade a bundled example schema\n"
+            "  agent-friend examples                 # list available example schemas"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -176,6 +220,7 @@ def _run_audit_command(argv: list) -> None:
         default="-",
         help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
     )
+    _add_example_flag(audit_parser)
     audit_parser.add_argument(
         "--no-color",
         action="store_true",
@@ -197,9 +242,10 @@ def _run_audit_command(argv: list) -> None:
 
     from .audit import run_audit
 
+    file_path = _resolve_file_or_example(audit_args)
     use_color = not audit_args.no_color
     exit_code = run_audit(
-        audit_args.file,
+        file_path,
         use_color=use_color,
         json_output=audit_args.json_output,
         threshold=audit_args.threshold,
@@ -219,6 +265,7 @@ def _run_optimize_command(argv: list) -> None:
         default="-",
         help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
     )
+    _add_example_flag(optimize_parser)
     optimize_parser.add_argument(
         "--no-color",
         action="store_true",
@@ -234,9 +281,10 @@ def _run_optimize_command(argv: list) -> None:
 
     from .optimize import run_optimize
 
+    file_path = _resolve_file_or_example(optimize_args)
     use_color = not optimize_args.no_color
     exit_code = run_optimize(
-        optimize_args.file,
+        file_path,
         use_color=use_color,
         json_output=optimize_args.json_output,
     )
@@ -255,6 +303,7 @@ def _run_validate_command(argv: list) -> None:
         default="-",
         help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
     )
+    _add_example_flag(validate_parser)
     validate_parser.add_argument(
         "--no-color",
         action="store_true",
@@ -275,9 +324,10 @@ def _run_validate_command(argv: list) -> None:
 
     from .validate import run_validate
 
+    file_path = _resolve_file_or_example(validate_args)
     use_color = not validate_args.no_color
     exit_code = run_validate(
-        validate_args.file,
+        file_path,
         use_color=use_color,
         json_output=validate_args.json_output,
         strict=validate_args.strict,
@@ -297,6 +347,7 @@ def _run_grade_command(argv: list) -> None:
         default="-",
         help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
     )
+    _add_example_flag(grade_parser)
     grade_parser.add_argument(
         "--no-color",
         action="store_true",
@@ -318,14 +369,48 @@ def _run_grade_command(argv: list) -> None:
 
     from .grade import run_grade
 
+    file_path = _resolve_file_or_example(grade_args)
     use_color = not grade_args.no_color
     exit_code = run_grade(
-        grade_args.file,
+        file_path,
         use_color=use_color,
         json_output=grade_args.json_output,
         threshold=grade_args.threshold,
     )
     sys.exit(exit_code)
+
+
+def _run_examples_command(argv: list) -> None:
+    """Handle `agent-friend examples` subcommand — list available example schemas."""
+    examples_parser = argparse.ArgumentParser(
+        prog="agent-friend examples",
+        description="List available bundled example schemas for use with --example.",
+    )
+    examples_parser.parse_args(argv)
+
+    from .examples import get_example_info
+
+    info = get_example_info()
+
+    print("")
+    print("{bold}agent-friend examples{reset} — bundled MCP server schemas".format(
+        bold=BOLD, reset=RESET,
+    ))
+    print("")
+
+    for name, description in info.items():
+        print("  {green}{name:<14s}{reset}{gray}{desc}{reset}".format(
+            green=GREEN, name=name, reset=RESET, gray=GRAY, desc=description,
+        ))
+
+    print("")
+    print("  {gray}Usage: agent-friend grade --example notion{reset}".format(
+        gray=GRAY, reset=RESET,
+    ))
+    print("  {gray}       agent-friend audit --example github{reset}".format(
+        gray=GRAY, reset=RESET,
+    ))
+    print("")
 
 
 def _run_demo() -> None:

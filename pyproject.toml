@@ -28,3 +28,6 @@ agent-friend = "agent_friend.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agent_friend*"]
+
+[tool.setuptools.package-data]
+"agent_friend.examples" = ["*.json"]

@@ -1,0 +1,732 @@
+[
+  {
+    "name": "retrieve-a-block",
+    "description": "Retrieves a Block object using the ID specified.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Identifier for a Notion block"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["block_id"]
+    }
+  },
+  {
+    "name": "update-a-block",
+    "description": "Updates the content for the specified block_id based on the block type. Supported blocks include paragraph, heading, callout, quote, bulleted and numbered list items, to-do, toggle, code, embed, image, video, file, pdf, bookmark, equation, divider, table of contents, breadcrumb, column list, and table row.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Identifier for a Notion block"
+        },
+        "block": {
+          "type": "object",
+          "description": "The block object with updated fields. Only the fields that you want to update need to be included. The block type must match the existing block type.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "The type of the block."
+            }
+          }
+        },
+        "archived": {
+          "type": "boolean",
+          "description": "Set to true to archive (trash) a block. Set to false to un-archive (restore) a block."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["block_id"]
+    }
+  },
+  {
+    "name": "delete-a-block",
+    "description": "Sets a Block object, including page blocks, to archived: true using the ID specified. In the Notion UI, this moves the block to the Trash where it can still be accessed and restored.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Identifier for a Notion block"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["block_id"]
+    }
+  },
+  {
+    "name": "get-block-children",
+    "description": "Returns a paginated array of child block objects contained in the block using the ID specified. Returns only the first level of children for the specified block.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Identifier for a Notion block"
+        },
+        "start_cursor": {
+          "type": "string",
+          "description": "If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results."
+        },
+        "page_size": {
+          "type": "integer",
+          "description": "The number of items from the full list desired in the response. Maximum: 100."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["block_id"]
+    }
+  },
+  {
+    "name": "patch-block-children",
+    "description": "Appends new children blocks to the parent block_id specified. Returns the Block object being appended to. Blocks can be appended to other blocks with has_children set to true or to page blocks. Maximum of 100 blocks per request.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Identifier for a Notion block"
+        },
+        "children": {
+          "type": "array",
+          "description": "Child content to append to a container block as an array of block objects.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "object": {
+                "type": "string",
+                "description": "Always \"block\""
+              },
+              "type": {
+                "type": "string",
+                "description": "Type of the block (e.g., paragraph, heading_1, bulleted_list_item, to_do, toggle, code, image, etc.)"
+              }
+            }
+          }
+        },
+        "after": {
+          "type": "string",
+          "description": "The ID of the existing block that the new block should be appended after."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["block_id", "children"]
+    }
+  },
+  {
+    "name": "create-a-comment",
+    "description": "Creates a comment in a page or existing discussion thread. If the intention is to add a new comment to a page, a parent object must be provided. If adding a comment to an existing discussion thread, a discussion_id string must be provided.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "object",
+          "description": "A page parent object. Either parent or discussion_id must be provided.",
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "description": "The ID of the page to comment on."
+            }
+          }
+        },
+        "discussion_id": {
+          "type": "string",
+          "description": "A UUID identifier for a discussion thread."
+        },
+        "rich_text": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "text": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "link": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["rich_text"]
+    }
+  },
+  {
+    "name": "create-a-database",
+    "description": "Creates a database as a subpage in the specified parent page, with the specified properties schema. Currently, the parent of a new database must be a Notion page or a wiki database.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "object",
+          "description": "A page parent object with a page_id key.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Either \"page_id\" or \"database_id\"."
+            },
+            "page_id": {
+              "type": "string",
+              "description": "The ID of the parent page."
+            }
+          }
+        },
+        "title": {
+          "type": "array",
+          "description": "Title of database as it appears in Notion. An array of rich text objects.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "Property schema of database. The keys are the names of properties as they appear in Notion and the values are property schema objects.",
+          "additionalProperties": true
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["parent", "properties"]
+    }
+  },
+  {
+    "name": "query-a-database",
+    "description": "Gets a list of Pages and/or Databases contained in the database, filtered and ordered according to the filter conditions and sort criteria provided in the request. The response may contain fewer than page_size results.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "database_id": {
+          "type": "string",
+          "description": "Identifier for a Notion database"
+        },
+        "filter": {
+          "type": "object",
+          "description": "When supplied, limits which pages are returned based on the filter conditions.",
+          "properties": {
+            "property": {
+              "type": "string",
+              "description": "The property to filter on."
+            }
+          }
+        },
+        "sorts": {
+          "type": "array",
+          "description": "When supplied, orders the results based on the provided sort criteria.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "property": {
+                "type": "string",
+                "description": "The name of the property to sort against."
+              },
+              "direction": {
+                "type": "string",
+                "description": "The direction to sort. Possible values include \"ascending\" and \"descending\"."
+              },
+              "timestamp": {
+                "type": "string",
+                "description": "The name of the timestamp to sort against. Possible values include \"created_time\" and \"last_edited_time\"."
+              }
+            }
+          }
+        },
+        "start_cursor": {
+          "type": "string",
+          "description": "When supplied, returns a page of results starting after the cursor provided."
+        },
+        "page_size": {
+          "type": "integer",
+          "description": "The number of items from the full list desired in the response. Maximum: 100."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["database_id"]
+    }
+  },
+  {
+    "name": "retrieve-a-database",
+    "description": "Retrieves a Database object using the ID specified.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "database_id": {
+          "type": "string",
+          "description": "Identifier for a Notion database"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["database_id"]
+    }
+  },
+  {
+    "name": "update-a-database",
+    "description": "Updates an existing database as specified by the parameters. Any properties not included in the request body will remain unchanged.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "database_id": {
+          "type": "string",
+          "description": "Identifier for a Notion database"
+        },
+        "title": {
+          "type": "array",
+          "description": "An array of rich text objects that represents the title of the database that is displayed in the Notion UI.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "description": {
+          "type": "array",
+          "description": "An array of rich text objects that represents the description of the database that is displayed in the Notion UI.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "The properties of a database to be changed. The keys are the names of properties as they appear in Notion and the values are property schema objects.",
+          "additionalProperties": true
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["database_id"]
+    }
+  },
+  {
+    "name": "create-a-data-source",
+    "description": "Creates a data source for a connected database. The data source defines the external data that syncs into a Notion database.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "page_id": {
+              "type": "string"
+            }
+          }
+        },
+        "title": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "properties": {
+          "type": "object"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["parent", "properties"]
+    }
+  },
+  {
+    "name": "update-a-data-source",
+    "description": "Updates an existing data source for a connected database. Only the properties included in the request body will be updated.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "data_source_id": {
+          "type": "string",
+          "description": "Identifier for the data source to update."
+        },
+        "title": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "properties": {
+          "type": "object"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["data_source_id"]
+    }
+  },
+  {
+    "name": "query-data-source",
+    "description": "Queries a data source for external records that are available to sync into a Notion database.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "data_source_id": {
+          "type": "string",
+          "description": "Identifier for the data source to query."
+        },
+        "filter": {
+          "type": "object"
+        },
+        "start_cursor": {
+          "type": "string",
+          "description": "When supplied, returns a page of results starting after the cursor provided."
+        },
+        "page_size": {
+          "type": "integer",
+          "description": "The number of items from the full list desired in the response. Maximum: 100."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["data_source_id"]
+    }
+  },
+  {
+    "name": "post-page",
+    "description": "Creates a new page that is a child of an existing page or database. If the parent is a page, title is the only property that can be set. If the parent is a database, the properties must match the database schema.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "parent": {
+          "type": "object",
+          "description": "The parent page or database where the new page is inserted.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Either \"page_id\" or \"database_id\"."
+            },
+            "page_id": {
+              "type": "string",
+              "description": "The ID of the parent page."
+            },
+            "database_id": {
+              "type": "string",
+              "description": "The ID of the parent database."
+            }
+          }
+        },
+        "properties": {
+          "type": "object"
+        },
+        "children": {
+          "type": "array",
+          "description": "The content to be rendered on the new page, represented as an array of block objects.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "icon": {
+          "type": "object",
+          "description": "The icon of the new page. Must be an emoji object or an external file object.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "\"emoji\" or \"external\"."
+            },
+            "emoji": {
+              "type": "string",
+              "description": "Emoji character, if type is \"emoji\"."
+            }
+          }
+        },
+        "cover": {
+          "type": "object",
+          "description": "The cover image of the new page, represented as a file object.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "\"external\"."
+            },
+            "external": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["parent", "properties"]
+    }
+  },
+  {
+    "name": "patch-page",
+    "description": "Updates the properties of a page in a database. The page's property values must conform to the parent database's property schema.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page_id": {
+          "type": "string",
+          "description": "Identifier for a Notion page"
+        },
+        "properties": {
+          "type": "object"
+        },
+        "archived": {
+          "type": "boolean",
+          "description": "Set to true to archive (trash) a page. Set to false to un-archive (restore) a page."
+        },
+        "icon": {
+          "type": "object",
+          "description": "A page icon for the page. Supported types are an emoji object or an external file object.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "\"emoji\" or \"external\"."
+            },
+            "emoji": {
+              "type": "string",
+              "description": "Emoji character, if type is \"emoji\"."
+            }
+          }
+        },
+        "cover": {
+          "type": "object",
+          "description": "A cover image for the page, represented as a file object.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "\"external\"."
+            },
+            "external": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["page_id"]
+    }
+  },
+  {
+    "name": "retrieve-a-page",
+    "description": "Retrieves a Page object using the ID specified.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page_id": {
+          "type": "string",
+          "description": "Identifier for a Notion page"
+        },
+        "filter_properties": {
+          "type": "array",
+          "description": "A list of page property value IDs associated with the page. Use this param to limit the response to specific page property values.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["page_id"]
+    }
+  },
+  {
+    "name": "archive-a-page",
+    "description": "Archives (trashes) a Page object. The page can be restored from the trash in the Notion UI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page_id": {
+          "type": "string",
+          "description": "Identifier for a Notion page"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["page_id"]
+    }
+  },
+  {
+    "name": "post-search",
+    "description": "Searches all parent or child pages and databases that have been shared with an integration. Returns all pages or databases, sorted by \"last edited time\" in descending order by default. The search endpoint indexes the page and database title only. It does not index page or database content.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "When supplied, limits which pages are returned by comparing the query to the page title."
+        },
+        "filter": {
+          "type": "object",
+          "description": "A set of criteria, value and property keys, that limits the results to either only pages or only databases. Possible value values are \"page\" or \"database\". The only supported property value is \"object\". Limits the response to contain only results of the specified type.",
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "The value of the property to filter the results by. Possible values for this field are \"page\" or \"database\"."
+            },
+            "property": {
+              "type": "string",
+              "description": "The name of the property to filter by. Currently the only supported value is \"object\"."
+            }
+          }
+        },
+        "sort": {
+          "type": "object",
+          "description": "A set of criteria, direction and timestamp keys, that orders the results. The only supported timestamp value is \"last_edited_time\". The supported direction values are \"ascending\" and \"descending\". If sort is not provided, then the most recently edited results are returned first in descending order.",
+          "properties": {
+            "direction": {
+              "type": "string",
+              "description": "The direction to sort. The only supported values are \"ascending\" and \"descending\"."
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "The name of the timestamp to sort against. The only supported value is \"last_edited_time\"."
+            }
+          }
+        },
+        "start_cursor": {
+          "type": "string",
+          "description": "A cursor value returned in a previous response that indicates where to continue paginating results. If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results from the beginning of the full list."
+        },
+        "page_size": {
+          "type": "integer",
+          "description": "The number of items from the full list desired in the response. Maximum: 100."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "retrieve-a-user",
+    "description": "Retrieves a User object using the ID specified.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "description": "Identifier for a Notion user"
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["user_id"]
+    }
+  },
+  {
+    "name": "list-all-users",
+    "description": "Returns a paginated list of Users for the workspace. Guests are not included in the response.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "start_cursor": {
+          "type": "string",
+          "description": "If supplied, this endpoint will return a page of results starting after the cursor provided."
+        },
+        "page_size": {
+          "type": "integer",
+          "description": "The number of items from the full list desired in the response. Maximum: 100."
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "get-self",
+    "description": "Retrieves the bot User associated with the API token provided in the authorization header. The bot will contain an owner field with information about the person who authorized the integration.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "name": "patch-page-properties",
+    "description": "Updates one or more page property values for the specified page. Properties not set via the properties parameter will remain unchanged.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page_id": {
+          "type": "string",
+          "description": "Identifier for a Notion page"
+        },
+        "properties": {
+          "type": "object",
+          "description": "The property values to update for the page. The keys are the names or IDs of the property and the values are property value objects.",
+          "additionalProperties": true
+        },
+        "Notion-Version": {
+          "type": "string",
+          "description": "The Notion API version to use for this request."
+        }
+      },
+      "required": ["page_id", "properties"]
+    }
+  }
+]
