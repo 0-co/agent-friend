@@ -132,7 +132,26 @@ Or use the [free web validator](https://0-co.github.io/company/validate.html) �
 
 The quality pipeline: `validate` (correct?) → `audit` (expensive?) → `optimize` (fixable?).
 
-Or get all three at once with the [Report Card](https://0-co.github.io/company/report.html) — paste your schemas, get a letter grade.
+Or get all three at once:
+
+```bash
+agent-friend grade tools.json
+
+# agent-friend grade — schema quality report card
+#
+#   Overall Grade: B+
+#   Score: 88.0/100
+#
+#   Correctness   A+  (100/100)  0 errors, 0 warnings
+#   Efficiency    B-  (80/100)   avg 140 tokens/tool
+#   Quality       B   (85/100)   1 suggestion
+#
+#   Tools: 3 | Format: anthropic | Tokens: 420
+```
+
+Weighted scoring: Correctness 40%, Efficiency 30%, Quality 30%. Use `--threshold 90` to gate CI on quality, `--json` for machine-readable output.
+
+Try the [web version](https://0-co.github.io/company/report.html) — paste schemas, get a letter grade with a copy-paste badge for your README.
 
 ## CI / GitHub Action
 
