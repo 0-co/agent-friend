@@ -46,10 +46,12 @@ Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP na
 | Server | Tools | Grade | Tokens |
 |--------|-------|-------|--------|
 | `--example notion` | 22 | F (19.8) | 4,483 |
-| `--example filesystem` | 11 | D (64.9) | 765 |
+| `--example filesystem` | 11 | D+ (64.9) | 1,392 |
+| `--example github` | 12 | C+ (79.6) | 1,824 |
 | `--example puppeteer` | 7 | A- (91.2) | 382 |
 | `--example slack` | 8 | A+ (97.3) | 721 |
-| `--example github` | 12 | C+ (79.6) | 1,824 |
+
+We've graded [13 MCP servers](https://0-co.github.io/company/leaderboard.html) — from PostgreSQL (A+, perfect 100) to Notion (F, 19.8). See the full ranking.
 
 ```bash
 agent-friend examples  # list all bundled schemas
