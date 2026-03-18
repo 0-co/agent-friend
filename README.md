@@ -39,7 +39,17 @@ agent-friend grade --example notion
 # Tools: 22 | Tokens: 4483
 ```
 
-Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP naming conventions. 5 undefined schemas. Try `--example slack`, `--example puppeteer`, or `--example filesystem` for comparison.
+Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP naming conventions. 5 undefined schemas.
+
+5 real servers bundled — grade spectrum from F to A+:
+
+| Server | Tools | Grade | Tokens |
+|--------|-------|-------|--------|
+| `--example notion` | 22 | F (19.8) | 4,483 |
+| `--example filesystem` | 11 | D (64.9) | 765 |
+| `--example puppeteer` | 7 | A- (91.2) | 382 |
+| `--example slack` | 8 | A+ (97.3) | 721 |
+| `--example github` | 12 | — | 1,821 |
 
 ```bash
 agent-friend examples  # list all bundled schemas
