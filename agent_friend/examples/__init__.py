@@ -28,6 +28,14 @@ _REGISTRY: Dict[str, Dict[str, Any]] = {
         "file": "filesystem.json",
         "description": "Filesystem MCP server (11 tools) — modelcontextprotocol/servers",
     },
+    "slack": {
+        "file": "slack.json",
+        "description": "Slack MCP server (8 tools) — modelcontextprotocol/servers",
+    },
+    "puppeteer": {
+        "file": "puppeteer.json",
+        "description": "Puppeteer MCP server (7 tools) — modelcontextprotocol/servers",
+    },
 }
 
 

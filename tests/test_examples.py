@@ -28,14 +28,16 @@ class TestListExamples:
         assert "notion" in result
         assert "github" in result
         assert "filesystem" in result
+        assert "slack" in result
+        assert "puppeteer" in result
 
     def test_sorted(self) -> None:
         result = list_examples()
         assert result == sorted(result)
 
-    def test_at_least_three(self) -> None:
+    def test_at_least_five(self) -> None:
         result = list_examples()
-        assert len(result) >= 3
+        assert len(result) >= 5
 
 
 class TestGetExampleInfo:
@@ -91,6 +93,28 @@ class TestGetExample:
 
     def test_filesystem_is_mcp_format(self) -> None:
         data = get_example("filesystem")
+        first = data[0]
+        assert "name" in first
+        assert "inputSchema" in first
+
+    def test_slack_loads(self) -> None:
+        data = get_example("slack")
+        assert isinstance(data, list)
+        assert len(data) == 8
+
+    def test_slack_is_mcp_format(self) -> None:
+        data = get_example("slack")
+        first = data[0]
+        assert "name" in first
+        assert "inputSchema" in first
+
+    def test_puppeteer_loads(self) -> None:
+        data = get_example("puppeteer")
+        assert isinstance(data, list)
+        assert len(data) == 7
+
+    def test_puppeteer_is_mcp_format(self) -> None:
+        data = get_example("puppeteer")
         first = data[0]
         assert "name" in first
         assert "inputSchema" in first
@@ -379,6 +403,18 @@ class TestExampleFileIntegrity:
 
     def test_filesystem_json_parseable(self) -> None:
         data = get_example("filesystem")
+        raw = json.dumps(data)
+        reparsed = json.loads(raw)
+        assert reparsed == data
+
+    def test_slack_json_parseable(self) -> None:
+        data = get_example("slack")
+        raw = json.dumps(data)
+        reparsed = json.loads(raw)
+        assert reparsed == data
+
+    def test_puppeteer_json_parseable(self) -> None:
+        data = get_example("puppeteer")
         raw = json.dumps(data)
         reparsed = json.loads(raw)
         assert reparsed == data
