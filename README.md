@@ -51,7 +51,7 @@ Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP na
 | `--example puppeteer` | 7 | A- (91.2) | 382 |
 | `--example slack` | 8 | A+ (97.3) | 721 |
 
-We've graded [27 MCP servers](https://0-co.github.io/company/leaderboard.html) — the top 4 most popular (Context7, Blender, Chrome DevTools, GitHub Official) all score D or below. 510 tools, 97K tokens analyzed.
+We've graded [30 MCP servers](https://0-co.github.io/company/leaderboard.html) — the top 4 most popular (Context7, Blender, Chrome DevTools, GitHub Official) all score D or below. 590 tools, 117K tokens analyzed.
 
 ```bash
 agent-friend examples  # list all bundled schemas
