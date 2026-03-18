@@ -271,6 +271,28 @@ def generate_grade_report(
         reset=RESET,
     ))
 
+    # Leaderboard ranking
+    from .leaderboard_data import get_leaderboard_position, LEADERBOARD_URL
+    rank, total, servers_above, servers_below = get_leaderboard_position(overall_score)
+    lines.append("")
+    lines.append("  Leaderboard: {cyan}#{rank}{reset} out of {total} popular MCP servers".format(
+        cyan=CYAN, rank=rank, reset=RESET, total=total,
+    ))
+    for name, s in servers_above:
+        lines.append("    {gray}{arrow} {name} ({score}){reset}".format(
+            gray=GRAY, arrow="\u2191", name=name, score=s, reset=RESET,
+        ))
+    lines.append("    {arrow} Your server ({score})".format(
+        arrow="\u2192", score=overall_score,
+    ))
+    for name, s in servers_below:
+        lines.append("    {gray}{arrow} {name} ({score}){reset}".format(
+            gray=GRAY, arrow="\u2193", name=name, score=s, reset=RESET,
+        ))
+    lines.append("  Full leaderboard: {cyan}{url}{reset}".format(
+        cyan=CYAN, url=LEADERBOARD_URL, reset=RESET,
+    ))
+
     lines.append("")
     lines.append("  {gray}Use --json for machine-readable output.{reset}".format(
         gray=GRAY, reset=RESET,
@@ -362,6 +384,13 @@ def run_grade(
     except ValueError as e:
         print("Error: {err}".format(err=e), file=sys.stderr)
         return 1
+
+    # Add leaderboard position
+    from .leaderboard_data import get_leaderboard_position, LEADERBOARD_URL
+    rank, total, above, below = get_leaderboard_position(report["overall_score"])
+    report["leaderboard_rank"] = rank
+    report["leaderboard_total"] = total
+    report["leaderboard_url"] = LEADERBOARD_URL
 
     # Output
     if json_output:
