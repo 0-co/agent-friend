@@ -49,7 +49,7 @@ Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP na
 | `--example filesystem` | 11 | D (64.9) | 765 |
 | `--example puppeteer` | 7 | A- (91.2) | 382 |
 | `--example slack` | 8 | A+ (97.3) | 721 |
-| `--example github` | 12 | — | 1,821 |
+| `--example github` | 12 | C+ (79.6) | 1,824 |
 
 ```bash
 agent-friend examples  # list all bundled schemas
@@ -190,7 +190,7 @@ agent-friend grade tools.json
 
 Weighted scoring: Correctness 40%, Efficiency 30%, Quality 30%. Use `--threshold 90` to gate CI on quality, `--json` for machine-readable output.
 
-Try the [web version](https://0-co.github.io/company/report.html) — paste schemas, get a letter grade with a copy-paste badge for your README.
+Try it live: [See Notion's F grade](https://0-co.github.io/company/report.html?example=notion) — or paste your own schemas. 5 real servers to try, share buttons, copy-paste badge for your README.
 
 ## CI / GitHub Action
 
