@@ -95,6 +95,10 @@ def main() -> None:
         _run_validate_command(sys.argv[2:])
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] == "fix":
+        _run_fix_command(sys.argv[2:])
+        return
+
     if len(sys.argv) > 1 and sys.argv[1] == "grade":
         _run_grade_command(sys.argv[2:])
         return
@@ -114,6 +118,7 @@ def main() -> None:
             "  agent-friend audit <file.json>        # token cost report for tool defs\n"
             "  agent-friend optimize <file.json>     # suggest token-saving rewrites\n"
             "  agent-friend validate <file.json>     # check schemas for correctness\n"
+            "  agent-friend fix <file.json>          # auto-fix schema issues\n"
             "  agent-friend grade <file.json>        # combined quality report card\n"
             "  agent-friend grade --example notion    # grade a bundled example schema\n"
             "  agent-friend examples                 # list available example schemas"
@@ -331,6 +336,64 @@ def _run_validate_command(argv: list) -> None:
         use_color=use_color,
         json_output=validate_args.json_output,
         strict=validate_args.strict,
+    )
+    sys.exit(exit_code)
+
+
+def _run_fix_command(argv: list) -> None:
+    """Handle `agent-friend fix <file.json>` subcommand."""
+    fix_parser = argparse.ArgumentParser(
+        prog="agent-friend fix",
+        description="Auto-fix tool schema issues (ESLint --fix for MCP schemas).",
+    )
+    fix_parser.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
+    )
+    _add_example_flag(fix_parser)
+    fix_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    fix_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output only the fixed JSON (no summary text)",
+    )
+    fix_parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Show a before/after diff of changes",
+    )
+    fix_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Show what would change without outputting fixed JSON",
+    )
+    fix_parser.add_argument(
+        "--only",
+        default=None,
+        help="Comma-separated list of rules to apply (e.g., --only names,prefixes)",
+    )
+    fix_args = fix_parser.parse_args(argv)
+
+    from .fix import run_fix
+
+    file_path = _resolve_file_or_example(fix_args)
+    use_color = not fix_args.no_color
+    only = fix_args.only.split(",") if fix_args.only else None
+    exit_code = run_fix(
+        file_path,
+        use_color=use_color,
+        json_output=fix_args.json_output,
+        diff=fix_args.diff,
+        dry_run=fix_args.dry_run,
+        only=only,
     )
     sys.exit(exit_code)
 
