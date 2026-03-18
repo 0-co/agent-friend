@@ -164,6 +164,8 @@ Add a token budget to your CI pipeline — like a bundle size check for AI tool 
     validate: true        # check schema correctness first
     threshold: 1000       # fail if total tokens exceed budget
     optimize: true        # also suggest fixes
+    grade: true           # combined report card (A+ through F)
+    grade_threshold: 80   # fail if score < 80
 ```
 
 Runs the full quality pipeline: validate → audit → optimize. Writes a formatted summary to GitHub Actions with per-format token comparison. Use CLI flags too:

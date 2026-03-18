@@ -26,6 +26,14 @@ inputs:
     description: 'Also run optimize to suggest token savings (true/false)'
     required: false
     default: 'false'
+  grade:
+    description: 'Run combined grade report card (true/false)'
+    required: false
+    default: 'false'
+  grade_threshold:
+    description: 'Minimum grade score (0-100) — fail if below this'
+    required: false
+    default: ''
 
 outputs:
   total_tokens:
@@ -34,6 +42,12 @@ outputs:
   tool_count:
     description: 'Number of tools analyzed'
     value: ${{ steps.audit.outputs.tool_count }}
+  grade:
+    description: 'Letter grade (A+ through F)'
+    value: ${{ steps.grade.outputs.grade }}
+  grade_score:
+    description: 'Numeric score (0-100)'
+    value: ${{ steps.grade.outputs.grade_score }}
 
 runs:
   using: 'composite'
@@ -158,3 +172,49 @@ runs:
         echo '```' >> "$GITHUB_STEP_SUMMARY"
         agent-friend optimize "${{ inputs.file }}" --no-color >> "$GITHUB_STEP_SUMMARY"
         echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Run grade
+      id: grade
+      if: inputs.grade == 'true'
+      shell: bash
+      run: |
+        GRADE_JSON=$(agent-friend grade "${{ inputs.file }}" --json)
+
+        GRADE=$(echo "$GRADE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_grade'])")
+        SCORE=$(echo "$GRADE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_score'])")
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "grade_score=$SCORE" >> "$GITHUB_OUTPUT"
+
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "## Schema Quality Grade" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "**Grade: $GRADE** ($SCORE/100)" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "$GRADE_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        print('| Dimension | Grade | Score | Detail |', file=sys.stdout)
+        print('|-----------|-------|-------|--------|', file=sys.stdout)
+        c = d['correctness']
+        print(f'| Correctness | {c[\"grade\"]} | {c[\"score\"]}/100 | {c[\"errors\"]} errors, {c[\"warnings\"]} warnings |', file=sys.stdout)
+        e = d['efficiency']
+        print(f'| Efficiency | {e[\"grade\"]} | {e[\"score\"]}/100 | avg {int(e[\"avg_tokens_per_tool\"])} tokens/tool |', file=sys.stdout)
+        q = d['quality']
+        print(f'| Quality | {q[\"grade\"]} | {q[\"score\"]}/100 | {q[\"suggestions\"]} suggestions |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
+
+        # Threshold check
+        if [ -n "${{ inputs.grade_threshold }}" ]; then
+          THRESHOLD="${{ inputs.grade_threshold }}"
+          BELOW=$(python3 -c "print('yes' if $SCORE < $THRESHOLD else 'no')")
+          if [ "$BELOW" = "yes" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Grade threshold not met:** $SCORE < $THRESHOLD" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Grade threshold not met: $SCORE < $THRESHOLD (grade: $GRADE)"
+            exit 1
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Grade threshold OK: $SCORE >= $THRESHOLD" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
