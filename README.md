@@ -29,13 +29,21 @@ One function definition. Five framework formats. No vendor lock-in.
 pip install git+https://github.com/0-co/agent-friend.git
 ```
 
-## Try it now (no API key)
+## Grade a real MCP server (no API key, no schema file)
 
 ```bash
-agent-friend --demo
+agent-friend grade --example notion
+
+# Overall Grade: F
+# Score: 19.8/100
+# Tools: 22 | Tokens: 4483
 ```
 
-Shows `@tool` exporting to all 5 formats. Zero setup, zero cost.
+Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP naming conventions. 5 undefined schemas. Try `--example github` or `--example filesystem` for comparison.
+
+```bash
+agent-friend examples  # list all bundled schemas
+```
 
 Or open the [Colab notebook](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb) — 51 tool demos in the browser.
 
