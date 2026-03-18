@@ -57,6 +57,10 @@ def main() -> None:
         _run_validate_command(sys.argv[2:])
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] == "grade":
+        _run_grade_command(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(
         prog="agent-friend",
         description=(
@@ -67,7 +71,8 @@ def main() -> None:
             "  agent-friend -i                       # interactive chat (needs API key)\n"
             "  agent-friend audit <file.json>        # token cost report for tool defs\n"
             "  agent-friend optimize <file.json>     # suggest token-saving rewrites\n"
-            "  agent-friend validate <file.json>     # check schemas for correctness"
+            "  agent-friend validate <file.json>     # check schemas for correctness\n"
+            "  agent-friend grade <file.json>        # combined quality report card"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -276,6 +281,49 @@ def _run_validate_command(argv: list) -> None:
         use_color=use_color,
         json_output=validate_args.json_output,
         strict=validate_args.strict,
+    )
+    sys.exit(exit_code)
+
+
+def _run_grade_command(argv: list) -> None:
+    """Handle `agent-friend grade <file.json>` subcommand."""
+    grade_parser = argparse.ArgumentParser(
+        prog="agent-friend grade",
+        description="Combined schema quality report card (validate + audit + optimize).",
+    )
+    grade_parser.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
+    )
+    grade_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    grade_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON (machine-readable)",
+    )
+    grade_parser.add_argument(
+        "--threshold",
+        type=int,
+        default=None,
+        help="Fail (exit 2) if overall score is below this value",
+    )
+    grade_args = grade_parser.parse_args(argv)
+
+    from .grade import run_grade
+
+    use_color = not grade_args.no_color
+    exit_code = run_grade(
+        grade_args.file,
+        use_color=use_color,
+        json_output=grade_args.json_output,
+        threshold=grade_args.threshold,
     )
     sys.exit(exit_code)
 
