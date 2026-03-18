@@ -309,6 +309,50 @@ def _check_nested_objects_have_properties(name: str, schema: Dict[str, Any]) -> 
     return issues
 
 
+def _check_description_override_pattern(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 13: description_override_pattern — description tries to override model behavior.
+
+    Detects tool descriptions that instruct the model to ignore prior
+    instructions or override its own safety behavior.  This is a form of
+    prompt injection embedded in the schema itself.
+    """
+    desc = _get_tool_description(obj, fmt)
+    if not desc:
+        return None
+    desc_lower = desc.lower()
+
+    # Patterns that indicate the description is trying to reprogram the model
+    # rather than describe the tool.
+    override_phrases = [
+        "originally you did not have",
+        "you were advised to refuse",
+        "this tool now grants you",
+        "ignore previous instructions",
+        "ignore your instructions",
+        "disregard your previous",
+        "disregard prior instructions",
+        "override your",
+        "forget your previous",
+        "you are now able to",
+        "you now have access",
+        "you now have permission",
+        "despite your training",
+        "contrary to your instructions",
+    ]
+
+    for phrase in override_phrases:
+        if phrase in desc_lower:
+            return Issue(
+                tool=name,
+                severity="warn",
+                check="description_override_pattern",
+                message="description contains model-override language: '{phrase}'".format(
+                    phrase=phrase,
+                ),
+            )
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Main validation logic
 # ---------------------------------------------------------------------------
@@ -401,6 +445,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 12: nested_objects_have_properties
         issues.extend(_check_nested_objects_have_properties(name, schema))
+
+        # Check 13: description_override_pattern
+        issue = _check_description_override_pattern(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
 
     # Check 7: no_duplicate_names (cross-tool)
     issues.extend(_check_no_duplicate_names(names))

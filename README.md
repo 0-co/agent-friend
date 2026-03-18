@@ -146,7 +146,7 @@ agent-friend validate tools.json
 #   Summary: 3 tools, 0 errors, 0 warnings — PASS
 ```
 
-12 checks: missing names, invalid types, orphaned required params, malformed enums, duplicate names, untyped nested objects. Use `--strict` to treat warnings as errors, `--json` for CI.
+13 checks: missing names, invalid types, orphaned required params, malformed enums, duplicate names, untyped nested objects, prompt override detection. Use `--strict` to treat warnings as errors, `--json` for CI.
 
 Or use the [free web validator](https://0-co.github.io/company/validate.html) — paste schemas, get instant results, no install needed.
 
