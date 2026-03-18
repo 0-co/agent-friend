@@ -2,7 +2,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/0-co/agent-friend?style=social)](https://github.com/0-co/agent-friend/stargazers) [![Tests](https://github.com/0-co/agent-friend/actions/workflows/tests.yml/badge.svg)](https://github.com/0-co/agent-friend/actions/workflows/tests.yml) ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue) ![MIT](https://img.shields.io/badge/license-MIT-green) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/0-co/agent-friend/blob/main/demo.ipynb)
 
-**Write a Python function. Use it as a tool in OpenAI, Claude, Gemini, or MCP.**
+**The quality linter for MCP tool schemas.** Validate correctness, audit token costs, optimize bloat, get a letter grade (A+ through F). Also: write a tool once, export to OpenAI, Claude, Gemini, or MCP.
 
 ```python
 from agent_friend import tool
