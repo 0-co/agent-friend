@@ -31,6 +31,7 @@ from agent_friend.validate import (
     _check_array_items_missing,
     _check_param_description_missing,
     _check_nested_param_description_missing,
+    _check_description_too_short,
 )
 
 
@@ -2317,3 +2318,74 @@ class TestCheckNestedParamDescriptionMissing:
         issues = _check_nested_param_description_missing("run_job", schema)
         assert len(issues) == 1
         assert "opts.mode" in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 20: tool_description_too_short
+# ---------------------------------------------------------------------------
+
+
+class TestCheckDescriptionTooShort:
+    def test_short_description_flagged(self):
+        tool = {"name": "run_tests", "description": "Run tests"}
+        issue = _check_description_too_short("run_tests", tool, "mcp")
+        assert issue is not None
+        assert issue.check == "tool_description_too_short"
+        assert issue.severity == "warn"
+        assert "Run tests" in issue.message
+
+    def test_good_description_ok(self):
+        tool = {"name": "run_tests", "description": "Execute the test suite and return results"}
+        issue = _check_description_too_short("run_tests", tool, "mcp")
+        assert issue is None
+
+    def test_exactly_20_chars_ok(self):
+        tool = {"name": "t", "description": "12345678901234567890"}  # exactly 20
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is None
+
+    def test_19_chars_flagged(self):
+        tool = {"name": "t", "description": "1234567890123456789"}  # 19 chars
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is not None
+
+    def test_empty_description_not_flagged(self):
+        """Empty descriptions are caught by check 6, not check 20."""
+        tool = {"name": "t", "description": ""}
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is None
+
+    def test_no_description_not_flagged(self):
+        """Missing descriptions are caught by check 5, not check 20."""
+        tool = {"name": "t"}
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is None
+
+    def test_whitespace_only_not_flagged(self):
+        """Whitespace-only is caught by check 6."""
+        tool = {"name": "t", "description": "   "}
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is None
+
+    def test_openai_format(self):
+        tool = {
+            "type": "function",
+            "function": {
+                "name": "list_pools",
+                "description": "List pools",
+            }
+        }
+        issue = _check_description_too_short("list_pools", tool, "openai")
+        assert issue is not None
+        assert issue.check == "tool_description_too_short"
+
+    def test_description_length_in_message(self):
+        tool = {"name": "t", "description": "Get user"}
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is not None
+        assert "8 characters" in issue.message
+
+    def test_borderline_description_not_flagged(self):
+        tool = {"name": "t", "description": "Get the current user"}  # exactly 20
+        issue = _check_description_too_short("t", tool, "mcp")
+        assert issue is None

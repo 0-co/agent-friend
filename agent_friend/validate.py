@@ -156,6 +156,37 @@ def _check_description_not_empty(name: str, obj: Dict[str, Any], fmt: str) -> Op
     return None
 
 
+_MIN_DESCRIPTION_LENGTH = 20
+
+
+def _check_description_too_short(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 20: tool_description_too_short — tool description under 20 characters.
+
+    A one-phrase description like 'Run tests' or 'List pools' gives models almost no
+    information about what the tool does, its parameters, or when to use it. Descriptions
+    should be long enough to distinguish the tool from others with similar names.
+
+    Only fires when a description IS present (check 5/6 passed) but is too brief.
+    """
+    desc = _get_tool_description(obj, fmt)
+    if desc is None or not isinstance(desc, str):
+        return None
+    stripped = desc.strip()
+    if not stripped:  # Empty is caught by check 6
+        return None
+    if len(stripped) < _MIN_DESCRIPTION_LENGTH:
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="tool_description_too_short",
+            message=(
+                "description '{desc}' is only {n} characters — too brief for models to "
+                "understand the tool's purpose, parameters, or behavior."
+            ).format(desc=stripped, n=len(stripped)),
+        )
+    return None
+
+
 def _check_name_snake_case(name: str) -> Optional[Issue]:
     """Check 14: name_snake_case — tool name uses snake_case, not camelCase or PascalCase."""
     # Valid snake_case: lowercase letters, digits, underscores only
@@ -712,6 +743,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 6: description_not_empty
         issue = _check_description_not_empty(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 20: tool_description_too_short
+        issue = _check_description_too_short(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 
