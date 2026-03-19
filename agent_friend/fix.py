@@ -173,8 +173,17 @@ def _get_schema(obj: Dict[str, Any], fmt: str) -> Optional[Dict[str, Any]]:
 # Individual fix rules
 # ---------------------------------------------------------------------------
 
+def _camel_to_snake(name: str) -> str:
+    """Convert camelCase or PascalCase to snake_case."""
+    # Handle sequences like "XMLParser" -> "xml_parser"
+    s1 = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', name)
+    # Handle standard camelCase like "appendBlockChildren" -> "append_block_children"
+    s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
+    return s2.lower()
+
+
 def _fix_names(obj: Dict[str, Any], fmt: str) -> List[Change]:
-    """Fix 1: Convert kebab-case names to snake_case, lowercase uppercase."""
+    """Fix 1: Convert camelCase/PascalCase/kebab-case names to snake_case."""
     changes = []
     name = _get_name(obj, fmt)
 
@@ -186,9 +195,12 @@ def _fix_names(obj: Dict[str, Any], fmt: str) -> List[Change]:
     if "-" in new_name:
         new_name = new_name.replace("-", "_")
 
-    # Lowercase any uppercase letters
-    if new_name != new_name.lower():
-        new_name = new_name.lower()
+    # Convert camelCase or PascalCase to snake_case
+    if new_name != new_name.lower() or re.search(r'[A-Z]', new_name):
+        new_name = _camel_to_snake(new_name)
+
+    # Collapse any double underscores
+    new_name = re.sub(r'_+', '_', new_name).strip('_')
 
     if new_name != name:
         _set_name(obj, fmt, new_name)
