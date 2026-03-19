@@ -1,4 +1,4 @@
-"""Leaderboard benchmark data -- 196 popular MCP servers graded."""
+"""Leaderboard benchmark data -- 200 popular MCP servers graded."""
 
 # (server_id, display_name, score) sorted by score descending
 LEADERBOARD = [
@@ -20,6 +20,7 @@ LEADERBOARD = [
     ("google-tasks-mcp", "Google Tasks MCP", 97.9),
     ("weather-mcp", "OpenWeather MCP Server", 97.6),
     ("colab", "Google Colab MCP", 97.6),
+    ("mcp-gdrive", "Google Drive MCP (isaacphi)", 97.3),
     ("zoom-transcript-mcp", "Zoom Transcript MCP", 97.3),
     ("flightradar-mcp", "Flightradar24 MCP", 97.3),
     ("slack", "Slack MCP Server", 97.3),
