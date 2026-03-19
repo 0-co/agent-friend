@@ -157,6 +157,7 @@ def _check_description_not_empty(name: str, obj: Dict[str, Any], fmt: str) -> Op
 
 
 _MIN_DESCRIPTION_LENGTH = 20
+_MIN_PARAM_DESCRIPTION_LENGTH = 10
 
 
 def _check_description_too_short(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
@@ -185,6 +186,58 @@ def _check_description_too_short(name: str, obj: Dict[str, Any], fmt: str) -> Op
             ).format(desc=stripped, n=len(stripped)),
         )
     return None
+
+
+def _check_param_description_too_short(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 21: param_description_too_short — parameter descriptions under 10 characters.
+
+    A parameter description like 'ID', 'The value', or 'API key' gives models almost no
+    information about what the parameter represents or how to populate it. Descriptions
+    should be long enough to convey the parameter's purpose in context.
+
+    Only fires when a description IS present (check 18 passed) but is too brief.
+    Fires once per tool that has any such parameters.
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    short = []
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        desc = param_def.get("description", "")
+        if not isinstance(desc, str):
+            continue
+        stripped = desc.strip()
+        if not stripped:  # Empty/missing caught by check 18
+            continue
+        if len(stripped) < _MIN_PARAM_DESCRIPTION_LENGTH:
+            short.append((param_name, stripped))
+
+    if not short:
+        return []
+
+    count = len(short)
+    sample = ", ".join(
+        "'{param}' ('{desc}')".format(param=p, desc=d) for p, d in short[:3]
+    )
+    suffix = " +{n} more".format(n=count - 3) if count > 3 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="param_description_too_short",
+        message=(
+            "{count} parameter description{s} too short: {sample}{suffix}. "
+            "Descriptions under {min} characters give models almost no context."
+        ).format(
+            count=count,
+            s="s" if count != 1 else "",
+            sample=sample,
+            suffix=suffix,
+            min=_MIN_PARAM_DESCRIPTION_LENGTH,
+        ),
+    )]
 
 
 def _check_name_snake_case(name: str) -> Optional[Issue]:
@@ -779,6 +832,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 19: nested_param_description_missing
         issues.extend(_check_nested_param_description_missing(name, schema))
+
+        # Check 21: param_description_too_short
+        issues.extend(_check_param_description_too_short(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)

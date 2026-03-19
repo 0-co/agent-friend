@@ -33,7 +33,7 @@ CLEAN_OPENAI_TOOL = {
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "description": "City name"},
+                "city": {"type": "string", "description": "Name of the target city"},
             },
             "required": ["city"],
         },
@@ -46,7 +46,7 @@ CLEAN_ANTHROPIC_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "City name"},
+            "city": {"type": "string", "description": "Name of the target city"},
         },
         "required": ["city"],
     },
@@ -58,7 +58,7 @@ CLEAN_MCP_TOOL = {
     "inputSchema": {
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "City name"},
+            "city": {"type": "string", "description": "Name of the target city"},
         },
         "required": ["city"],
     },

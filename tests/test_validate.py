@@ -32,6 +32,7 @@ from agent_friend.validate import (
     _check_param_description_missing,
     _check_nested_param_description_missing,
     _check_description_too_short,
+    _check_param_description_too_short,
 )
 
 
@@ -45,8 +46,8 @@ VALID_ANTHROPIC_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "City name"},
-            "units": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "Temperature unit"},
+            "city": {"type": "string", "description": "Name of the target city"},
+            "units": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "Temperature unit (celsius or fahrenheit)"},
         },
         "required": ["city"],
     },
@@ -60,7 +61,7 @@ VALID_OPENAI_TOOL = {
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "description": "City name"},
+                "city": {"type": "string", "description": "Name of the target city"},
             },
             "required": ["city"],
         },
@@ -73,7 +74,7 @@ VALID_MCP_TOOL = {
     "inputSchema": {
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "City name"},
+            "city": {"type": "string", "description": "Name of the target city"},
         },
         "required": ["city"],
     },
@@ -85,7 +86,7 @@ VALID_SIMPLE_TOOL = {
     "parameters": {
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "City name"},
+            "city": {"type": "string", "description": "Name of the target city"},
         },
         "required": ["city"],
     },
@@ -96,7 +97,7 @@ VALID_JSON_SCHEMA_TOOL = {
     "title": "get_weather",
     "description": "Get current weather for a city.",
     "properties": {
-        "city": {"type": "string", "description": "City name"},
+        "city": {"type": "string", "description": "Name of the target city"},
     },
     "required": ["city"],
 }
@@ -2389,3 +2390,119 @@ class TestCheckDescriptionTooShort:
         tool = {"name": "t", "description": "Get the current user"}  # exactly 20
         issue = _check_description_too_short("t", tool, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 21: param_description_too_short
+# ---------------------------------------------------------------------------
+
+
+class TestCheckParamDescriptionTooShort:
+    def test_short_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "ID"},
+            },
+        }
+        issues = _check_param_description_too_short("get_user", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_description_too_short"
+        assert issues[0].severity == "warn"
+        assert "user_id" in issues[0].message
+
+    def test_adequate_description_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "Unique user identifier"},
+            },
+        }
+        issues = _check_param_description_too_short("get_user", schema)
+        assert issues == []
+
+    def test_borderline_at_exactly_10_chars_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Max result"},  # 10 chars
+            },
+        }
+        issues = _check_param_description_too_short("search", schema)
+        assert issues == []
+
+    def test_9_chars_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "The limit"},  # 9 chars
+            },
+        }
+        issues = _check_param_description_too_short("search", schema)
+        assert len(issues) == 1
+
+    def test_missing_description_not_flagged(self):
+        """Missing descriptions are caught by check 18, not 21."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {"type": "string"},
+            },
+        }
+        issues = _check_param_description_too_short("my_tool", schema)
+        assert issues == []
+
+    def test_empty_description_not_flagged(self):
+        """Empty descriptions are caught by check 18, not 21."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {"type": "string", "description": "  "},
+            },
+        }
+        issues = _check_param_description_too_short("my_tool", schema)
+        assert issues == []
+
+    def test_multiple_short_fires_once(self):
+        """One warning per tool regardless of how many params are short."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "a": {"type": "string", "description": "ID"},
+                "b": {"type": "string", "description": "Key"},
+                "c": {"type": "string", "description": "Val"},
+            },
+        }
+        issues = _check_param_description_too_short("multi_tool", schema)
+        assert len(issues) == 1
+        assert "3 parameter" in issues[0].message
+
+    def test_empty_schema_ok(self):
+        issues = _check_param_description_too_short("no_params", {})
+        assert issues == []
+
+    def test_sample_truncated_above_3(self):
+        """More than 3 short params shows '+N more' suffix."""
+        schema = {
+            "type": "object",
+            "properties": {
+                f"param_{i}": {"type": "string", "description": "ID"} for i in range(5)
+            },
+        }
+        issues = _check_param_description_too_short("big_tool", schema)
+        assert len(issues) == 1
+        assert "+2 more" in issues[0].message
+
+    def test_mixed_ok_and_short(self):
+        """Only short params are counted; adequate ones are ignored."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Full name of the entity"},
+                "code": {"type": "string", "description": "ID"},
+            },
+        }
+        issues = _check_param_description_too_short("mixed_tool", schema)
+        assert len(issues) == 1
+        assert "code" in issues[0].message
+        assert "name" not in issues[0].message
