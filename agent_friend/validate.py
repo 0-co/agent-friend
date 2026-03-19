@@ -351,6 +351,15 @@ def _check_description_override_pattern(name: str, obj: Dict[str, Any], fmt: str
         "don't reveal",
         # Competitive tool forcing — bias model toward this tool
         "always use this tool",
+        # Behavioral forcing — tell model when/how to call this tool
+        "you must call this tool",
+        "must call this tool",
+        "always call this tool",
+        "call this tool whenever",
+        "call this tool for every",
+        "must repeatedly call",
+        "repeatedly call this tool",
+        "call this tool again",
     ]
 
     for phrase in override_phrases:
