@@ -4,19 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-friend"
-version = "0.63.4"
+version = "0.63.5"
 description = "MCP schema linter & quality grader — validate, audit, optimize, grade (A+ to F). Also: @tool exports to OpenAI, Claude, Gemini, MCP."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "mcp>=1.0; python_version >= '3.10'"
+]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40.0"]
 openai = ["openai>=1.0.0"]
 yaml = ["pyyaml>=6.0"]
-mcp = ["mcp>=1.0"]
-all = ["anthropic>=0.40.0", "openai>=1.0.0", "pyyaml>=6.0", "mcp>=1.0"]
+all = ["anthropic>=0.40.0", "openai>=1.0.0", "pyyaml>=6.0"]
 
 [project.scripts]
 agent-friend = "agent_friend.cli:main"
