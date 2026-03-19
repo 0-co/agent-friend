@@ -402,7 +402,7 @@ class TestGenerateGradeReport:
         report = grade_tools(CLEAN_ANTHROPIC_TOOL)
         text = generate_grade_report(report, use_color=False)
         assert "Leaderboard:" in text
-        assert "out of 50 popular MCP servers" in text
+        assert "out of" in text and "popular MCP servers" in text
         assert "Your server" in text
         assert "Full leaderboard:" in text
 
@@ -476,7 +476,7 @@ class TestRunGrade:
             assert "leaderboard_rank" in data
             assert "leaderboard_total" in data
             assert "leaderboard_url" in data
-            assert data["leaderboard_total"] == 50
+            assert data["leaderboard_total"] >= 100
             assert isinstance(data["leaderboard_rank"], int)
         finally:
             os.unlink(path)

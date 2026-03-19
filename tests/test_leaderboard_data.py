@@ -6,8 +6,8 @@ from agent_friend.leaderboard_data import LEADERBOARD, LEADERBOARD_URL, get_lead
 
 
 class TestLeaderboardData:
-    def test_leaderboard_has_50_entries(self):
-        assert len(LEADERBOARD) == 50
+    def test_leaderboard_has_entries(self):
+        assert len(LEADERBOARD) >= 100
 
     def test_leaderboard_sorted_descending(self):
         scores = [entry[2] for entry in LEADERBOARD]
@@ -29,46 +29,46 @@ class TestGetLeaderboardPosition:
         rank, total, above, below = get_leaderboard_position(100.0)
         assert rank == 1
 
-    def test_tied_with_notion_is_rank_50(self):
-        """Score of 19.8 ties with Notion (last entry), should be rank 50."""
+    def test_tied_with_notion_is_near_bottom(self):
+        """Score of 19.8 ties with Notion (near-last entry), should be near the bottom."""
         rank, total, above, below = get_leaderboard_position(19.8)
-        assert rank == 50
+        # Should be in the bottom 5 servers
+        assert rank >= total - 5
 
-    def test_worse_than_all_is_rank_51(self):
-        """Score of 0 is worse than all 50 entries, should be rank 51."""
+    def test_worse_than_all_is_beyond_last(self):
+        """Score of 0 is worse than all entries, should be rank total+1."""
         rank, total, above, below = get_leaderboard_position(0)
-        assert rank == 51
+        assert rank == total + 1
 
     def test_better_than_all_is_rank_1(self):
         """Score of 200 is better than all entries, should be rank 1."""
         rank, total, above, below = get_leaderboard_position(200)
         assert rank == 1
 
-    def test_total_is_50(self):
+    def test_total_matches_leaderboard_length(self):
         rank, total, above, below = get_leaderboard_position(50)
-        assert total == 50
+        assert total == len(LEADERBOARD)
 
     def test_mid_range_position_and_neighbors(self):
-        """Score of 50 should be between cloudflare (51.4) and pal (49.0)."""
+        """Score of 50 should be in the mid-range with valid neighbors."""
         rank, total, above, below = get_leaderboard_position(50)
-        # 50.0 is less than cloudflare (51.4) but more than pal (49.0)
-        # Entries with score > 50: cloudflare (51.4) and above = 40 entries
-        # So rank = 41
-        assert rank == 41
+        # Score of 50 is in the lower-middle range
+        assert rank > 100
+        assert rank < total
 
         # servers_above: up to 2 servers immediately above (higher score)
         assert len(above) <= 2
         assert len(above) > 0
-        # The server immediately above should be cloudflare (51.4)
-        assert above[-1][0] == "Cloudflare Radar MCP Server"
-        assert above[-1][1] == 51.4
+        # The server immediately above should be Microsoft Learn MCP (51.3) — closest to 50
+        assert above[-1][0] == "Microsoft Learn MCP"
+        assert above[-1][1] == 51.3
 
         # servers_below: up to 2 servers immediately below (lower score)
         assert len(below) <= 2
         assert len(below) > 0
-        # The server immediately below should be pal (49.0)
-        assert below[0][0] == "PAL MCP Server"
-        assert below[0][1] == 49.0
+        # The server immediately below should be Freshdesk MCP (Community) (49.8)
+        assert below[0][0] == "Freshdesk MCP (Community)"
+        assert below[0][1] == 49.8
 
     def test_rank_1_has_no_above(self):
         """Best possible rank should have no servers above."""
@@ -79,7 +79,7 @@ class TestGetLeaderboardPosition:
     def test_worst_rank_has_no_below(self):
         """Worst possible rank should have no servers below."""
         rank, total, above, below = get_leaderboard_position(0)
-        assert rank == 51
+        assert rank == total + 1
         assert len(below) == 0
 
     def test_above_limited_to_2(self):
