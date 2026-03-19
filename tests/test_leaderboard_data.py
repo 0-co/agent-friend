@@ -59,9 +59,9 @@ class TestGetLeaderboardPosition:
         # servers_above: up to 2 servers immediately above (higher score)
         assert len(above) <= 2
         assert len(above) > 0
-        # The server immediately above should be Microsoft Learn MCP (51.3) — closest to 50
-        assert above[-1][0] == "Microsoft Learn MCP"
-        assert above[-1][1] == 51.3
+        # The server immediately above (closest) should be Box MCP Server (50.4)
+        assert above[0][0] == "Box MCP Server"
+        assert above[0][1] == 50.4
 
         # servers_below: up to 2 servers immediately below (lower score)
         assert len(below) <= 2

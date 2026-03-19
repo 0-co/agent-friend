@@ -29,6 +29,7 @@ from agent_friend.validate import (
     _check_param_snake_case,
     _check_nested_param_snake_case,
     _check_array_items_missing,
+    _check_param_description_missing,
 )
 
 
@@ -43,7 +44,7 @@ VALID_ANTHROPIC_TOOL = {
         "type": "object",
         "properties": {
             "city": {"type": "string", "description": "City name"},
-            "units": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+            "units": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "Temperature unit"},
         },
         "required": ["city"],
     },
@@ -2062,3 +2063,87 @@ class TestCheckArrayItemsMissing:
     def test_empty_schema(self):
         issues = _check_array_items_missing("empty_tool", {})
         assert issues == []
+
+
+# Check 18: param_description_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckParamDescriptionMissing:
+    def test_param_without_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string"},
+            },
+        }
+        issues = _check_param_description_missing("get_run", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_description_missing"
+        assert issues[0].severity == "warn"
+        assert "run_id" in issues[0].message
+
+    def test_param_with_description_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string", "description": "Unique identifier of the run"},
+            },
+        }
+        issues = _check_param_description_missing("get_run", schema)
+        assert issues == []
+
+    def test_empty_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {"type": "object", "description": "   "},
+            },
+        }
+        issues = _check_param_description_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert "config" in issues[0].message
+
+    def test_multiple_missing_fires_once(self):
+        """One warning per tool regardless of how many params are missing."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "integer"},
+                "c": {"type": "boolean"},
+            },
+        }
+        issues = _check_param_description_missing("multi_tool", schema)
+        assert len(issues) == 1
+        assert "3 parameters" in issues[0].message
+
+    def test_all_described_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the entity"},
+                "limit": {"type": "integer", "description": "Maximum results to return"},
+            },
+        }
+        issues = _check_param_description_missing("search", schema)
+        assert issues == []
+
+    def test_empty_schema_ok(self):
+        issues = _check_param_description_missing("no_params", {})
+        assert issues == []
+
+    def test_no_properties_ok(self):
+        schema = {"type": "object"}
+        issues = _check_param_description_missing("empty_schema", schema)
+        assert issues == []
+
+    def test_long_sample_truncated(self):
+        """More than 5 missing params shows '+N more' suffix."""
+        schema = {
+            "type": "object",
+            "properties": {f"param_{i}": {"type": "string"} for i in range(8)},
+        }
+        issues = _check_param_description_missing("big_tool", schema)
+        assert len(issues) == 1
+        assert "+3 more" in issues[0].message

@@ -308,6 +308,44 @@ def _check_array_items_missing(tool_name: str, schema: Dict[str, Any]) -> List[I
     return issues
 
 
+def _check_param_description_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 18: param_description_missing — parameters without descriptions.
+
+    When a parameter has no description, the model must infer its purpose from the
+    name alone. For non-obvious parameters (complex objects, arrays, ambiguous names)
+    this increases hallucination risk.
+
+    Fires once per tool that has any top-level parameters with no or empty description.
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    missing = []
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        desc = param_def.get("description", "")
+        if not str(desc).strip():
+            missing.append(param_name)
+
+    if not missing:
+        return []
+
+    count = len(missing)
+    sample = ", ".join("'{}'".format(p) for p in missing[:5])
+    suffix = " +{n} more".format(n=count - 5) if count > 5 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="param_description_missing",
+        message=(
+            "{count} parameter{s} missing descriptions: {sample}{suffix}. "
+            "Models must infer purpose from parameter name alone."
+        ).format(count=count, s="s" if count != 1 else "", sample=sample, suffix=suffix),
+    )]
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -633,6 +671,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 17: array_items_missing
         issues.extend(_check_array_items_missing(name, schema))
+
+        # Check 18: param_description_missing
+        issues.extend(_check_param_description_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)
