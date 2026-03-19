@@ -82,6 +82,14 @@ def _add_example_flag(parser: argparse.ArgumentParser) -> None:
 
 def main() -> None:
     """Main entry point for the agent-friend CLI."""
+    # Auto-detect MCP server mode: if called with no args and stdin is piped
+    # (not a TTY), behave as an MCP stdio server. This lets `agent-friend`
+    # work as an MCP server when MCP clients call it instead of `agent-friend-mcp`.
+    if len(sys.argv) == 1 and not sys.stdin.isatty():
+        from .mcp_server import main as _mcp_main
+        _mcp_main()
+        return
+
     # Route subcommands before argparse (which uses a flat positional arg)
     if len(sys.argv) > 1 and sys.argv[1] == "audit":
         _run_audit_command(sys.argv[2:])
