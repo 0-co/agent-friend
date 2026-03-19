@@ -34,6 +34,7 @@ from agent_friend.validate import (
     _check_description_too_short,
     _check_param_description_too_short,
     _check_param_type_missing,
+    _check_nested_param_type_missing,
 )
 
 
@@ -2624,3 +2625,182 @@ class TestCheckParamTypeMissing:
         }
         issues = _check_param_type_missing("get_record", schema)
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 23: nested_param_type_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckNestedParamTypeMissing:
+    def test_untyped_nested_prop_flagged(self):
+        """A nested property with no type declaration is flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "description": "Configuration object",
+                    "properties": {
+                        "timeout": {"description": "Timeout in seconds"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "nested_param_type_missing"
+        assert issues[0].severity == "warn"
+        assert "timeout" in issues[0].message
+
+    def test_typed_nested_prop_ok(self):
+        """Nested props with explicit type are not flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "description": "Configuration",
+                    "properties": {
+                        "timeout": {"type": "integer", "description": "Timeout in seconds"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_anyof_nested_prop_ok(self):
+        """anyOf in nested prop is acceptable."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "opts": {
+                    "type": "object",
+                    "description": "Options",
+                    "properties": {
+                        "value": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "description": "Optional value",
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_ref_nested_prop_ok(self):
+        """$ref in nested prop is acceptable."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "object",
+                    "description": "Request body",
+                    "properties": {
+                        "data": {"$ref": "#/defs/Data", "description": "Payload"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_top_level_untyped_not_counted(self):
+        """Top-level params without type are handled by check 22, not 23."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"description": "Search query"},
+            },
+        }
+        issues = _check_nested_param_type_missing("search", schema)
+        assert issues == []
+
+    def test_fires_once_per_tool(self):
+        """Multiple untyped nested props produce one issue."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "opts": {
+                    "type": "object",
+                    "description": "Options",
+                    "properties": {
+                        "a": {"description": "First"},
+                        "b": {"description": "Second"},
+                        "c": {"description": "Third"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("multi", schema)
+        assert len(issues) == 1
+        assert "3 nested" in issues[0].message
+
+    def test_array_item_props_checked(self):
+        """Untyped properties inside array item objects are also flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "description": "List of things",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"description": "Item name"},
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("list_tool", schema)
+        assert len(issues) == 1
+        assert "name" in issues[0].message
+
+    def test_deeply_nested_flagged(self):
+        """Checks recurse into deeply nested structures."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "level1": {
+                    "type": "object",
+                    "description": "Level 1",
+                    "properties": {
+                        "level2": {
+                            "type": "object",
+                            "description": "Level 2",
+                            "properties": {
+                                "deep_field": {"description": "A deep field"},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("deep_tool", schema)
+        assert len(issues) == 1
+        assert "deep_field" in issues[0].message
+
+    def test_empty_schema_ok(self):
+        issues = _check_nested_param_type_missing("empty", {})
+        assert issues == []
+
+    def test_sample_truncated_above_5(self):
+        """More than 5 untyped nested props shows '+N more' suffix."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "opts": {
+                    "type": "object",
+                    "description": "Options",
+                    "properties": {
+                        f"field_{i}": {"description": "Some field"} for i in range(7)
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_type_missing("big_tool", schema)
+        assert len(issues) == 1
+        assert "+2 more" in issues[0].message

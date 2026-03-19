@@ -284,6 +284,75 @@ def _check_param_type_missing(tool_name: str, schema: Dict[str, Any]) -> List[Is
     )]
 
 
+def _check_nested_param_type_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 23: nested_param_type_missing — nested object properties without a type declaration.
+
+    Extends check 22 to cover properties inside nested objects and array item
+    schemas. When a nested property has no ``type`` field (and no
+    ``anyOf``/``oneOf``/``allOf``/``$ref`` alternative), models must guess the
+    type from name and context alone.
+
+    Fires once per tool that has any untyped nested properties.
+    """
+    untyped = []  # type: List[str]
+
+    def _scan(properties: Dict[str, Any], path: str, depth: int = 0) -> None:
+        if depth > 5 or not isinstance(properties, dict):
+            return
+        for prop_name, prop_def in properties.items():
+            if not isinstance(prop_def, dict):
+                continue
+            full_path = "{}.{}".format(path, prop_name) if path else prop_name
+            if "type" not in prop_def and not any(
+                k in prop_def for k in ("anyOf", "oneOf", "allOf", "$ref")
+            ):
+                untyped.append(full_path)
+            # Recurse into nested object properties
+            nested = prop_def.get("properties", {})
+            if nested and isinstance(nested, dict):
+                _scan(nested, full_path, depth + 1)
+            # Recurse into array item properties
+            items = prop_def.get("items", {})
+            if isinstance(items, dict):
+                item_props = items.get("properties", {})
+                if item_props and isinstance(item_props, dict):
+                    _scan(item_props, "{}[]".format(full_path), depth + 1)
+
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        # Only recurse into nested objects and array items — top-level handled by check 22
+        nested = param_def.get("properties", {})
+        if nested and isinstance(nested, dict):
+            _scan(nested, param_name, 0)
+        items = param_def.get("items", {})
+        if isinstance(items, dict):
+            item_props = items.get("properties", {})
+            if item_props and isinstance(item_props, dict):
+                _scan(item_props, "{}[]".format(param_name), 0)
+
+    if not untyped:
+        return []
+
+    count = len(untyped)
+    sample = ", ".join("'{}'".format(p) for p in untyped[:5])
+    suffix = " +{n} more".format(n=count - 5) if count > 5 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="nested_param_type_missing",
+        message=(
+            "{count} nested propert{y} missing type declarations: {sample}{suffix}. "
+            "Without a type, models must guess whether nested values are strings, "
+            "integers, booleans, or objects."
+        ).format(count=count, y="ies" if count != 1 else "y", sample=sample, suffix=suffix),
+    )]
+
+
 def _check_name_snake_case(name: str) -> Optional[Issue]:
     """Check 14: name_snake_case — tool name uses snake_case, not camelCase or PascalCase."""
     # Valid snake_case: lowercase letters, digits, underscores only
@@ -882,6 +951,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 22: param_type_missing
         issues.extend(_check_param_type_missing(name, schema))
+
+        # Check 23: nested_param_type_missing
+        issues.extend(_check_nested_param_type_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)
