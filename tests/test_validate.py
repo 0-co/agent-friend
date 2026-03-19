@@ -33,6 +33,7 @@ from agent_friend.validate import (
     _check_nested_param_description_missing,
     _check_description_too_short,
     _check_param_description_too_short,
+    _check_param_type_missing,
 )
 
 
@@ -2506,3 +2507,120 @@ class TestCheckParamDescriptionTooShort:
         assert len(issues) == 1
         assert "code" in issues[0].message
         assert "name" not in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 22: param_type_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckParamTypeMissing:
+    def test_untyped_param_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"description": "Search query string"},
+            },
+        }
+        issues = _check_param_type_missing("search", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_type_missing"
+        assert issues[0].severity == "warn"
+        assert "query" in issues[0].message
+
+    def test_typed_param_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query string"},
+            },
+        }
+        issues = _check_param_type_missing("search", schema)
+        assert issues == []
+
+    def test_anyof_param_ok(self):
+        """anyOf is an acceptable type declaration."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {"anyOf": [{"type": "string"}, {"type": "integer"}], "description": "A value"},
+            },
+        }
+        issues = _check_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_oneof_param_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {"oneOf": [{"type": "string"}, {"type": "null"}], "description": "Optional value"},
+            },
+        }
+        issues = _check_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_ref_param_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {"$ref": "#/definitions/Config", "description": "Config object"},
+            },
+        }
+        issues = _check_param_type_missing("my_tool", schema)
+        assert issues == []
+
+    def test_multiple_untyped_fires_once(self):
+        """One warning per tool regardless of how many params lack types."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "a": {"description": "First param"},
+                "b": {"description": "Second param"},
+                "c": {"description": "Third param"},
+            },
+        }
+        issues = _check_param_type_missing("multi_tool", schema)
+        assert len(issues) == 1
+        assert "3 parameter" in issues[0].message
+
+    def test_empty_schema_ok(self):
+        issues = _check_param_type_missing("no_params", {})
+        assert issues == []
+
+    def test_mixed_typed_and_untyped(self):
+        """Only untyped params are counted; typed ones are ignored."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Full name"},
+                "tags": {"description": "List of tags"},
+            },
+        }
+        issues = _check_param_type_missing("mixed_tool", schema)
+        assert len(issues) == 1
+        assert "tags" in issues[0].message
+        assert "name" not in issues[0].message
+
+    def test_sample_truncated_above_5(self):
+        """More than 5 untyped params shows '+N more' suffix."""
+        schema = {
+            "type": "object",
+            "properties": {
+                f"param_{i}": {"description": "Some param"} for i in range(7)
+            },
+        }
+        issues = _check_param_type_missing("big_tool", schema)
+        assert len(issues) == 1
+        assert "+2 more" in issues[0].message
+
+    def test_all_typed_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "Record ID"},
+                "name": {"type": "string", "description": "Record name"},
+                "active": {"type": "boolean", "description": "Whether the record is active"},
+            },
+        }
+        issues = _check_param_type_missing("get_record", schema)
+        assert issues == []

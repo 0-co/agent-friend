@@ -240,6 +240,50 @@ def _check_param_description_too_short(tool_name: str, schema: Dict[str, Any]) -
     )]
 
 
+def _check_param_type_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 22: param_type_missing — top-level parameters without a type declaration.
+
+    When a parameter has no ``type`` field (and no ``anyOf``/``oneOf``/``allOf``/
+    ``$ref`` alternative), the model must guess the expected type. A string,
+    integer, boolean, or object are all equally plausible — leading to silent
+    hallucination when the model picks wrong.
+
+    Fires once per tool that has any untyped top-level parameters.
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    untyped = []
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        # Skip if type is explicitly declared
+        if "type" in param_def:
+            continue
+        # Skip if schema combinator is used (anyOf / oneOf / allOf / $ref)
+        if any(k in param_def for k in ("anyOf", "oneOf", "allOf", "$ref")):
+            continue
+        untyped.append(param_name)
+
+    if not untyped:
+        return []
+
+    count = len(untyped)
+    sample = ", ".join("'{}'".format(p) for p in untyped[:5])
+    suffix = " +{n} more".format(n=count - 5) if count > 5 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="param_type_missing",
+        message=(
+            "{count} parameter{s} missing type declarations: {sample}{suffix}. "
+            "Without a type, models must guess whether the value is a string, "
+            "integer, boolean, or object."
+        ).format(count=count, s="s" if count != 1 else "", sample=sample, suffix=suffix),
+    )]
+
+
 def _check_name_snake_case(name: str) -> Optional[Issue]:
     """Check 14: name_snake_case — tool name uses snake_case, not camelCase or PascalCase."""
     # Valid snake_case: lowercase letters, digits, underscores only
@@ -835,6 +879,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 21: param_description_too_short
         issues.extend(_check_param_description_too_short(name, schema))
+
+        # Check 22: param_type_missing
+        issues.extend(_check_param_type_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)
