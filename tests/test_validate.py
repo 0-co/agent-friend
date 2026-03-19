@@ -26,6 +26,7 @@ from agent_friend.validate import (
     _check_properties_is_object,
     _check_nested_objects_have_properties,
     _check_description_override_pattern,
+    _check_param_snake_case,
 )
 
 
@@ -1767,3 +1768,73 @@ class TestDescriptionOverridePattern:
         }
         issue = _check_description_override_pattern("notes", tool, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 15: param_snake_case
+# ---------------------------------------------------------------------------
+
+
+class TestParamSnakeCase:
+    def _make_schema(self, params: dict) -> dict:
+        return {"type": "object", "properties": params}
+
+    def test_snake_case_params_pass(self):
+        schema = self._make_schema({"user_id": {}, "max_results": {}, "query": {}})
+        issues = _check_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_no_properties_passes(self):
+        issues = _check_param_snake_case("my_tool", {})
+        assert issues == []
+
+    def test_single_word_param_passes(self):
+        schema = self._make_schema({"query": {}, "limit": {}, "id": {}})
+        issues = _check_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_camel_case_param_flagged(self):
+        schema = self._make_schema({"maxResults": {}})
+        issues = _check_param_snake_case("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_snake_case"
+        assert issues[0].severity == "warn"
+        assert "maxResults" in issues[0].message
+        assert "max_results" in issues[0].message
+
+    def test_pascal_case_param_flagged(self):
+        schema = self._make_schema({"PageSize": {}})
+        issues = _check_param_snake_case("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_snake_case"
+        assert "page_size" in issues[0].message
+
+    def test_multiple_camel_case_params_flagged(self):
+        schema = self._make_schema({"userId": {}, "pageSize": {}, "query": {}})
+        issues = _check_param_snake_case("my_tool", schema)
+        assert len(issues) == 2
+        param_names = [i.message for i in issues]
+        assert any("user_id" in m for m in param_names)
+        assert any("page_size" in m for m in param_names)
+
+    def test_tool_name_in_issue(self):
+        schema = self._make_schema({"apiKey": {}})
+        issues = _check_param_snake_case("search_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].tool == "search_tool"
+
+    def test_per_page_flagged(self):
+        schema = self._make_schema({"perPage": {}})
+        issues = _check_param_snake_case("search_repositories", schema)
+        assert len(issues) == 1
+        assert "per_page" in issues[0].message
+
+    def test_launch_options_flagged(self):
+        schema = self._make_schema({"launchOptions": {}, "allowDangerous": {}})
+        issues = _check_param_snake_case("puppeteer_navigate", schema)
+        assert len(issues) == 2
+
+    def test_properties_not_dict_skipped(self):
+        # Malformed schema — properties is a string
+        issues = _check_param_snake_case("my_tool", {"properties": "bad"})
+        assert issues == []

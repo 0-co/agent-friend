@@ -177,6 +177,32 @@ def _check_name_snake_case(name: str) -> Optional[Issue]:
     return None
 
 
+def _check_param_snake_case(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 15: param_snake_case — parameter names use snake_case, not camelCase or PascalCase."""
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+    for param_name in properties:
+        if not isinstance(param_name, str):
+            continue
+        if re.match(r'^[a-z][a-z0-9_]*$', param_name):
+            continue
+        if re.search(r'[A-Z]', param_name):
+            snake = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', param_name)
+            snake = re.sub(r'([a-z\d])([A-Z])', r'\1_\2', snake).lower()
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_snake_case",
+                message="parameter '{param}' uses camelCase or PascalCase; prefer snake_case (e.g., '{snake}')".format(
+                    param=param_name,
+                    snake=snake,
+                ),
+            ))
+    return issues
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -466,6 +492,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_name_snake_case(name)
         if issue is not None:
             issues.append(issue)
+
+        # Check 15: param_snake_case
+        issues.extend(_check_param_snake_case(name, schema))
 
         # Check 5: description_present
         issue = _check_description_present(name, raw_obj, fmt)
