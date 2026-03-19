@@ -263,6 +263,51 @@ def _check_nested_param_snake_case(tool_name: str, schema: Dict[str, Any]) -> Li
     return issues
 
 
+def _check_array_items_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 17: array_items_missing — array-type parameters missing an 'items' schema.
+
+    An array parameter without an 'items' definition leaves the model guessing
+    about element types, making the parameter unreliable to use correctly.
+    """
+    issues = []
+
+    def _check_props(properties: Dict[str, Any], path: str, depth: int = 0) -> None:
+        if depth > 5:
+            return
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            ptype = param_schema.get("type", "")
+            types = ptype if isinstance(ptype, list) else [ptype]
+            full_path = "{}.{}".format(path, param_name) if path else param_name
+            if "array" in types and "items" not in param_schema:
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="array_items_missing",
+                    message=(
+                        "array parameter '{path}' has no 'items' schema; "
+                        "the model cannot determine element types"
+                    ).format(path=full_path),
+                ))
+            # Recurse into nested objects
+            nested = param_schema.get("properties", {})
+            if nested and isinstance(nested, dict):
+                _check_props(nested, full_path, depth + 1)
+            # Recurse into array items
+            items = param_schema.get("items", {})
+            if isinstance(items, dict):
+                item_props = items.get("properties", {})
+                if item_props and isinstance(item_props, dict):
+                    _check_props(item_props, "{}[]".format(full_path), depth + 1)
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        _check_props(properties, "", 0)
+
+    return issues
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -585,6 +630,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 16: nested_param_snake_case
         issues.extend(_check_nested_param_snake_case(name, schema))
+
+        # Check 17: array_items_missing
+        issues.extend(_check_array_items_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)

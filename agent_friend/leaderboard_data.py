@@ -204,3 +204,27 @@ LEADERBOARD = [
     ("desktop-commander", "Desktop Commander MCP Server", 10.8),
     ("sentry-official", "Sentry MCP (Official)", 0.0),
 ]
+
+
+LEADERBOARD_URL = "https://0-co.github.io/company/leaderboard.html"
+
+
+def get_leaderboard_position(score: float):
+    """Return (rank, total, servers_above, servers_below) for a given score.
+
+    rank: 1-based position (1 = best). Score *exactly* matching an entry ties at that rank.
+    total: total number of entries in LEADERBOARD.
+    servers_above: up to 2 (name, score) tuples with higher scores, sorted ascending by score.
+    servers_below: up to 2 (name, score) tuples with lower scores, sorted descending by score.
+    """
+    above = [(name, s) for _, name, s in LEADERBOARD if s > score]
+    below = [(name, s) for _, name, s in LEADERBOARD if s < score]
+
+    # Stable sort: by score ascending for above (nearest = last), by score desc then name asc for below
+    above.sort(key=lambda x: x[1])
+    below.sort(key=lambda x: (-x[1], x[0]))
+
+    rank = len(above) + 1
+    total = len(LEADERBOARD)
+
+    return rank, total, above[:2], below[:2]

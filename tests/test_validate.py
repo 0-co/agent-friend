@@ -28,6 +28,7 @@ from agent_friend.validate import (
     _check_description_override_pattern,
     _check_param_snake_case,
     _check_nested_param_snake_case,
+    _check_array_items_missing,
 )
 
 
@@ -1986,3 +1987,78 @@ class TestNestedParamSnakeCase:
         # Should not raise, should return without issues beyond depth limit
         issues = _check_nested_param_snake_case("my_tool", schema)
         assert isinstance(issues, list)
+
+
+# ---------------------------------------------------------------------------
+# Check 17: array_items_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckArrayItemsMissing:
+    def test_array_without_items_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user_ids": {"type": "array", "description": "User IDs"},
+            },
+        }
+        issues = _check_array_items_missing("create_group", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "array_items_missing"
+        assert issues[0].severity == "warn"
+        assert "user_ids" in issues[0].message
+
+    def test_array_with_items_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tags",
+                },
+            },
+        }
+        issues = _check_array_items_missing("tag_item", schema)
+        assert issues == []
+
+    def test_string_param_not_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "A name"},
+            },
+        }
+        issues = _check_array_items_missing("my_tool", schema)
+        assert issues == []
+
+    def test_nested_array_without_items_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "rules": {"type": "array"},  # nested, no items
+                    },
+                },
+            },
+        }
+        issues = _check_array_items_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert "config.rules" in issues[0].message
+
+    def test_multiple_arrays_without_items(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "ids": {"type": "array"},
+                "names": {"type": "array"},
+            },
+        }
+        issues = _check_array_items_missing("bulk_op", schema)
+        assert len(issues) == 2
+
+    def test_empty_schema(self):
+        issues = _check_array_items_missing("empty_tool", {})
+        assert issues == []
