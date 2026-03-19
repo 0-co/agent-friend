@@ -203,6 +203,66 @@ def _check_param_snake_case(tool_name: str, schema: Dict[str, Any]) -> List[Issu
     return issues
 
 
+def _check_nested_param_snake_case(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 16: nested_param_snake_case — camelCase/PascalCase names in nested object schemas.
+
+    Extends check 15 to catch camelCase parameter names inside nested objects
+    and array items, where they are equally important for correct tool use.
+    """
+    issues = []
+
+    def _check_properties(properties: Dict[str, Any], path: str, depth: int = 0) -> None:
+        if depth > 5:
+            return
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_name, str):
+                continue
+            if re.search(r'[A-Z]', param_name):
+                snake = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', param_name)
+                snake = re.sub(r'([a-z\d])([A-Z])', r'\1_\2', snake).lower()
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="nested_param_snake_case",
+                    message=(
+                        "nested parameter '{path}.{param}' uses camelCase or PascalCase; "
+                        "prefer snake_case (e.g., '{snake}')"
+                    ).format(path=path, param=param_name, snake=snake),
+                ))
+            if not isinstance(param_schema, dict):
+                continue
+            # Recurse into nested object properties
+            nested_props = param_schema.get("properties", {})
+            if nested_props and isinstance(nested_props, dict):
+                _check_properties(nested_props, "{path}.{param}".format(path=path, param=param_name), depth + 1)
+            # Recurse into array item properties
+            items = param_schema.get("items", {})
+            if isinstance(items, dict):
+                item_props = items.get("properties", {})
+                if item_props and isinstance(item_props, dict):
+                    _check_properties(item_props, "{path}.{param}[]".format(path=path, param=param_name), depth + 1)
+
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        # Check nested object properties (not top-level — those are covered by check 15)
+        nested_props = param_schema.get("properties", {})
+        if nested_props and isinstance(nested_props, dict):
+            _check_properties(nested_props, param_name, 0)
+        # Check array item properties
+        items = param_schema.get("items", {})
+        if isinstance(items, dict):
+            item_props = items.get("properties", {})
+            if item_props and isinstance(item_props, dict):
+                _check_properties(item_props, "{param}[]".format(param=param_name), 0)
+
+    return issues
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -522,6 +582,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 12: nested_objects_have_properties
         issues.extend(_check_nested_objects_have_properties(name, schema))
+
+        # Check 16: nested_param_snake_case
+        issues.extend(_check_nested_param_snake_case(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)

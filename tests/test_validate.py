@@ -27,6 +27,7 @@ from agent_friend.validate import (
     _check_nested_objects_have_properties,
     _check_description_override_pattern,
     _check_param_snake_case,
+    _check_nested_param_snake_case,
 )
 
 
@@ -1838,3 +1839,150 @@ class TestParamSnakeCase:
         # Malformed schema — properties is a string
         issues = _check_param_snake_case("my_tool", {"properties": "bad"})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 16: nested_param_snake_case
+# ---------------------------------------------------------------------------
+
+
+class TestNestedParamSnakeCase:
+    def test_no_nested_params_passes(self):
+        schema = {"type": "object", "properties": {"query": {"type": "string"}}}
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_nested_param_snake_case("my_tool", {})
+        assert issues == []
+
+    def test_nested_snake_case_passes(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "entity_name": {"type": "string"},
+                            "entity_type": {"type": "string"},
+                        },
+                    },
+                }
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_camel_case_in_array_items_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "entityType": {"type": "string"},
+                        },
+                    },
+                }
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "nested_param_snake_case"
+        assert issues[0].severity == "warn"
+        assert "entityType" in issues[0].message
+        assert "entity_type" in issues[0].message
+        assert "entities[]" in issues[0].message
+
+    def test_camel_case_in_nested_object_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "properties": {
+                        "maxRetries": {"type": "integer"},
+                    },
+                }
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert len(issues) == 1
+        assert "maxRetries" in issues[0].message
+        assert "max_retries" in issues[0].message
+
+    def test_multiple_nested_camel_params_all_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "relations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fromNode": {"type": "string"},
+                            "toNode": {"type": "string"},
+                            "relationType": {"type": "string"},
+                        },
+                    },
+                }
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert len(issues) == 3
+        names = [i.message for i in issues]
+        assert any("fromNode" in m for m in names)
+        assert any("toNode" in m for m in names)
+        assert any("relationType" in m for m in names)
+
+    def test_top_level_camel_not_caught(self):
+        # Top-level camelCase is check 15's job, not check 16
+        schema = {
+            "type": "object",
+            "properties": {
+                "userId": {"type": "string"},  # check 15 catches this
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_tool_name_in_issue(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"itemId": {"type": "string"}},
+                    },
+                }
+            },
+        }
+        issues = _check_nested_param_snake_case("search_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].tool == "search_tool"
+
+    def test_array_without_items_schema_skipped(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "tags": {"type": "array"},  # no items schema — skip gracefully
+            },
+        }
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert issues == []
+
+    def test_depth_limit_prevents_infinite_recursion(self):
+        # Deeply nested schema — should not recurse indefinitely
+        deep = {"type": "object", "properties": {"camelField": {"type": "string"}}}
+        for _ in range(10):
+            deep = {"type": "object", "properties": {"layer": deep}}
+        schema = {"type": "object", "properties": {"root": deep}}
+        # Should not raise, should return without issues beyond depth limit
+        issues = _check_nested_param_snake_case("my_tool", schema)
+        assert isinstance(issues, list)
