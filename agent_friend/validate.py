@@ -346,6 +346,72 @@ def _check_param_description_missing(tool_name: str, schema: Dict[str, Any]) -> 
     )]
 
 
+def _check_nested_param_description_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 19: nested_param_description_missing — nested object properties without descriptions.
+
+    Extends check 18 to cover nested schemas. When properties inside nested
+    objects have no description, models must infer their purpose from field names
+    alone — especially problematic for deeply nested request bodies.
+
+    Fires once per tool that has any nested properties with no or empty description.
+    """
+    missing = []  # type: List[str]
+
+    def _scan(properties: Dict[str, Any], path: str, depth: int = 0) -> None:
+        if depth > 5 or not isinstance(properties, dict):
+            return
+        for prop_name, prop_schema in properties.items():
+            if not isinstance(prop_schema, dict):
+                continue
+            full_path = "{}.{}".format(path, prop_name) if path else prop_name
+            desc = prop_schema.get("description", "")
+            if not str(desc).strip():
+                missing.append(full_path)
+            # Recurse into nested object properties
+            nested = prop_schema.get("properties", {})
+            if nested and isinstance(nested, dict):
+                _scan(nested, full_path, depth + 1)
+            # Recurse into array item properties
+            items = prop_schema.get("items", {})
+            if isinstance(items, dict):
+                item_props = items.get("properties", {})
+                if item_props and isinstance(item_props, dict):
+                    _scan(item_props, "{}[]".format(full_path), depth + 1)
+
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        # Only recurse into nested objects and array items — top-level handled by check 18
+        nested = param_def.get("properties", {})
+        if nested and isinstance(nested, dict):
+            _scan(nested, param_name, 0)
+        items = param_def.get("items", {})
+        if isinstance(items, dict):
+            item_props = items.get("properties", {})
+            if item_props and isinstance(item_props, dict):
+                _scan(item_props, "{}[]".format(param_name), 0)
+
+    if not missing:
+        return []
+
+    count = len(missing)
+    sample = ", ".join("'{}'".format(p) for p in missing[:5])
+    suffix = " +{n} more".format(n=count - 5) if count > 5 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="nested_param_description_missing",
+        message=(
+            "{count} nested propert{y} missing descriptions: {sample}{suffix}. "
+            "Models cannot infer nested field purpose from name alone."
+        ).format(count=count, y="ies" if count != 1 else "y", sample=sample, suffix=suffix),
+    )]
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -674,6 +740,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 18: param_description_missing
         issues.extend(_check_param_description_missing(name, schema))
+
+        # Check 19: nested_param_description_missing
+        issues.extend(_check_nested_param_description_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)

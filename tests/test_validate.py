@@ -30,6 +30,7 @@ from agent_friend.validate import (
     _check_nested_param_snake_case,
     _check_array_items_missing,
     _check_param_description_missing,
+    _check_nested_param_description_missing,
 )
 
 
@@ -2147,3 +2148,172 @@ class TestCheckParamDescriptionMissing:
         issues = _check_param_description_missing("big_tool", schema)
         assert len(issues) == 1
         assert "+3 more" in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 19: nested_param_description_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckNestedParamDescriptionMissing:
+    def test_nested_property_without_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "description": "Configuration options",
+                    "properties": {
+                        "format": {"type": "string"},  # no description
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("create_report", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "nested_param_description_missing"
+        assert issues[0].severity == "warn"
+        assert "options.format" in issues[0].message
+
+    def test_nested_property_with_description_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "description": "Configuration options",
+                    "properties": {
+                        "format": {"type": "string", "description": "Output format"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("create_report", schema)
+        assert issues == []
+
+    def test_top_level_param_not_flagged(self):
+        """Top-level params without descriptions are Check 18, not 19."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string"},  # top-level, no description
+            },
+        }
+        issues = _check_nested_param_description_missing("get_run", schema)
+        assert issues == []
+
+    def test_multiple_nested_missing_fires_once(self):
+        """One warning per tool regardless of how many nested props are missing."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "description": "Config",
+                    "properties": {
+                        "a": {"type": "string"},
+                        "b": {"type": "integer"},
+                        "c": {"type": "boolean"},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("multi_tool", schema)
+        assert len(issues) == 1
+        assert "3 nested properties" in issues[0].message
+
+    def test_array_item_properties_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "description": "List of items",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},  # no description
+                            "name": {"type": "string", "description": "Item name"},
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("batch_create", schema)
+        assert len(issues) == 1
+        assert "items[].id" in issues[0].message
+
+    def test_empty_schema_ok(self):
+        issues = _check_nested_param_description_missing("no_params", {})
+        assert issues == []
+
+    def test_flat_schema_ok(self):
+        """Params with no nested objects should not trigger."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name"},
+                "limit": {"type": "integer", "description": "Limit"},
+            },
+        }
+        issues = _check_nested_param_description_missing("search", schema)
+        assert issues == []
+
+    def test_deep_nesting_flagged(self):
+        """Descriptions missing at multiple depths are counted."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "type": "object",
+                    "description": "Request body",
+                    "properties": {
+                        "metadata": {
+                            "type": "object",
+                            "description": "Metadata",
+                            "properties": {
+                                "tag": {"type": "string"},  # no description, depth 2
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("create_item", schema)
+        assert len(issues) == 1
+        assert "request.metadata.tag" in issues[0].message
+
+    def test_long_sample_truncated(self):
+        """More than 5 missing nested props shows '+N more' suffix."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "object",
+                    "description": "Request body",
+                    "properties": {
+                        f"field_{i}": {"type": "string"} for i in range(8)
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("big_tool", schema)
+        assert len(issues) == 1
+        assert "+3 more" in issues[0].message
+
+    def test_empty_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "opts": {
+                    "type": "object",
+                    "description": "Options",
+                    "properties": {
+                        "mode": {"type": "string", "description": "   "},
+                    },
+                },
+            },
+        }
+        issues = _check_nested_param_description_missing("run_job", schema)
+        assert len(issues) == 1
+        assert "opts.mode" in issues[0].message
