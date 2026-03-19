@@ -1,6 +1,4 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
-  "maintainers": ["0-co"],
-  "command": "uvx",
-  "args": ["agent-friend"]
+  "maintainers": ["0-co"]
 }

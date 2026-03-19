@@ -156,6 +156,27 @@ def _check_description_not_empty(name: str, obj: Dict[str, Any], fmt: str) -> Op
     return None
 
 
+def _check_name_snake_case(name: str) -> Optional[Issue]:
+    """Check 14: name_snake_case — tool name uses snake_case, not camelCase or PascalCase."""
+    # Valid snake_case: lowercase letters, digits, underscores only
+    if re.match(r'^[a-z][a-z0-9_]*$', name):
+        return None
+    # camelCase or PascalCase detected (contains uppercase)
+    if re.search(r'[A-Z]', name):
+        # Convert camelCase/PascalCase to snake_case for suggestion
+        snake = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', name)
+        snake = re.sub(r'([a-z\d])([A-Z])', r'\1_\2', snake).lower()
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="name_snake_case",
+            message="name uses camelCase or PascalCase; prefer snake_case (e.g., '{snake}')".format(
+                snake=snake,
+            ),
+        )
+    return None
+
+
 def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     """Check 7: no_duplicate_names — no two tools share the same name."""
     seen = {}  # type: Dict[str, int]
@@ -438,6 +459,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
     for name, fmt, raw_obj, schema in tool_data:
         # Check 4: name_valid
         issue = _check_name_valid(name)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 14: name_snake_case
+        issue = _check_name_snake_case(name)
         if issue is not None:
             issues.append(issue)
 

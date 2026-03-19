@@ -16,6 +16,7 @@ from agent_friend.validate import (
     run_validate,
     _check_name_present,
     _check_name_valid,
+    _check_name_snake_case,
     _check_description_present,
     _check_description_not_empty,
     _check_no_duplicate_names,
@@ -260,6 +261,49 @@ class TestNameValid:
     def test_empty_string(self):
         issue = _check_name_valid("")
         assert issue is not None
+
+
+# ---------------------------------------------------------------------------
+# Check 14: name_snake_case
+# ---------------------------------------------------------------------------
+
+
+class TestNameSnakeCase:
+    def test_snake_case_passes(self):
+        assert _check_name_snake_case("get_weather") is None
+
+    def test_single_word_passes(self):
+        assert _check_name_snake_case("query") is None
+
+    def test_snake_case_with_digits_passes(self):
+        assert _check_name_snake_case("get_top_10") is None
+
+    def test_camel_case_flagged(self):
+        issue = _check_name_snake_case("getWeather")
+        assert issue is not None
+        assert issue.check == "name_snake_case"
+        assert issue.severity == "warn"
+        assert "get_weather" in issue.message
+
+    def test_pascal_case_flagged(self):
+        issue = _check_name_snake_case("GetWeather")
+        assert issue is not None
+        assert issue.check == "name_snake_case"
+
+    def test_camel_case_acronym(self):
+        issue = _check_name_snake_case("runSEOAudit")
+        assert issue is not None
+        assert "run_seo_audit" in issue.message
+
+    def test_camel_case_suggestion_correct(self):
+        issue = _check_name_snake_case("getConsoleLogs")
+        assert issue is not None
+        assert "get_console_logs" in issue.message
+
+    def test_name_valid_check_still_passes_camelcase(self):
+        # name_valid allows camelCase (alphanumeric only); snake_case is separate check
+        issue = _check_name_valid("getWeather")
+        assert issue is None
 
 
 # ---------------------------------------------------------------------------
