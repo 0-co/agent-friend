@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """MCP server exposing agent-friend's built-in tools via the Model Context Protocol.
 
 Usage:
-    agent-friend-mcp          # recommended (installed entry point)
-    python mcp_server.py      # direct run from repo clone
+    agent-friend-mcp          # installed entry point
+    python -m agent_friend.mcp_server
+    python mcp_server.py      # backward-compat root script
 
 Claude Desktop config (~/.claude/claude_desktop_config.json):
     {
@@ -24,13 +24,7 @@ Tool count: ~310 methods from ~50 tool classes.
 
 import json
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-# Ensure agent-friend is importable when running directly from repo
-_project_root = str(Path(__file__).resolve().parent)
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 from mcp.server.fastmcp import FastMCP
 
@@ -168,10 +162,8 @@ def _resolve_type(prop: Dict[str, Any]) -> str:
     """Resolve a JSON Schema property to a Python type string."""
     t = prop.get("type")
     if t is None:
-        # No type specified -> accept anything as str
         return "str"
     if isinstance(t, list):
-        # Union type like ["string", "null"] -> use first non-null
         for sub in t:
             if sub != "null":
                 return _TYPE_MAP.get(sub, "str")
@@ -200,17 +192,13 @@ def _make_mcp_handler(tool_instance, method_name: str, input_schema: Dict[str, A
     required = set(input_schema.get("required", []))
 
     if not props:
-        # No parameters -- simple handler
         def handler() -> str:
             result = tool_instance.execute(method_name, {})
             return result if isinstance(result, str) else json.dumps(result)
         return handler
 
-    # Build parameter list for the function signature
-    # Required params first, then optional ones
     req_params = []
     opt_params = []
-    # Track original names if we had to rename
     renames = {}
 
     for pname, prop in props.items():
@@ -226,12 +214,9 @@ def _make_mcp_handler(tool_instance, method_name: str, input_schema: Dict[str, A
 
     param_str = ", ".join(req_params + opt_params)
 
-    # Build the function body
-    # Collect all params into a dict, stripping None values
     func_code = f"""
 def _handler({param_str}) -> str:
     _args = {{k: v for k, v in locals().items() if v is not None}}
-    # Restore original param names if renamed
     for _safe, _orig in _renames.items():
         if _safe in _args:
             _args[_orig] = _args.pop(_safe)
@@ -256,70 +241,72 @@ def _dispatch_call(tool_instance, method_name: str, args: Dict[str, Any]) -> str
 
 
 # ---------------------------------------------------------------------------
-# Initialize FastMCP server and register tools
+# Build server (module-level so it can be imported without running)
 # ---------------------------------------------------------------------------
 
-server = FastMCP(
-    "agent-friend",
-    instructions=(
-        "agent-friend tools: a collection of zero-dependency Python utilities "
-        "covering date/time, crypto, validation, JSON manipulation, regex, "
-        "formatting, diffing, text processing, data structures, and more. "
-        "Each tool is prefixed with its category (e.g. datetime_, crypto_, json_)."
-    ),
-)
+def _build_server() -> FastMCP:
+    srv = FastMCP(
+        "agent-friend",
+        instructions=(
+            "agent-friend tools: a collection of zero-dependency Python utilities "
+            "covering date/time, crypto, validation, JSON manipulation, regex, "
+            "formatting, diffing, text processing, data structures, and more. "
+            "Each tool is prefixed with its category (e.g. datetime_, crypto_, json_)."
+        ),
+    )
 
-registered_count = 0
-skipped_classes = []
-seen_names: set = set()
+    registered_count = 0
+    skipped_classes = []
+    seen_names: set = set()
 
-for cls in TOOL_CLASSES:
-    try:
-        tool_inst = cls()
-    except TypeError as e:
-        skipped_classes.append((cls.__name__, str(e)))
-        continue
+    for cls in TOOL_CLASSES:
+        try:
+            tool_inst = cls()
+        except TypeError as e:
+            skipped_classes.append((cls.__name__, str(e)))
+            continue
 
-    tool_prefix = tool_inst.name
+        tool_prefix = tool_inst.name
 
-    for defn in tool_inst.definitions():
-        method_name = defn["name"]
-        description = defn.get("description", "")
-        input_schema = defn.get("input_schema", {"type": "object", "properties": {}})
+        for defn in tool_inst.definitions():
+            method_name = defn["name"]
+            description = defn.get("description", "")
+            input_schema = defn.get("input_schema", {"type": "object", "properties": {}})
 
-        # Unique MCP tool name: {category}_{method}
-        mcp_name = f"{tool_prefix}_{method_name}"
-        if mcp_name in seen_names:
-            mcp_name = f"{mcp_name}_2"
-        seen_names.add(mcp_name)
+            mcp_name = f"{tool_prefix}_{method_name}"
+            if mcp_name in seen_names:
+                mcp_name = f"{mcp_name}_2"
+            seen_names.add(mcp_name)
 
-        # Build a typed handler function
-        handler = _make_mcp_handler(tool_inst, method_name, input_schema)
-        handler.__name__ = mcp_name
-        handler.__qualname__ = mcp_name
-        handler.__doc__ = f"[{tool_prefix}] {description}"
+            handler = _make_mcp_handler(tool_inst, method_name, input_schema)
+            handler.__name__ = mcp_name
+            handler.__qualname__ = mcp_name
+            handler.__doc__ = f"[{tool_prefix}] {description}"
 
-        # Register with FastMCP
-        server.add_tool(
-            handler,
-            name=mcp_name,
-            description=f"[{tool_prefix}] {description}",
-        )
-        registered_count += 1
+            srv.add_tool(
+                handler,
+                name=mcp_name,
+                description=f"[{tool_prefix}] {description}",
+            )
+            registered_count += 1
 
-print(
-    f"agent-friend MCP server: registered {registered_count} tools "
-    f"from {len(TOOL_CLASSES) - len(skipped_classes)} tool classes",
-    file=sys.stderr,
-)
-if skipped_classes:
-    for name, reason in skipped_classes:
-        print(f"  skipped {name}: {reason}", file=sys.stderr)
+    print(
+        f"agent-friend MCP server: registered {registered_count} tools "
+        f"from {len(TOOL_CLASSES) - len(skipped_classes)} tool classes",
+        file=sys.stderr,
+    )
+    if skipped_classes:
+        for name, reason in skipped_classes:
+            print(f"  skipped {name}: {reason}", file=sys.stderr)
+
+    return srv
 
 
-# ---------------------------------------------------------------------------
-# Run
-# ---------------------------------------------------------------------------
+def main() -> None:
+    """Entry point for the agent-friend-mcp command."""
+    server = _build_server()
+    server.run(transport="stdio")
+
 
 if __name__ == "__main__":
-    server.run(transport="stdio")
+    main()
