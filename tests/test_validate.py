@@ -68,6 +68,7 @@ from agent_friend.validate import (
     _check_description_word_repetition,
     _check_default_type_mismatch,
     _check_param_name_implies_boolean,
+    _check_anyof_null_should_be_optional,
 )
 
 
@@ -9022,3 +9023,109 @@ class TestCheckParamNameImpliesBoolean:
         issues = _check_param_name_implies_boolean("my_tool", schema)
         assert len(issues) == 1
         assert "is_recursive" in issues[0].message
+
+
+class TestCheckAnyofNullShouldBeOptional:
+    """Tests for Check 77: anyof_null_should_be_optional."""
+
+    def _schema(self, param_name: str, anyof_types: list) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                param_name: {
+                    "anyOf": [{"type": t} for t in anyof_types],
+                    "description": "A param.",
+                },
+            },
+        }
+
+    # --- Cases that SHOULD fire ---
+
+    def test_string_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("q", ["string", "null"]))
+        assert len(issues) == 1
+        assert issues[0].check == "anyof_null_should_be_optional"
+        assert issues[0].severity == "warn"
+        assert "q" in issues[0].message
+        assert "string" in issues[0].message
+
+    def test_null_or_string_fires(self):
+        # null first, type second
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("q", ["null", "string"]))
+        assert len(issues) == 1
+
+    def test_integer_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("limit", ["integer", "null"]))
+        assert len(issues) == 1
+
+    def test_boolean_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("flag", ["boolean", "null"]))
+        assert len(issues) == 1
+
+    def test_array_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("tags", ["array", "null"]))
+        assert len(issues) == 1
+
+    def test_object_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("opts", ["object", "null"]))
+        assert len(issues) == 1
+
+    def test_number_or_null_fires(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("score", ["number", "null"]))
+        assert len(issues) == 1
+
+    # --- Cases that should NOT fire ---
+
+    def test_three_types_no_fire(self):
+        # 3-entry anyOf = legitimate union, don't fire
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("q", ["string", "integer", "null"]))
+        assert issues == []
+
+    def test_two_real_types_no_fire(self):
+        # two real types, no null — legitimate union
+        issues = _check_anyof_null_should_be_optional("my_tool", self._schema("q", ["string", "integer"]))
+        assert issues == []
+
+    def test_no_anyof_no_fire(self):
+        schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string", "description": "A param."}},
+        }
+        issues = _check_anyof_null_should_be_optional("my_tool", schema)
+        assert issues == []
+
+    def test_ref_in_anyof_no_fire(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "q": {
+                    "anyOf": [{"$ref": "#/definitions/Query"}, {"type": "null"}],
+                    "description": "A param.",
+                },
+            },
+        }
+        issues = _check_anyof_null_should_be_optional("my_tool", schema)
+        assert issues == []
+
+    def test_empty_schema_no_fire(self):
+        issues = _check_anyof_null_should_be_optional("my_tool", {})
+        assert issues == []
+
+    def test_nested_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "region": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "description": "Nested nullable param.",
+                        },
+                    },
+                }
+            },
+        }
+        issues = _check_anyof_null_should_be_optional("my_tool", schema)
+        assert len(issues) == 1
+        assert "region" in issues[0].message

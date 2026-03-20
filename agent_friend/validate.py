@@ -2226,6 +2226,114 @@ def _check_param_name_implies_boolean(
 
 
 # ---------------------------------------------------------------------------
+# Check 77: anyof_null_should_be_optional
+# ---------------------------------------------------------------------------
+
+
+def _check_anyof_null_should_be_optional(
+    tool_name: str, schema: Dict[str, Any]
+) -> List[Issue]:
+    """Check 77: anyof_null_should_be_optional — a parameter uses
+    ``anyOf: [{type: "..."}, {type: "null"}]`` to express nullability, but
+    the simpler form is to just declare the real type and make the parameter
+    optional (not in ``required``).
+
+    This pattern is extremely common in auto-generated schemas produced by
+    Pydantic, FastAPI, and similar Python libraries that translate
+    ``Optional[str]`` to ``anyOf: [{type: "string"}, {type: "null"}]``.
+
+    In MCP tool calling, LLMs do not explicitly pass ``null`` for optional
+    parameters — they simply omit them.  The null branch of the ``anyOf`` is
+    therefore dead schema that wastes tokens on every request that includes
+    this tool's definition.
+
+    **Token cost example** — for a tool with 10 optional parameters of this
+    form, every request carries ~150–200 extra tokens for null branches that
+    are never used.
+
+    **Fix**: Remove the ``{type: "null"}`` schema from ``anyOf``, inline the
+    real type directly, and ensure the parameter is not in ``required``.
+
+    Fires when:
+
+    * A parameter has ``anyOf`` with exactly 2 entries, AND
+    * One entry is ``{type: "null"}`` (the null branch), AND
+    * The other entry declares a concrete ``type`` (string/integer/number/
+      boolean/array/object)
+
+    Does NOT fire for:
+
+    * ``anyOf`` with 3+ entries (legitimate union types — keep those)
+    * ``anyOf`` containing ``$ref`` entries (references need special handling)
+    * The non-null schema lacks an explicit ``type`` (too complex to simplify)
+
+    Examples::
+
+        # flagged — anyOf with null is just Optional[string]
+        {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "..."}
+
+        # correct — just declare the type and leave it optional
+        {"type": "string", "description": "..."}
+    """
+    issues: List[Issue] = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    _CONCRETE_TYPES = {"string", "integer", "number", "boolean", "array", "object"}
+
+    def _check_props(props: Dict[str, Any], path: str) -> None:
+        for param_name, param_schema in props.items():
+            if not isinstance(param_schema, dict):
+                continue
+            full_path = f"{path}.{param_name}" if path else param_name
+            anyof = param_schema.get("anyOf")
+            if not isinstance(anyof, list) or len(anyof) != 2:
+                pass  # only check exactly-2-schema anyOf
+            else:
+                null_schema = None
+                real_schema = None
+                for sub in anyof:
+                    if not isinstance(sub, dict):
+                        real_schema = None  # has non-dict, skip
+                        break
+                    if "$ref" in sub:
+                        real_schema = None  # has $ref, skip
+                        break
+                    if sub.get("type") == "null":
+                        null_schema = sub
+                    elif sub.get("type") in _CONCRETE_TYPES:
+                        real_schema = sub
+                if null_schema is not None and real_schema is not None:
+                    issues.append(Issue(
+                        tool=tool_name,
+                        severity="warn",
+                        check="anyof_null_should_be_optional",
+                        message=(
+                            "param '{param}' uses anyOf with null to express nullability "
+                            "(type='{real_type}' | null) — declare type '{real_type}' "
+                            "directly and make the param optional (omit from required)."
+                        ).format(
+                            param=full_path,
+                            real_type=real_schema.get("type", "?"),
+                        ),
+                    ))
+            # Recurse into nested objects
+            nested_props = param_schema.get("properties") or {}
+            if isinstance(nested_props, dict) and nested_props:
+                _check_props(nested_props, full_path)
+            # Recurse into array items
+            items = param_schema.get("items") or {}
+            if isinstance(items, dict):
+                item_props = items.get("properties") or {}
+                if isinstance(item_props, dict) and item_props:
+                    _check_props(item_props, f"{full_path}[]")
+
+    _check_props(properties, "")
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -4758,6 +4866,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 76: param_name_implies_boolean
         issues.extend(_check_param_name_implies_boolean(name, schema))
+
+        # Check 77: anyof_null_should_be_optional
+        issues.extend(_check_anyof_null_should_be_optional(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
