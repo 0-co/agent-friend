@@ -83,6 +83,7 @@ from agent_friend.validate import (
     _check_enum_has_duplicates,
     _check_description_has_html,
     _check_description_starts_with_param_name,
+    _check_string_type_describes_json,
 )
 
 
@@ -10017,4 +10018,68 @@ class TestDescriptionStartsWithParamName:
 
     def test_empty_schema_passes(self):
         issues = _check_description_starts_with_param_name("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 91: string_type_describes_json
+# ---------------------------------------------------------------------------
+
+
+class TestStringTypeDescribesJson:
+    """Tests for _check_string_type_describes_json (Check 91)."""
+
+    @staticmethod
+    def _schema(param_name: str, desc: str, ptype: str = "string") -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": ptype, "description": desc}},
+        }
+
+    def test_json_string_fires(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("filters", "A JSON string of filter conditions.")
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "string_type_describes_json"
+        assert issues[0].severity == "warn"
+
+    def test_json_encoded_fires(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("payload", "JSON-encoded request body.")
+        )
+        assert len(issues) == 1
+
+    def test_json_formatted_fires(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("data", "A JSON formatted object.")
+        )
+        assert len(issues) == 1
+
+    def test_stringified_json_fires(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("config", "Stringified JSON configuration.")
+        )
+        assert len(issues) == 1
+
+    def test_passed_as_json_fires(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("body", "Parameters passed as JSON.")
+        )
+        assert len(issues) == 1
+
+    def test_object_type_does_not_fire(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("filters", "A JSON string of filter conditions.", ptype="object")
+        )
+        assert issues == []
+
+    def test_plain_string_description_passes(self):
+        issues = _check_string_type_describes_json(
+            "tool", self._schema("name", "The user's display name.")
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_string_type_describes_json("tool", {})
         assert issues == []

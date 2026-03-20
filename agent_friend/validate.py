@@ -3157,6 +3157,74 @@ def _check_description_starts_with_param_name(
 
 
 # ---------------------------------------------------------------------------
+# Check 91: string_type_describes_json
+# ---------------------------------------------------------------------------
+
+_JSON_STRING_RE = _re.compile(
+    r"\bjson[\s\-]?string\b"
+    r"|\bjson[\s\-]?encoded\b"
+    r"|\bjson[\s\-]?formatted\b"
+    r"|\bjson[\s\-]?serialized\b"
+    r"|\bstringified[\s\-]?json\b"
+    r"|\bpassed?\s+as\s+json\b"
+    r"|\bencoded\s+as\s+json\b",
+    _re.IGNORECASE,
+)
+
+
+def _check_string_type_describes_json(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 91: string_type_describes_json — a parameter has ``type: string``
+    but its description describes it as a JSON value ("JSON string",
+    "JSON-encoded", "JSON-formatted", "stringified JSON", etc.).
+
+    Using ``type: string`` to pass structured data defeats the purpose of
+    JSON Schema.  LLMs cannot validate the structure, serialisation is
+    error-prone, and token cost increases.  Use ``type: object`` or
+    ``type: array`` and define the schema properly::
+
+        # bad — structure hidden in a string
+        {"filters": {"type": "string",
+                      "description": "A JSON string of filter conditions."}}
+
+        # good — structure expressed in schema
+        {"filters": {"type": "object", "properties": {...}}}
+
+    Fires when param type is exactly ``"string"`` (not array/object)
+    and description matches a JSON-string phrase.
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "string":
+            continue
+        desc = param_schema.get("description", "")
+        if not isinstance(desc, str) or not desc:
+            continue
+        if _JSON_STRING_RE.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="string_type_describes_json",
+                message=(
+                    "param '{param}' is type string but description says "
+                    "it contains JSON — use type object/array with a proper "
+                    "schema instead of encoding structure as a string."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5736,6 +5804,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 90: description_starts_with_param_name
         issues.extend(_check_description_starts_with_param_name(name, schema))
+
+        # Check 91: string_type_describes_json
+        issues.extend(_check_string_type_describes_json(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
