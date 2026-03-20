@@ -2478,6 +2478,43 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 151: tool_name_has_double_underscore
+# ---------------------------------------------------------------------------
+
+
+def _check_tool_name_has_double_underscore(tool_name: str) -> Optional[Issue]:
+    """Check 151: tool_name_has_double_underscore — a tool name contains a
+    double underscore (``__``).
+
+    Double underscores in tool names are usually Python "dunder" names
+    leaking into the API surface (``__init__``, ``__call__``, ``__doc__``),
+    or accidental consecutive separators.  Use single underscores::
+
+        # bad — dunder names leaking into tool schema
+        "__init_database"
+        "get__resource"
+
+        # good — single underscores
+        "init_database"
+        "get_resource"
+
+    Severity: ``warn``.
+    """
+    if "__" in tool_name:
+        return Issue(
+            tool=tool_name,
+            severity="warn",
+            check="tool_name_has_double_underscore",
+            message=(
+                "tool name '{name}' contains double underscores — this "
+                "leaks Python dunder conventions into the API; use single "
+                "underscores."
+            ).format(name=tool_name),
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Check 150: param_type_array_multiple_types
 # ---------------------------------------------------------------------------
 
@@ -9227,6 +9264,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 150: param_type_array_multiple_types
         issues.extend(_check_param_type_array_multiple_types(name, schema))
+
+        # Check 151: tool_name_has_double_underscore
+        issue = _check_tool_name_has_double_underscore(name)
+        if issue is not None:
+            issues.append(issue)
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

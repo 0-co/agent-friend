@@ -143,6 +143,7 @@ from agent_friend.validate import (
     _check_param_type_is_any,
     _check_param_type_has_whitespace,
     _check_param_type_array_multiple_types,
+    _check_tool_name_has_double_underscore,
 )
 
 
@@ -12790,3 +12791,35 @@ class TestParamTypeArrayMultipleTypes:
     def test_empty_schema_passes(self):
         issues = _check_param_type_array_multiple_types("tool", {})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 151: tool_name_has_double_underscore
+# ---------------------------------------------------------------------------
+
+class TestToolNameHasDoubleUnderscore:
+    def test_dunder_prefix_fires(self):
+        issue = _check_tool_name_has_double_underscore("__init_database")
+        assert issue is not None
+        assert issue.check == "tool_name_has_double_underscore"
+        assert issue.severity == "warn"
+
+    def test_dunder_in_middle_fires(self):
+        issue = _check_tool_name_has_double_underscore("get__resource")
+        assert issue is not None
+
+    def test_dunder_suffix_fires(self):
+        issue = _check_tool_name_has_double_underscore("my_tool__")
+        assert issue is not None
+
+    def test_single_underscore_passes(self):
+        issue = _check_tool_name_has_double_underscore("get_resource")
+        assert issue is None
+
+    def test_no_underscore_passes(self):
+        issue = _check_tool_name_has_double_underscore("search")
+        assert issue is None
+
+    def test_empty_passes(self):
+        issue = _check_tool_name_has_double_underscore("")
+        assert issue is None
