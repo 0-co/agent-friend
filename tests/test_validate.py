@@ -5706,3 +5706,109 @@ class TestCheckRequiredArrayEmpty:
         hits = [i for i in issues if i.check == "required_array_empty"]
         assert len(hits) == 1
         assert "..." in hits[0].message
+
+
+class TestCheckDescriptionMarkdownFormatting:
+    """Tests for Check 47: description_markdown_formatting."""
+
+    @staticmethod
+    def _make_tool(tool_desc="Does something useful.", properties=None, required=None):
+        tool = {
+            "name": "test_tool",
+            "description": tool_desc,
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        if required is not None:
+            tool["inputSchema"]["required"] = required
+        return tool
+
+    def test_fires_on_backtick_in_tool_desc(self):
+        """Tool description with backtick code span fires."""
+        tools = [self._make_tool(tool_desc="Call `get_user` to fetch a user.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) >= 1
+        assert any("tool description" in h.message for h in hits)
+
+    def test_fires_on_bold_in_tool_desc(self):
+        """Tool description with **bold** fires."""
+        tools = [self._make_tool(tool_desc="**IMPORTANT**: This tool must be called first.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert any("tool description" in h.message for h in hits)
+
+    def test_fires_on_code_fence_in_tool_desc(self):
+        """Tool description with ``` code fence fires."""
+        tools = [self._make_tool(tool_desc="Example:\n```\nget_user(id=1)\n```")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert any("tool description" in h.message for h in hits)
+
+    def test_fires_on_header_in_tool_desc(self):
+        """Tool description with markdown header fires."""
+        tools = [self._make_tool(tool_desc="Fetches data.\n## Usage\nCall with an id.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert any("tool description" in h.message for h in hits)
+
+    def test_fires_on_bold_in_param_desc(self):
+        """Param description with **bold** fires."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "**Required**: the search query"}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) >= 1
+        assert any("param 'query'" in h.message for h in hits)
+
+    def test_no_fire_on_plain_tool_desc(self):
+        """Plain text tool description does not fire."""
+        tools = [self._make_tool(tool_desc="Fetches the user record by ID from the database.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_plain_param_desc(self):
+        """Plain text param description does not fire."""
+        tools = [self._make_tool(
+            properties={"path": {"type": "string", "description": "Path to the target file."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_glob_pattern_in_tool_desc(self):
+        """Glob patterns like **/api/users should not fire as bold."""
+        tools = [self._make_tool(tool_desc="Lists files matching **/api/*.py in the project.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) == 0
+
+    def test_param_backtick_does_not_fire(self):
+        """Single backtick spans in param descriptions do not fire (only bold/fences/headers)."""
+        tools = [self._make_tool(
+            properties={"format": {"type": "string", "description": "Output format: `json` or `xml`."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Check 47 issues should have warn severity."""
+        tools = [self._make_tool(tool_desc="**NOTE**: this is important.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) >= 1
+        assert all(h.severity == "warn" for h in hits)
+
+    def test_multiple_markdown_elements_one_issue_per_location(self):
+        """Multiple markdown elements in one description still fires (at least one issue per location)."""
+        tools = [self._make_tool(
+            tool_desc="Use `create_user`. **IMPORTANT**: Check **format** too.",
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_markdown_formatting"]
+        assert len(hits) >= 1

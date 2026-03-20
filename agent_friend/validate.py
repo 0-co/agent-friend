@@ -956,6 +956,106 @@ def _check_required_array_empty(name: str, schema: Dict[str, Any]) -> Optional[I
     )
 
 
+_TOOL_DESC_MARKDOWN_RE = re.compile(
+    r'`[^`\n]{1,60}`'                         # `code` spans in tool descriptions
+    r'|\*\*[A-Za-z][A-Za-z0-9 _,!:.#-]+\*\*'  # **bold text**
+    r'|```'                                     # ``` code fences
+    r'|\n\s*#{1,4}\s+\w',                       # markdown headers
+    re.MULTILINE,
+)
+_PARAM_DESC_MARKDOWN_RE = re.compile(
+    r'\*\*[A-Za-z][A-Za-z0-9 _,!:.#-]+\*\*'  # **bold text** in param descriptions
+    r'|```'                                     # ``` code fences
+    r'|\n\s*#{1,4}\s+\w',                       # markdown headers
+    re.MULTILINE,
+)
+"""Patterns that indicate markdown formatting in descriptions."""
+
+
+def _check_description_markdown_formatting(tool_name: str, tool_description: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 47: description_markdown_formatting — markdown syntax in tool or param descriptions.
+
+    Markdown formatting (backtick code spans, **bold**, headers, fenced code
+    blocks) does not render in most LLM runtimes when reading tool schemas.
+    The asterisks, backticks, and pound signs appear as literal characters,
+    adding noise tokens without conveying extra meaning.
+
+    Tool descriptions with markdown bold like ``**IMPORTANT:**`` or headers
+    like ``### When to use this tool`` add token overhead.  Inline backtick
+    spans such as `` `find_organizations()` `` are common in AI-generated
+    schemas but the formatting is invisible to the model.
+
+    Fires on:
+    - **Tool descriptions** with backtick code spans, ``**bold**``, ````` ``` `````
+      fences, or ``##`` headers.
+    - **Param descriptions** with ``**bold**``, fences, or headers (single
+      backtick spans are allowed in param descriptions as they often show
+      expected values like `` `true` `` or `` `json` ``).
+
+    Does not fire when there is no markdown formatting detected.
+
+    Fix: use plain prose.  State what the tool does without markdown
+    formatting.  The model reads descriptions as plain text.
+
+    Examples::
+
+        # flags — markdown in tool description
+        {
+          "name": "init",
+          "description": "**IMPORTANT:** Call this first. ### Setup\\nRequired step.",
+        }
+
+        # flags — code fence in param description
+        {
+          "name": "format",
+          "description": "Output format: ```json\\n{ ... }\\n```"
+        }
+
+        # ok — plain text
+        {
+          "name": "init",
+          "description": "Initialize the session. Must be called before other tools.",
+        }
+    """
+    issues = []
+
+    # Check tool description
+    if isinstance(tool_description, str) and _TOOL_DESC_MARKDOWN_RE.search(tool_description):
+        matches = _TOOL_DESC_MARKDOWN_RE.findall(tool_description)
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_markdown_formatting",
+            message=(
+                "tool description contains markdown formatting ({sample}) — "
+                "markdown does not render in LLM tool schemas; use plain text."
+            ).format(sample=repr(matches[0][:40])),
+        ))
+
+    # Check param descriptions (only bold/headers/fences, not single backtick spans)
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            desc = param_schema.get("description")
+            if not isinstance(desc, str):
+                continue
+            if _PARAM_DESC_MARKDOWN_RE.search(desc):
+                matches = _PARAM_DESC_MARKDOWN_RE.findall(desc)
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_markdown_formatting",
+                    message=(
+                        "param '{param}' description contains markdown formatting ({sample}) — "
+                        "markdown does not render in LLM tool schemas; use plain text."
+                    ).format(param=param_name, sample=repr(matches[0][:40])),
+                ))
+
+    return issues
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2377,6 +2477,10 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_required_array_empty(name, schema)
         if issue is not None:
             issues.append(issue)
+
+        # Check 47: description_markdown_formatting
+        _tool_desc_47 = (raw_obj.get('description', '') or '') if isinstance(raw_obj, dict) else ''
+        issues.extend(_check_description_markdown_formatting(name, _tool_desc_47, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
