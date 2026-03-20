@@ -53,15 +53,15 @@ class TestGetLeaderboardPosition:
         """Score of 50 should be in the mid-range with valid neighbors."""
         rank, total, above, below = get_leaderboard_position(50)
         # Score of 50 is in the lower-middle range (rank shifts as scores change)
-        assert rank >= 80
+        assert rank >= 75
         assert rank < total
 
         # servers_above: up to 2 servers immediately above (higher score)
         assert len(above) <= 2
         assert len(above) > 0
-        # The server immediately above (closest) should be Web Eval Agent (50.1)
-        assert above[0][0] == "Web Eval Agent"
-        assert above[0][1] == 50.1
+        # The server immediately above (closest) should be Box MCP Server (50.4)
+        assert above[0][0] == "Box MCP Server"
+        assert above[0][1] == 50.4
 
         # servers_below: up to 2 servers immediately below (lower score)
         assert len(below) <= 2

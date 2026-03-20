@@ -1284,6 +1284,102 @@ def _check_description_redundant_type(tool_name: str, schema: Dict[str, Any]) ->
     return issues
 
 
+def _check_param_format_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 36: param_format_missing — string param has format-suggestive name but no 'format'.
+
+    JSON Schema's ``format`` keyword is advisory but useful — it tells models
+    (and validators) what *shape* a string value should take.  When a parameter
+    is clearly named after a well-known format (``email``, ``url``, ``date``,
+    ``phone``, ``uuid``) but the schema omits ``format``, the model is left to
+    guess.  Guessing email vs. name, ISO date vs. "March 20", UUID vs. integer
+    id — all of these lead to avoidable failures in production.
+
+    Matching rules (applied to parameter names, case-insensitive):
+
+    * ``email`` — exact or ends with ``_email`` → ``format: "email"``
+    * ``url`` or ``uri`` — exact or ends with ``_url`` / ``_uri`` → ``format: "uri"``
+    * ``date`` — exact or ends with ``_date`` → ``format: "date"``
+    * ``timestamp`` — exact or ends with ``_timestamp`` → ``format: "date-time"``
+    * ``phone`` / ``phone_number`` — exact or ends with ``_phone`` → ``format: "phone"``
+    * ``uuid`` — exact or ends with ``_uuid`` → ``format: "uuid"``
+
+    Only fires when the parameter type is ``string``, there is no existing
+    ``format`` field, and there is no ``enum`` (enumerated values already
+    constrain the shape).  Fires once per affected parameter.
+
+    Examples::
+
+        # missing — model guesses what format is acceptable
+        "email":       {"type": "string", "description": "User email address"}
+        "redirect_url":{"type": "string", "description": "Redirect URL after auth"}
+        "start_date":  {"type": "string", "description": "Start date for the report"}
+
+        # correct — model knows the required format
+        "email":       {"type": "string", "format": "email",    "description": "..."}
+        "redirect_url":{"type": "string", "format": "uri",      "description": "..."}
+        "start_date":  {"type": "string", "format": "date",     "description": "..."}
+    """
+    # (suffix_or_exact, suggested_format)
+    _RULES = [
+        # Email
+        ("email",          "email",     "exact_or_suffix"),
+        # URL / URI
+        ("url",            "uri",       "exact_or_suffix"),
+        ("uri",            "uri",       "exact_or_suffix"),
+        # Date
+        ("date",           "date",      "exact_or_suffix"),
+        # Datetime / timestamp
+        ("timestamp",      "date-time", "exact_or_suffix"),
+        # Phone
+        ("phone",          "phone",     "exact_or_suffix"),
+        ("phone_number",   "phone",     "exact"),
+        # UUID
+        ("uuid",           "uuid",      "exact_or_suffix"),
+    ]
+
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "string":
+            continue
+        if "format" in param_schema:
+            continue
+        if "enum" in param_schema:
+            continue
+
+        p_low = param_name.lower()
+        matched_format = None
+
+        for keyword, fmt, match_type in _RULES:
+            if match_type == "exact":
+                if p_low == keyword:
+                    matched_format = fmt
+                    break
+            else:  # exact_or_suffix
+                if p_low == keyword or p_low.endswith("_" + keyword):
+                    matched_format = fmt
+                    break
+
+        if matched_format is not None:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_format_missing",
+                message=(
+                    "param '{param}' looks like a {fmt} value but has no "
+                    "'format: \"{fmt}\"' declaration — models may generate the wrong "
+                    "string shape"
+                ).format(param=param_name, fmt=matched_format),
+            ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1551,6 +1647,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
+
+        # Check 36: param_format_missing
+        issues.extend(_check_param_format_missing(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

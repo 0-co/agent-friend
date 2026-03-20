@@ -42,6 +42,7 @@ from agent_friend.validate import (
     _check_array_items_type_missing,
     _check_description_multiline,
     _check_description_redundant_type,
+    _check_param_format_missing,
 )
 
 
@@ -4294,3 +4295,148 @@ class TestCheck35DescriptionRedundantType:
         rt_issues = [i for i in issues if i.check == "description_redundant_type"]
         assert len(rt_issues) == 1
         assert rt_issues[0].tool == "push_files"
+
+
+# ---------------------------------------------------------------------------
+# Check 36: param_format_missing
+# ---------------------------------------------------------------------------
+
+class TestParamFormatMissing:
+    """Tests for Check 36: param_format_missing."""
+
+    def _schema(self, param_name: str, ptype: str = "string", desc: str = "A value", **extra):
+        return {"type": "object", "properties": {
+            param_name: {"type": ptype, "description": desc, **extra}
+        }}
+
+    def test_email_exact_fires(self):
+        schema = self._schema("email")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_format_missing"
+        assert "email" in issues[0].message
+
+    def test_email_suffix_fires(self):
+        schema = self._schema("billing_email")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_url_exact_fires(self):
+        schema = self._schema("url")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert "uri" in issues[0].message
+
+    def test_url_suffix_fires(self):
+        schema = self._schema("redirect_url")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_uri_exact_fires(self):
+        schema = self._schema("uri")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_date_exact_fires(self):
+        schema = self._schema("date")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert "date" in issues[0].message
+
+    def test_date_suffix_fires(self):
+        schema = self._schema("start_date")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_timestamp_fires(self):
+        schema = self._schema("timestamp")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert "date-time" in issues[0].message
+
+    def test_phone_fires(self):
+        schema = self._schema("phone")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert "phone" in issues[0].message
+
+    def test_phone_number_fires(self):
+        schema = self._schema("phone_number")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_uuid_fires(self):
+        schema = self._schema("uuid")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+        assert "uuid" in issues[0].message
+
+    def test_uuid_suffix_fires(self):
+        schema = self._schema("task_uuid")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 1
+
+    def test_already_has_format_no_fire(self):
+        schema = self._schema("email", format="email")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 0
+
+    def test_has_enum_no_fire(self):
+        """Enum already constrains the value; no format needed."""
+        schema = {"type": "object", "properties": {
+            "date": {"type": "string", "enum": ["today", "yesterday"], "description": "Date"}
+        }}
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 0
+
+    def test_non_string_no_fire(self):
+        """Integer param named 'date_offset' — not a string, no issue."""
+        schema = {"type": "object", "properties": {
+            "date_offset": {"type": "integer", "description": "Days offset from today"}
+        }}
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 0
+
+    def test_unrelated_name_no_fire(self):
+        """Param named 'message' — no format hint, no issue."""
+        schema = self._schema("message")
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 0
+
+    def test_severity_is_warn(self):
+        schema = self._schema("email")
+        issues = _check_param_format_missing("t", schema)
+        assert issues[0].severity == "warn"
+
+    def test_param_name_in_message(self):
+        schema = self._schema("billing_email")
+        issues = _check_param_format_missing("t", schema)
+        assert "billing_email" in issues[0].message
+
+    def test_multiple_params(self):
+        schema = {"type": "object", "properties": {
+            "email": {"type": "string", "description": "Contact email"},
+            "redirect_url": {"type": "string", "description": "URL after login"},
+            "name": {"type": "string", "description": "Full name"},
+        }}
+        issues = _check_param_format_missing("t", schema)
+        assert len(issues) == 2
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "create_contact",
+            "description": "Create a new contact.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "description": "Contact email address"},
+                    "name": {"type": "string", "description": "Full name"},
+                },
+                "required": ["email", "name"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        fmt_issues = [i for i in issues if i.check == "param_format_missing"]
+        assert len(fmt_issues) == 1
+        assert fmt_issues[0].tool == "create_contact"
