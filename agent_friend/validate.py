@@ -1911,6 +1911,57 @@ def _check_string_comma_separated(tool_name: str, schema: Dict[str, Any]) -> Lis
 # ---------------------------------------------------------------------------
 # Check 44: enum_single_const
 # ---------------------------------------------------------------------------
+# Check 45: required_array_no_minitems
+# ---------------------------------------------------------------------------
+
+def _check_required_array_no_minitems(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 45: required_array_no_minitems — required array param has no minItems constraint.
+
+    A ``required`` array param with no ``minItems`` field allows the model to
+    pass an empty list ``[]``.  For most tools that take a list of resources
+    (files, IDs, topics, paths, queries) an empty array is either invalid or
+    a no-op.  Adding ``minItems: 1`` makes the constraint explicit and prevents
+    the model from accidentally sending empty arrays.
+
+    This check fires when:
+
+    * Param is listed in the schema's ``required`` array
+    * Param type is ``"array"``
+    * Param has no ``minItems`` field
+
+    The fix is adding ``"minItems": 1`` (or a larger value if appropriate).
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    required = schema.get("required", [])
+    if not isinstance(properties, dict) or not isinstance(required, list):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "array":
+            continue
+        if param_name not in required:
+            continue
+        if "minItems" in param_schema:
+            continue
+
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="required_array_no_minitems",
+            message=(
+                "required array param '{param}' has no 'minItems' constraint; "
+                "the model can pass an empty list [] — add 'minItems: 1' "
+                "if an empty array is not a valid input"
+            ).format(param=param_name),
+        ))
+
+    return issues
+
+
+# ---------------------------------------------------------------------------
 
 def _check_enum_single_const(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 44: enum_single_const — enum array with a single value; use const instead.
@@ -2252,6 +2303,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 44: enum_single_const
         issues.extend(_check_enum_single_const(name, schema))
+
+        # Check 45: required_array_no_minitems
+        issues.extend(_check_required_array_no_minitems(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

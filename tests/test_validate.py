@@ -5479,3 +5479,94 @@ class TestCheckEnumSingleConst:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "enum_single_const"]
         assert len(hits) == 1
+
+
+# ---------------------------------------------------------------------------
+# Check 45: required_array_no_minitems
+# ---------------------------------------------------------------------------
+
+class TestCheckRequiredArrayNoMinitems:
+    """Tests for Check 45: required_array_no_minitems."""
+
+    def _make_tool(self, param_schema, required=None):
+        schema = {
+            "type": "object",
+            "properties": {"paths": param_schema},
+        }
+        if required is not None:
+            schema["required"] = required
+        return {"name": "my_tool", "description": "Does something.", "inputSchema": schema}
+
+    def test_required_array_no_minitems_flagged(self):
+        tools = [self._make_tool({"type": "array", "items": {"type": "string"}, "description": "File paths"}, required=["paths"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_required_array_with_minitems_not_flagged(self):
+        tools = [self._make_tool({"type": "array", "items": {"type": "string"}, "description": "Paths", "minItems": 1}, required=["paths"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 0
+
+    def test_optional_array_not_flagged(self):
+        """Optional array param — not required, no minItems needed."""
+        tools = [self._make_tool({"type": "array", "items": {"type": "string"}, "description": "Optional paths"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 0
+
+    def test_required_string_not_flagged(self):
+        """Required but not array type — not applicable."""
+        tools = [self._make_tool({"type": "string", "description": "Path"}, required=["paths"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 0
+
+    def test_required_array_maxitems_zero_no_minitems_flagged(self):
+        """maxItems without minItems still fires."""
+        tools = [self._make_tool({"type": "array", "items": {"type": "string"}, "description": "Paths", "maxItems": 100}, required=["paths"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 1
+
+    def test_minitems_zero_still_flagged(self):
+        """minItems: 0 is same as no minItems — empty array is allowed."""
+        tools = [self._make_tool({"type": "array", "items": {"type": "string"}, "description": "Paths", "minItems": 0}, required=["paths"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        # minItems: 0 is technically present, so no issue fires (it's explicitly set)
+        assert len(hits) == 0
+
+    def test_multiple_required_arrays_multiple_issues(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "paths": {"type": "array", "items": {"type": "string"}, "description": "File paths"},
+                "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags"},
+                "ids": {"type": "array", "items": {"type": "string"}, "description": "IDs", "minItems": 1},
+            },
+            "required": ["paths", "tags", "ids"],
+        }
+        tools = [{"name": "my_tool", "description": "Does something.", "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 2
+        flagged = {i.message.split("'")[1] for i in hits}
+        assert "paths" in flagged
+        assert "tags" in flagged
+        assert "ids" not in flagged
+
+    def test_no_required_field_not_flagged(self):
+        """Schema has no required field at all."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "paths": {"type": "array", "items": {"type": "string"}, "description": "Paths"},
+            },
+        }
+        tools = [{"name": "my_tool", "description": "Does something.", "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_no_minitems"]
+        assert len(hits) == 0
