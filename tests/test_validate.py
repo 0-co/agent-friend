@@ -3497,3 +3497,119 @@ class TestCheckTooManyParams:
         schema = self._schema_with_params(20)
         issue = _check_too_many_params("complex_tool", schema)
         assert "split" in issue.message.lower() or "smaller" in issue.message.lower()
+
+
+class TestCheckDefaultUndocumented:
+    """Tests for Check 30: default_undocumented."""
+
+    def _schema_with_default(self, param_name, default_val, desc):
+        return {
+            "type": "object",
+            "properties": {
+                param_name: {"type": "string", "default": default_val, "description": desc}
+            },
+        }
+
+    def test_no_default_ok(self):
+        """Param without default → no issue."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = {
+            "type": "object",
+            "properties": {"lang": {"type": "string", "description": "Language code"}},
+        }
+        assert _check_default_undocumented("t", schema) is None
+
+    def test_default_mentioned_ok(self):
+        """Param where description mentions 'default' → no issue."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("lang", "en", "Language code. Defaults to 'en'.")
+        assert _check_default_undocumented("t", schema) is None
+
+    def test_default_mentioned_case_insensitive_ok(self):
+        """'Default' mention is case-insensitive → no issue."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("model", "gpt-4", "Model to use. DEFAULT: gpt-4.")
+        assert _check_default_undocumented("t", schema) is None
+
+    def test_null_default_ok(self):
+        """Null (None) default → no issue (null defaults are implicit for optional params)."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = {
+            "type": "object",
+            "properties": {"opt": {"type": "string", "default": None, "description": "Optional param"}},
+        }
+        assert _check_default_undocumented("t", schema) is None
+
+    def test_string_default_undocumented_fires(self):
+        """Param with string default not mentioned in desc → warn."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("lang", "en", "Language code for transcript")
+        issue = _check_default_undocumented("t", schema)
+        assert issue is not None
+        assert issue.severity == "warn"
+        assert issue.check == "default_undocumented"
+
+    def test_bool_default_undocumented_fires(self):
+        """Boolean default not mentioned → warn."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("verbose", True, "Whether to print verbose output")
+        issue = _check_default_undocumented("t", schema)
+        assert issue is not None
+        assert issue.check == "default_undocumented"
+
+    def test_false_default_fires(self):
+        """False default (not None) is not excluded → fires."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("flag", False, "Enable feature flag")
+        issue = _check_default_undocumented("t", schema)
+        assert issue is not None
+
+    def test_int_default_undocumented_fires(self):
+        """Integer default not in desc → warn."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("count", 10, "Number of results to return")
+        issue = _check_default_undocumented("t", schema)
+        assert issue is not None
+        assert "10" in issue.message
+
+    def test_no_description_ok(self):
+        """Param with default but no description → no issue (caught by check 18)."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = {
+            "type": "object",
+            "properties": {"lang": {"type": "string", "default": "en"}},
+        }
+        assert _check_default_undocumented("t", schema) is None
+
+    def test_only_first_bad_param_fires(self):
+        """Only 1 issue per tool even if multiple params have undocumented defaults."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = {
+            "type": "object",
+            "properties": {
+                "a": {"type": "string", "default": "x", "description": "First param"},
+                "b": {"type": "string", "default": "y", "description": "Second param"},
+            },
+        }
+        issue = _check_default_undocumented("t", schema)
+        assert issue is not None
+        # Only one Issue returned (first bad param)
+
+    def test_issue_mentions_param_name(self):
+        """Issue message includes the parameter name."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("temperature", 0.7, "Controls randomness")
+        issue = _check_default_undocumented("t", schema)
+        assert "temperature" in issue.message
+
+    def test_issue_mentions_default_value(self):
+        """Issue message includes the default value."""
+        from agent_friend.validate import _check_default_undocumented
+        schema = self._schema_with_default("model", "llama-3.3-70b", "Model to use")
+        issue = _check_default_undocumented("t", schema)
+        assert "llama-3.3-70b" in issue.message
+
+    def test_no_properties_ok(self):
+        """Schema without properties → no issue."""
+        from agent_friend.validate import _check_default_undocumented
+        assert _check_default_undocumented("t", {}) is None

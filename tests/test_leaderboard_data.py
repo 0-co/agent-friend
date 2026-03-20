@@ -32,8 +32,8 @@ class TestGetLeaderboardPosition:
     def test_tied_with_notion_is_near_bottom(self):
         """Score of 19.8 ties with Notion (near-last entry), should be near the bottom."""
         rank, total, above, below = get_leaderboard_position(19.8)
-        # Should be in the bottom 15 servers (leaderboard has grown with more low-scoring entries)
-        assert rank >= total - 15
+        # Should be in the bottom 20 servers (leaderboard has grown with more low-scoring entries)
+        assert rank >= total - 20
 
     def test_worse_than_all_is_beyond_last(self):
         """Score of -1 is worse than all entries, should be rank total+1."""

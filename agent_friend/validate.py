@@ -975,6 +975,36 @@ def _check_too_many_params(name: str, schema: Dict[str, Any]) -> Optional[Issue]
     )
 
 
+def _check_default_undocumented(name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 30: default_undocumented — param has a non-null default but description omits it."""
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return None
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if "default" not in param_schema:
+            continue
+        default_val = param_schema["default"]
+        if default_val is None:
+            continue
+        desc = param_schema.get("description", "")
+        if not desc:
+            continue  # no description — already caught by check 18
+        if "default" not in desc.lower():
+            return Issue(
+                tool=name,
+                severity="warn",
+                check="default_undocumented",
+                message=(
+                    "param '{param}' has default {val!r} but description doesn't "
+                    "mention it — models can't tell what happens when the param is "
+                    "omitted."
+                ).format(param=param_name, val=default_val),
+            )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1212,6 +1242,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 29: too_many_params
         issue = _check_too_many_params(name, schema)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 30: default_undocumented
+        issue = _check_default_undocumented(name, schema)
         if issue is not None:
             issues.append(issue)
 
