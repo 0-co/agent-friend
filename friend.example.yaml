@@ -1,0 +1,14 @@
+# friend.example.yaml — Example configuration for agent-friend
+#
+# Copy this file to friend.yaml and edit as needed.
+# Load with: friend = Friend.from_yaml("friend.yaml")
+
+seed: "You are a helpful personal AI assistant with access to web search, code execution, and persistent memory."
+model: claude-haiku-4-5-20251001
+tools:
+  - search
+  - code
+  - memory
+memory_path: ~/.agent_friend/memory.db
+budget_usd: 5.00
+max_context_messages: 20
