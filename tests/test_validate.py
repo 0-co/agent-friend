@@ -5387,3 +5387,95 @@ class TestCheckStringCommaSeparated:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "string_comma_separated"]
         assert len(hits) == 1
+
+
+# ---------------------------------------------------------------------------
+# Check 44: enum_single_const
+# ---------------------------------------------------------------------------
+
+class TestCheckEnumSingleConst:
+    """Tests for Check 44: enum_single_const."""
+
+    def _make_tool(self, pname, pschema):
+        schema = {"type": "object", "properties": {pname: pschema}}
+        return {"name": "my_tool", "description": "Does something.", "inputSchema": schema}
+
+    def test_single_enum_string_flagged(self):
+        tools = [self._make_tool("format", {"type": "string", "enum": ["graphite"], "description": "Output format"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+        assert "graphite" in hits[0].message
+
+    def test_single_enum_url_flagged(self):
+        tools = [self._make_tool("schema", {"type": "string", "enum": ["https://schema.example.com/v1.json"], "description": "Schema URL"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 1
+
+    def test_multi_enum_not_flagged(self):
+        tools = [self._make_tool("sort", {"type": "string", "enum": ["asc", "desc"], "description": "Sort order"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 0
+
+    def test_empty_enum_not_flagged(self):
+        """Empty enum is its own problem — not caught by this check."""
+        tools = [self._make_tool("mode", {"type": "string", "enum": [], "description": "Mode"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 0
+
+    def test_no_enum_not_flagged(self):
+        tools = [self._make_tool("name", {"type": "string", "description": "Resource name"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 0
+
+    def test_const_already_present_not_flagged(self):
+        """Using const instead of enum — correct practice, no issue."""
+        tools = [self._make_tool("format", {"const": "graphite", "description": "Output format"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 0
+
+    def test_nested_single_enum_flagged(self):
+        """Single-value enum inside nested object properties."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "description": "Config object",
+                    "properties": {
+                        "format": {"type": "string", "enum": ["json"], "description": "Output format"},
+                    },
+                },
+            },
+        }
+        tools = [{"name": "my_tool", "description": "Does something.", "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 1
+
+    def test_multiple_single_enums_multiple_issues(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["item"], "description": "Object type"},
+                "version": {"type": "string", "enum": ["v1"], "description": "API version"},
+                "sort": {"type": "string", "enum": ["asc", "desc"], "description": "Sort order"},
+            },
+        }
+        tools = [{"name": "my_tool", "description": "Does something.", "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 2
+
+    def test_integer_enum_single_value(self):
+        """Single-value enum is caught regardless of the value type."""
+        tools = [self._make_tool("version", {"type": "integer", "enum": [2], "description": "API version"})]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "enum_single_const"]
+        assert len(hits) == 1

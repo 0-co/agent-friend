@@ -1908,6 +1908,54 @@ def _check_string_comma_separated(tool_name: str, schema: Dict[str, Any]) -> Lis
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Check 44: enum_single_const
+# ---------------------------------------------------------------------------
+
+def _check_enum_single_const(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 44: enum_single_const — enum array with a single value; use const instead.
+
+    When ``enum`` contains exactly one value, the intent is to express a
+    constant — a param that can only ever hold one specific value.  JSON Schema
+    provides ``const`` precisely for this case:
+
+    * ``{"enum": ["graphite"]}`` — technically valid, misleads readers
+    * ``{"const": "graphite"}`` — semantically clear, shorter, correct
+
+    This check fires whenever a param's ``enum`` array has exactly one element
+    at any schema nesting level (top-level params and nested object properties).
+    """
+    issues = []
+
+    def _check_props(properties: Dict[str, Any], path: str = "") -> None:
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            param_path = f"{path}.{param_name}" if path else param_name
+            enum_val = param_schema.get("enum")
+            if isinstance(enum_val, list) and len(enum_val) == 1:
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="enum_single_const",
+                    message=(
+                        "param '{param}' has enum with a single value {val!r}; "
+                        "use const: {val!r} instead — enum implies multiple options, "
+                        "const expresses a fixed value"
+                    ).format(param=param_path, val=enum_val[0]),
+                ))
+            # Recurse into nested object properties
+            nested = param_schema.get("properties")
+            if isinstance(nested, dict):
+                _check_props(nested, param_path)
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        _check_props(properties)
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -2201,6 +2249,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 43: string_comma_separated
         issues.extend(_check_string_comma_separated(name, schema))
+
+        # Check 44: enum_single_const
+        issues.extend(_check_enum_single_const(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
