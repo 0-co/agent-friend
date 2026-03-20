@@ -107,6 +107,7 @@ from agent_friend.validate import (
     _check_enum_duplicate_values,
     _check_name_uses_camelcase,
     _check_name_starts_with_uppercase,
+    _check_param_type_is_null,
 )
 
 
@@ -11192,4 +11193,43 @@ class TestNameStartsWithUppercase:
 
     def test_empty_schema_passes(self):
         issues = _check_name_starts_with_uppercase("get_user", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 115: param_type_is_null
+# ---------------------------------------------------------------------------
+
+
+class TestParamTypeIsNull:
+    """Tests for _check_param_type_is_null (Check 115)."""
+
+    @staticmethod
+    def _schema(param_name: str, ptype) -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": ptype, "description": "A param."}},
+        }
+
+    def test_string_null_fires(self):
+        issues = _check_param_type_is_null("tool", self._schema("format", "null"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_type_is_null"
+        assert issues[0].severity == "error"
+
+    def test_array_null_fires(self):
+        issues = _check_param_type_is_null("tool", self._schema("options", ["null"]))
+        assert len(issues) == 1
+        assert "options" in issues[0].message
+
+    def test_real_type_passes(self):
+        issues = _check_param_type_is_null("tool", self._schema("format", "string"))
+        assert issues == []
+
+    def test_nullable_string_passes(self):
+        issues = _check_param_type_is_null("tool", self._schema("value", ["string", "null"]))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_type_is_null("tool", {})
         assert issues == []

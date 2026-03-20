@@ -2478,6 +2478,53 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 115: param_type_is_null
+# ---------------------------------------------------------------------------
+
+
+def _check_param_type_is_null(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 115: param_type_is_null — a parameter's ``type`` is ``"null"``
+    (or ``["null"]``), making the parameter useless.
+
+    A parameter that can only be ``null`` can never carry a meaningful value.
+    It should either be removed or given a real type.  This is almost always
+    a copy-paste or schema generation error::
+
+        # bad — param can only ever be null
+        {"format": {"type": "null", "description": "Output format."}}
+        {"options": {"type": ["null"], "description": "Extra options."}}
+
+        # good — give it a real type or remove it
+        {"format": {"type": "string", "description": "Output format."}}
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        ptype = param_schema.get("type")
+        if ptype == "null" or ptype == ["null"]:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="param_type_is_null",
+                message=(
+                    "param '{param}' has type 'null' — a null-only param "
+                    "can never hold a meaningful value; remove it or give "
+                    "it a real type."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 114: name_starts_with_uppercase
 # ---------------------------------------------------------------------------
 
@@ -7039,6 +7086,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 114: name_starts_with_uppercase
         issues.extend(_check_name_starts_with_uppercase(name, schema))
+
+        # Check 115: param_type_is_null
+        issues.extend(_check_param_type_is_null(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
