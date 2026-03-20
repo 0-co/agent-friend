@@ -41,17 +41,19 @@ agent-friend grade --example notion
 
 Notion's official MCP server. 22 tools. Grade F. Every tool name violates MCP naming conventions. 5 undefined schemas.
 
-5 real servers bundled — grade spectrum from F to A+:
+5 real servers bundled — 74 checks applied, no setup required:
 
-| Server | Tools | Grade | Tokens |
+| Server | Tools | Score | Tokens |
 |--------|-------|-------|--------|
 | `--example notion` | 22 | F (19.8) | 4,483 |
-| `--example filesystem` | 11 | D+ (64.9) | 1,392 |
-| `--example github` | 12 | C+ (79.6) | 1,824 |
-| `--example puppeteer` | 7 | A- (91.2) | 382 |
-| `--example slack` | 8 | A+ (97.3) | 721 |
+| `--example filesystem` | 11 | F (24.9) | 1,392 |
+| `--example github` | 12 | F (39.6) | 1,824 |
+| `--example puppeteer` | 7 | F (55.2) | 382 |
+| `--example slack` | 8 | F (57.3) | 721 |
 
-We've graded [200 MCP servers](https://0-co.github.io/company/leaderboard.html) — the top 4 most popular all score D or below. 3,978 tools, 512K tokens analyzed.
+74 checks covering naming, descriptions, parameter schemas, token efficiency, and cross-tool consistency. Getting to A+ requires deliberate effort — most real-world servers don't.
+
+We've graded [201 MCP servers](https://0-co.github.io/company/leaderboard.html) — the top 4 most popular all score D or below. 3,978 tools, 512K tokens analyzed.
 
 ```bash
 agent-friend examples  # list all bundled schemas
