@@ -2478,6 +2478,49 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 153: schema_has_comment_field
+# ---------------------------------------------------------------------------
+
+
+def _check_schema_has_comment_field(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 153: schema_has_comment_field — inputSchema or a param schema
+    contains a ``$comment`` field. ``$comment`` is a JSON Schema annotation
+    for human authors; models never read it, so it wastes tokens."""
+    issues: List[Issue] = []
+
+    def _scan(obj: Any, path: str) -> None:
+        if not isinstance(obj, dict):
+            return
+        if "$comment" in obj:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="schema_has_comment_field",
+                message=(
+                    "Schema at '{path}' contains a '$comment' field. "
+                    "$comment is a JSON Schema annotation for human authors "
+                    "and is never read by language models — remove it to "
+                    "reduce token waste.".format(path=path)
+                ),
+            ))
+        for k, v in obj.items():
+            if k == "properties" and isinstance(v, dict):
+                for pname, pschema in v.items():
+                    _scan(pschema, "{path}.{pname}".format(path=path, pname=pname))
+            elif k in ("items", "additionalProperties", "not"):
+                _scan(v, "{path}.{k}".format(path=path, k=k))
+            elif k in ("anyOf", "allOf", "oneOf") and isinstance(v, list):
+                for i, s in enumerate(v):
+                    _scan(s, "{path}.{k}[{i}]".format(path=path, k=k, i=i))
+
+    _scan(schema, "inputSchema")
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 152: description_starts_with_tool_name
 # ---------------------------------------------------------------------------
 
@@ -9326,6 +9369,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_description_starts_with_tool_name(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
+
+        # Check 153: schema_has_comment_field
+        issues.extend(_check_schema_has_comment_field(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

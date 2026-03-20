@@ -145,6 +145,7 @@ from agent_friend.validate import (
     _check_param_type_array_multiple_types,
     _check_tool_name_has_double_underscore,
     _check_description_starts_with_tool_name,
+    _check_schema_has_comment_field,
 )
 
 
@@ -12884,3 +12885,58 @@ class TestDescriptionStartsWithToolName:
         obj = {"name": "", "description": "some description"}
         issue = _check_description_starts_with_tool_name("", obj, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 153: schema_has_comment_field
+# ---------------------------------------------------------------------------
+
+class TestSchemaHasCommentField:
+    def test_top_level_comment_fires(self):
+        schema = {"$comment": "This is for the search endpoint", "properties": {}}
+        issues = _check_schema_has_comment_field("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "schema_has_comment_field"
+        assert issues[0].severity == "warn"
+
+    def test_param_level_comment_fires(self):
+        schema = {
+            "properties": {
+                "query": {"type": "string", "$comment": "user query here"}
+            }
+        }
+        issues = _check_schema_has_comment_field("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "schema_has_comment_field"
+
+    def test_multiple_comments_fires_multiple(self):
+        schema = {
+            "$comment": "top level",
+            "properties": {
+                "q": {"type": "string", "$comment": "param comment"}
+            }
+        }
+        issues = _check_schema_has_comment_field("tool", schema)
+        assert len(issues) == 2
+
+    def test_anyof_nested_comment_fires(self):
+        schema = {
+            "properties": {
+                "val": {
+                    "anyOf": [
+                        {"type": "string", "$comment": "string variant"}
+                    ]
+                }
+            }
+        }
+        issues = _check_schema_has_comment_field("tool", schema)
+        assert len(issues) == 1
+
+    def test_no_comment_passes(self):
+        schema = {"properties": {"query": {"type": "string", "description": "search query"}}}
+        issues = _check_schema_has_comment_field("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_schema_has_comment_field("tool", {})
+        assert issues == []

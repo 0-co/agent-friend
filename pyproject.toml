@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-friend"
-version = "0.203.0"
+version = "0.204.0"
 description = "MCP schema linter & quality grader — validate, audit, optimize, grade (A+ to F). Also: @tool exports to OpenAI, Claude, Gemini, MCP."
 readme = "README.md"
 license = {text = "MIT"}
