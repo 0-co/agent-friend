@@ -130,6 +130,7 @@ from agent_friend.validate import (
     _check_description_has_html_entity,
     _check_param_plural_name_not_array,
     _check_required_param_null_default,
+    _check_param_empty_schema,
 )
 
 
@@ -12245,4 +12246,42 @@ class TestRequiredParamNullDefault:
 
     def test_empty_schema_passes(self):
         issues = _check_required_param_null_default("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 138: param_empty_schema
+# ---------------------------------------------------------------------------
+
+class TestParamEmptySchema:
+    def test_empty_schema_fires(self):
+        schema = {"properties": {"query": {}}}
+        issues = _check_param_empty_schema("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_empty_schema"
+        assert issues[0].severity == "warn"
+        assert "query" in issues[0].message
+
+    def test_multiple_empty_schemas_fire(self):
+        schema = {"properties": {"a": {}, "b": {}}}
+        issues = _check_param_empty_schema("tool", schema)
+        assert len(issues) == 2
+
+    def test_with_type_passes(self):
+        schema = {"properties": {"query": {"type": "string"}}}
+        issues = _check_param_empty_schema("tool", schema)
+        assert issues == []
+
+    def test_with_description_passes(self):
+        schema = {"properties": {"query": {"description": "The query text."}}}
+        issues = _check_param_empty_schema("tool", schema)
+        assert issues == []
+
+    def test_with_enum_passes(self):
+        schema = {"properties": {"mode": {"enum": ["fast", "slow"]}}}
+        issues = _check_param_empty_schema("tool", schema)
+        assert issues == []
+
+    def test_empty_outer_schema_passes(self):
+        issues = _check_param_empty_schema("tool", {})
         assert issues == []

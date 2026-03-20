@@ -2478,6 +2478,61 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 138: param_empty_schema
+# ---------------------------------------------------------------------------
+
+_SCHEMA_MEANINGFUL_KEYS = frozenset({
+    "type", "description", "enum", "const", "default",
+    "minimum", "maximum", "minLength", "maxLength",
+    "minItems", "maxItems", "items", "properties",
+    "required", "anyOf", "oneOf", "allOf", "format",
+    "pattern", "examples",
+})
+
+
+def _check_param_empty_schema(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 138: param_empty_schema — a parameter's schema is an empty
+    object (``{}``) with no type, constraints, description, or any other
+    meaningful keywords.
+
+    An empty schema accepts any JSON value with zero validation or guidance.
+    Models have no information about what values are valid::
+
+        # bad — empty schema, accepts anything
+        {"query": {}}
+        {"options": {}}
+
+        # good — at least declare the type and description
+        {"query": {"type": "string", "description": "Search query."}}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        return issues
+    for param, pschema in props.items():
+        if isinstance(pschema, dict) and not any(
+            k in pschema for k in _SCHEMA_MEANINGFUL_KEYS
+        ):
+            issues.append(
+                Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="param_empty_schema",
+                    message=(
+                        "tool '{name}' param '{param}' has an empty schema "
+                        "— add at least a type and description."
+                    ).format(name=tool_name, param=param),
+                )
+            )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 137: required_param_null_default
 # ---------------------------------------------------------------------------
 
@@ -8405,6 +8460,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 137: required_param_null_default
         issues.extend(_check_required_param_null_default(name, schema))
+
+        # Check 138: param_empty_schema
+        issues.extend(_check_param_empty_schema(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
