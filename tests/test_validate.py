@@ -69,6 +69,8 @@ from agent_friend.validate import (
     _check_default_type_mismatch,
     _check_param_name_implies_boolean,
     _check_anyof_null_should_be_optional,
+    _check_tool_name_uses_hyphen,
+    _check_param_name_uses_hyphen,
 )
 
 
@@ -9129,3 +9131,86 @@ class TestCheckAnyofNullShouldBeOptional:
         issues = _check_anyof_null_should_be_optional("my_tool", schema)
         assert len(issues) == 1
         assert "region" in issues[0].message
+
+
+class TestCheckNameUsesHyphen:
+    """Tests for Check 78: name_uses_hyphen (tool + param variants)."""
+
+    # --- Tool name tests ---
+
+    def test_hyphenated_tool_fires(self):
+        issue = _check_tool_name_uses_hyphen("create-issue")
+        assert issue is not None
+        assert issue.check == "name_uses_hyphen"
+        assert issue.severity == "warn"
+        assert "create-issue" in issue.message
+        assert "create_issue" in issue.message
+
+    def test_multiple_hyphens_fires(self):
+        issue = _check_tool_name_uses_hyphen("get-user-profile")
+        assert issue is not None
+        assert "get_user_profile" in issue.message
+
+    def test_snake_case_tool_ok(self):
+        assert _check_tool_name_uses_hyphen("create_issue") is None
+
+    def test_no_separator_ok(self):
+        assert _check_tool_name_uses_hyphen("createissue") is None
+
+    def test_empty_name_ok(self):
+        assert _check_tool_name_uses_hyphen("") is None
+
+    # --- Param name tests ---
+
+    def test_hyphenated_param_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user-id": {"type": "string", "description": "User ID."},
+            },
+        }
+        issues = _check_param_name_uses_hyphen("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "name_uses_hyphen"
+        assert "user-id" in issues[0].message
+        assert "user_id" in issues[0].message
+
+    def test_multiple_hyphenated_params_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "first-name": {"type": "string", "description": "First name."},
+                "last-name": {"type": "string", "description": "Last name."},
+                "age": {"type": "integer", "description": "Age."},
+            },
+        }
+        issues = _check_param_name_uses_hyphen("my_tool", schema)
+        assert len(issues) == 2
+
+    def test_snake_case_param_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "User ID."},
+            },
+        }
+        assert _check_param_name_uses_hyphen("my_tool", schema) == []
+
+    def test_empty_schema_no_fire(self):
+        assert _check_param_name_uses_hyphen("my_tool", {}) == []
+
+    def test_nested_hyphenated_param_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "auth-token": {"type": "string", "description": "Auth token."},
+                    },
+                },
+            },
+        }
+        issues = _check_param_name_uses_hyphen("my_tool", schema)
+        assert len(issues) == 1
+        assert "auth-token" in issues[0].message

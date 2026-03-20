@@ -2334,6 +2334,84 @@ def _check_anyof_null_should_be_optional(
 
 
 # ---------------------------------------------------------------------------
+# Check 78: name_uses_hyphen
+# ---------------------------------------------------------------------------
+
+
+def _check_tool_name_uses_hyphen(tool_name: str) -> Optional[Issue]:
+    """Check 78 (tool): name_uses_hyphen — tool name contains a hyphen.
+
+    MCP convention (and the broader API ecosystem) uses ``snake_case`` for
+    tool names.  Hyphens create problems:
+
+    * Many code generators map tool names to function/method names; a hyphen
+      is invalid in most identifier syntaxes, requiring quoting or replacement.
+    * HTTP header–style naming (``Content-Type``) bleeds into parameter names
+      from auto-generated schemas.
+    * Inconsistency with ``snake_case`` tools in the same server confuses
+      models about which naming convention to expect.
+
+    Note: hyphens are technically *allowed* by the JSON Schema spec and most
+    LLM providers accept them, but they are a consistency and ergonomics smell.
+
+    Fix: replace hyphens with underscores (``create-issue`` → ``create_issue``).
+    """
+    if '-' not in tool_name:
+        return None
+    fixed = tool_name.replace('-', '_')
+    return Issue(
+        tool=tool_name,
+        severity="warn",
+        check="name_uses_hyphen",
+        message=(
+            "tool name '{name}' uses hyphens; prefer snake_case "
+            "(e.g., '{fixed}')."
+        ).format(name=tool_name, fixed=fixed),
+    )
+
+
+def _check_param_name_uses_hyphen(
+    tool_name: str, schema: Dict[str, Any]
+) -> List[Issue]:
+    """Check 78 (param): name_uses_hyphen — a parameter name contains a hyphen.
+
+    Same rationale as the tool-level check: hyphens in parameter names conflict
+    with ``snake_case`` conventions, cause identifier-mapping problems in code
+    generators, and produce inconsistent schemas.
+
+    Fix: replace hyphens with underscores (``user-id`` → ``user_id``).
+    """
+    issues: List[Issue] = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    def _check_props(props: Dict[str, Any], path: str) -> None:
+        for param_name, param_schema in props.items():
+            full_path = f"{path}.{param_name}" if path else param_name
+            if '-' in param_name:
+                fixed = param_name.replace('-', '_')
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="name_uses_hyphen",
+                    message=(
+                        "param '{param}' uses hyphens; prefer snake_case "
+                        "(e.g., '{fixed}')."
+                    ).format(param=full_path, fixed=fixed),
+                ))
+            if not isinstance(param_schema, dict):
+                continue
+            # Recurse into nested objects
+            nested_props = param_schema.get("properties") or {}
+            if isinstance(nested_props, dict) and nested_props:
+                _check_props(nested_props, full_path)
+
+    _check_props(properties, "")
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -4653,6 +4731,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         if issue is not None:
             issues.append(issue)
 
+        # Check 78 (tool): name_uses_hyphen
+        issue = _check_tool_name_uses_hyphen(name)
+        if issue is not None:
+            issues.append(issue)
+
         # Check 15: param_snake_case
         issues.extend(_check_param_snake_case(name, schema))
 
@@ -4869,6 +4952,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 77: anyof_null_should_be_optional
         issues.extend(_check_anyof_null_should_be_optional(name, schema))
+
+        # Check 78 (param): name_uses_hyphen
+        issues.extend(_check_param_name_uses_hyphen(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
