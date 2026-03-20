@@ -2478,6 +2478,78 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 145: description_has_command_example
+# ---------------------------------------------------------------------------
+
+_COMMAND_EXAMPLE_RE = re.compile(
+    r"(?:^|\n)\s*(?:curl\s|wget\s|npx\s|npm\s|pip\s|git\s(?:clone|pull|push)\s|"
+    r"docker\s(?:run|build|pull)\s|python(?:3)?\s+-[mc]\s|"
+    r"node\s+[-./]|bash\s+[-./]|sh\s+[-./]|"
+    r">\s*(?:\$\s+)?(?:curl|wget|npm|pip|git|docker|python|node))",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _check_description_has_command_example(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 145: description_has_command_example — a tool or parameter
+    description contains a shell command or CLI example (``curl``,
+    ``wget``, ``npx``, ``pip install``, ``docker run``, etc.).
+
+    Shell commands embedded in descriptions are implementation examples that
+    belong in README files or documentation, not in schema descriptions that
+    appear in every LLM context window::
+
+        # bad — shell example in a schema description
+        {"description": "Fetch data.\\ncurl -X POST https://api.example.com/data"}
+
+        # good — plain description
+        {"description": "Fetch data from the API endpoint."}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    tool_desc = _get_tool_description(obj, fmt)
+    if isinstance(tool_desc, str) and _COMMAND_EXAMPLE_RE.search(tool_desc):
+        issues.append(
+            Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_command_example",
+                message=(
+                    "tool '{name}' description contains a shell command "
+                    "example — CLI examples belong in documentation, not "
+                    "in schema descriptions."
+                ).format(name=tool_name),
+            )
+        )
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        for param, pschema in props.items():
+            if not isinstance(pschema, dict):
+                continue
+            desc = pschema.get("description", "")
+            if isinstance(desc, str) and _COMMAND_EXAMPLE_RE.search(desc):
+                issues.append(
+                    Issue(
+                        tool=tool_name,
+                        severity="warn",
+                        check="description_has_command_example",
+                        message=(
+                            "tool '{name}' param '{param}' description "
+                            "contains a shell command example — CLI "
+                            "examples belong in documentation."
+                        ).format(name=tool_name, param=param),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 144: description_has_email
 # ---------------------------------------------------------------------------
 
@@ -8834,6 +8906,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 144: description_has_email
         issues.extend(_check_description_has_email(name, raw_obj, schema, fmt))
+
+        # Check 145: description_has_command_example
+        issues.extend(_check_description_has_command_example(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

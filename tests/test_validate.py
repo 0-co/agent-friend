@@ -137,6 +137,7 @@ from agent_friend.validate import (
     _check_description_has_bullet_list,
     _check_param_name_has_period,
     _check_description_has_email,
+    _check_description_has_command_example,
 )
 
 
@@ -12524,6 +12525,55 @@ class TestDescriptionHasEmail:
 
     def test_at_symbol_without_domain_passes(self):
         issues = self._run(tool_desc="Tag @username for notifications.")
+        assert issues == []
+
+    def test_empty_passes(self):
+        issues = self._run(tool_desc="")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 145: description_has_command_example
+# ---------------------------------------------------------------------------
+
+class TestDescriptionHasCommandExample:
+    def _run(self, tool_desc=None, param_desc=None):
+        obj = {}
+        if tool_desc is not None:
+            obj["description"] = tool_desc
+        schema = {}
+        if param_desc is not None:
+            schema["properties"] = {"x": {"type": "string", "description": param_desc}}
+        return _check_description_has_command_example("tool", obj, schema, "mcp")
+
+    def test_curl_fires(self):
+        issues = self._run(tool_desc="Fetch data.\ncurl -X POST https://api.example.com")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_command_example"
+        assert issues[0].severity == "warn"
+
+    def test_npm_fires(self):
+        issues = self._run(tool_desc="Install the package.\nnpm install agent-friend")
+        assert len(issues) == 1
+
+    def test_pip_fires(self):
+        issues = self._run(tool_desc="Run\npip install my-package")
+        assert len(issues) == 1
+
+    def test_docker_run_fires(self):
+        issues = self._run(tool_desc="Use:\ndocker run my-image")
+        assert len(issues) == 1
+
+    def test_param_with_command_fires(self):
+        issues = self._run(param_desc="Endpoint URL.\ncurl https://api.example.com")
+        assert len(issues) == 1
+
+    def test_plain_sentence_passes(self):
+        issues = self._run(tool_desc="Fetch data from the API endpoint.")
+        assert issues == []
+
+    def test_curl_in_middle_of_sentence_passes(self):
+        issues = self._run(tool_desc="The tool works like curl but with retries.")
         assert issues == []
 
     def test_empty_passes(self):
