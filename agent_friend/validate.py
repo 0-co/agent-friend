@@ -2478,6 +2478,58 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 148: param_type_is_any
+# ---------------------------------------------------------------------------
+
+
+def _check_param_type_is_any(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 148: param_type_is_any — a parameter has ``type: "any"`` or
+    ``type: "mixed"``.
+
+    ``"any"`` and ``"mixed"`` are not valid JSON Schema types.  The correct
+    way to express "accepts any value" is to omit the ``type`` field entirely
+    or use ``anyOf`` / ``oneOf``::
+
+        # bad — "any" is not a JSON Schema type
+        {"query": {"type": "any"}}
+        {"data": {"type": "mixed"}}
+
+        # good — omit type entirely to accept any value
+        {"query": {}}
+
+        # good — explicit union if needed
+        {"query": {"anyOf": [{"type": "string"}, {"type": "integer"}]}}
+
+    Severity: ``error``.
+    """
+    issues: List[Issue] = []
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        return issues
+    for param, pschema in props.items():
+        if not isinstance(pschema, dict):
+            continue
+        ptype = pschema.get("type")
+        if isinstance(ptype, str) and ptype.lower() in ("any", "mixed", "*"):
+            issues.append(
+                Issue(
+                    tool=tool_name,
+                    severity="error",
+                    check="param_type_is_any",
+                    message=(
+                        "tool '{name}' param '{param}' has type '{t}' — "
+                        "'{t}' is not a valid JSON Schema type; omit the "
+                        "type field entirely to accept any value."
+                    ).format(name=tool_name, param=param, t=ptype),
+                )
+            )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 147: description_has_markdown_link
 # ---------------------------------------------------------------------------
 
@@ -9056,6 +9108,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 147: description_has_markdown_link
         issues.extend(_check_description_has_markdown_link(name, raw_obj, schema, fmt))
+
+        # Check 148: param_type_is_any
+        issues.extend(_check_param_type_is_any(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

@@ -140,6 +140,7 @@ from agent_friend.validate import (
     _check_description_has_command_example,
     _check_description_uses_future_tense,
     _check_description_has_markdown_link,
+    _check_param_type_is_any,
 )
 
 
@@ -12669,4 +12670,46 @@ class TestDescriptionHasMarkdownLink:
 
     def test_empty_passes(self):
         issues = self._run(tool_desc="")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 148: param_type_is_any
+# ---------------------------------------------------------------------------
+
+class TestParamTypeIsAny:
+    def test_any_fires(self):
+        schema = {"properties": {"data": {"type": "any"}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_type_is_any"
+        assert issues[0].severity == "error"
+
+    def test_mixed_fires(self):
+        schema = {"properties": {"data": {"type": "mixed"}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert len(issues) == 1
+
+    def test_star_fires(self):
+        schema = {"properties": {"data": {"type": "*"}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert len(issues) == 1
+
+    def test_any_uppercase_fires(self):
+        schema = {"properties": {"data": {"type": "Any"}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert len(issues) == 1
+
+    def test_string_passes(self):
+        schema = {"properties": {"data": {"type": "string"}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert issues == []
+
+    def test_no_type_passes(self):
+        schema = {"properties": {"data": {}}}
+        issues = _check_param_type_is_any("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_type_is_any("tool", {})
         assert issues == []
