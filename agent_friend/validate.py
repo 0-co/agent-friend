@@ -1754,6 +1754,97 @@ def _check_array_items_object_no_properties(tool_name: str, schema: Dict[str, An
     return issues
 
 
+_TOOL_DESC_STOP = frozenset({
+    "a", "an", "the", "this", "that", "of", "to", "for", "from",
+    "in", "on", "at", "by", "is", "it", "or", "and", "be", "are",
+    "was", "with", "if", "its", "as", "all", "up", "out",
+})
+_TOOL_DESC_STRIP_RE = re.compile(r"[^a-z0-9 ]")
+
+
+def _check_tool_description_just_the_name(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 42: tool_description_just_the_name — tool description merely restates the tool name.
+
+    Check 33 (``description_just_the_name``) catches *parameter* descriptions
+    that only restate the parameter name.  This check applies the same
+    principle to *tool* descriptions: if every significant word in the
+    description is already present in the tool name (after splitting on ``_``),
+    the description adds zero information.
+
+    Examples of descriptions that fail:
+
+    * ``list_repositories`` → ``"List repositories"``
+    * ``notion_retrieve_block`` → ``"Retrieve a block from Notion"``
+    * ``delete_content_type`` → ``"Delete a content type"``
+    * ``approve_merge_request`` → ``"Approve a merge request"``
+
+    These descriptions do nothing the model couldn't infer from the name
+    itself.  A useful description would explain what the tool returns, what
+    side effects it has, what parameters are critical, or what use case it
+    serves — things the name cannot express.
+
+    Fires when **all** of the following hold:
+
+    * The tool description is 20+ characters (shorter already caught by Check 20)
+    * The description is 8 words or fewer
+    * Every significant word in the description (3+ chars, not a stop word)
+      is present in the set of words that make up the tool name (split on ``_``
+      and ``-``, lowercased)
+
+    Examples::
+
+        # flagged — adds nothing beyond what the name conveys
+        name="list_repositories",       description="List repositories"
+        name="notion_retrieve_block",   description="Retrieve a block from Notion"
+        name="delete_content_type",     description="Delete a content type"
+
+        # correct — adds context beyond the name
+        name="list_repositories", description="List public and private repositories for the authenticated user or a specified organization."
+        name="get_file",          description="Retrieve the contents of a file at a given path in a repository."
+    """
+    # Get description from the raw tool object (format-agnostic)
+    if fmt == "openai":
+        desc = obj.get("function", {}).get("description", "") or ""
+    elif fmt in ("anthropic", "mcp"):
+        desc = obj.get("description", "") or ""
+    elif fmt == "google":
+        desc = obj.get("description", "") or ""
+    else:
+        desc = obj.get("description", "") or ""
+
+    if not desc or not isinstance(desc, str):
+        return None
+    if len(desc) < 20:
+        return None  # too short → already caught by Check 20
+    if len(desc.split()) > 8:
+        return None  # longer descriptions likely add real value
+
+    # Words from the tool name (split on _ and -)
+    raw_name_words = re.split(r"[_\-]", name.lower())
+    name_words = {w for w in raw_name_words if len(w) >= 2}
+    if not name_words:
+        return None
+
+    # Significant words from the description: 3+ chars, not stop words
+    desc_tokens = _TOOL_DESC_STRIP_RE.sub(" ", desc.lower()).split()
+    sig_words = {w for w in desc_tokens if len(w) >= 3 and w not in _TOOL_DESC_STOP}
+    if not sig_words:
+        return None  # no significant words to check
+
+    if sig_words.issubset(name_words):
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="tool_description_just_the_name",
+            message=(
+                "tool description '{desc}' only restates the tool name '{name}'; "
+                "add context about what the tool returns, its side effects, or "
+                "when to use it versus similar tools"
+            ).format(name=name, desc=desc[:60]),
+        )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -2016,6 +2107,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 34: description_multiline
         issue = _check_description_multiline(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 42: tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 

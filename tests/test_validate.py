@@ -5167,3 +5167,125 @@ class TestCheckArrayItemsObjectNoProperties:
         obj_issues = [i for i in issues if i.check == "array_items_object_no_properties"]
         assert len(obj_issues) == 1
         assert "scopes" in obj_issues[0].message
+
+
+class TestCheckToolDescriptionJustTheName:
+    """Tests for Check 42: tool_description_just_the_name."""
+
+    def _make_tool(self, name, description):
+        return {
+            "name": name,
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "required": []},
+        }
+
+    def test_fires_for_restated_name(self):
+        """Tool description that just restates the tool name should fire (>= 20 chars)."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        # "Approve a merge request" = 23 chars, all words in tool name
+        issue = _check_tool_description_just_the_name(
+            "approve_merge_request",
+            {"name": "approve_merge_request", "description": "Approve a merge request"},
+            "mcp",
+        )
+        assert issue is not None
+        assert issue.check == "tool_description_just_the_name"
+
+    def test_fires_for_notion_retrieve_block(self):
+        """'Retrieve a block from Notion' should fire for 'notion_retrieve_block'."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "notion_retrieve_block",
+            {"name": "notion_retrieve_block", "description": "Retrieve a block from Notion"},
+            "mcp",
+        )
+        assert issue is not None
+
+    def test_fires_for_delete_content_type(self):
+        """'Delete a content type' should fire for 'delete_content_type'."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "delete_content_type",
+            {"name": "delete_content_type", "description": "Delete a content type"},
+            "mcp",
+        )
+        assert issue is not None
+
+    def test_no_fire_when_adds_context(self):
+        """Description adding context beyond the name should not fire."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "get_file",
+            {"name": "get_file", "description": "Retrieve the contents of a file at a given path in a repository."},
+            "mcp",
+        )
+        assert issue is None
+
+    def test_no_fire_when_too_short(self):
+        """Descriptions under 20 chars are caught by Check 20, not here."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "list_files",
+            {"name": "list_files", "description": "List files"},
+            "mcp",
+        )
+        assert issue is None  # 10 chars, caught by Check 20 instead
+
+    def test_no_fire_when_description_long(self):
+        """Long descriptions (>8 words) likely add real value and should not fire."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "list_repositories",
+            {"name": "list_repositories", "description": "List repositories for the authenticated user or a given organization, sorted by update time"},
+            "mcp",
+        )
+        assert issue is None
+
+    def test_no_fire_for_empty_description(self):
+        """Empty description should not fire (caught elsewhere)."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "list_files",
+            {"name": "list_files", "description": ""},
+            "mcp",
+        )
+        assert issue is None
+
+    def test_tool_name_in_issue(self):
+        """Issue should reference the tool name."""
+        from agent_friend.validate import _check_tool_description_just_the_name
+        issue = _check_tool_description_just_the_name(
+            "approve_merge_request",
+            {"name": "approve_merge_request", "description": "Approve a merge request"},
+            "mcp",
+        )
+        assert issue is not None
+        assert issue.tool == "approve_merge_request"
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        from agent_friend.validate import validate_tools
+        tools = [
+            {
+                "name": "approve_merge_request",
+                "description": "Approve a merge request",  # 23 chars, all words in name
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+            },
+            {
+                "name": "delete_content_type",
+                "description": "Delete a content type",  # 21 chars, all words in name
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+            },
+            {
+                "name": "get_file",
+                "description": "Retrieve file contents from a repository at a given path.",
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+            },
+        ]
+        issues, _ = validate_tools(tools)
+        name_issues = [i for i in issues if i.check == "tool_description_just_the_name"]
+        assert len(name_issues) == 2
+        flagged = {i.tool for i in name_issues}
+        assert "approve_merge_request" in flagged
+        assert "delete_content_type" in flagged
+        assert "get_file" not in flagged
