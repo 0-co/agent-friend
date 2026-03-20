@@ -2478,6 +2478,62 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 126: name_ends_with_underscore
+# ---------------------------------------------------------------------------
+
+
+def _check_name_ends_with_underscore(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 126: name_ends_with_underscore — a tool name or parameter name
+    ends with an underscore.
+
+    Trailing underscores are a Python convention for avoiding naming conflicts
+    with reserved words (``class_``, ``type_``, ``from_``).  In MCP tool
+    schemas, this convention is unnecessary and looks odd — use a synonym or
+    different name instead::
+
+        # bad — Python reserved-word workaround
+        tool name: class_, from_
+        param name: type_, id_, format_
+
+        # good — use a synonym or meaningful alternative
+        tool name: classify, fetch_from
+        param name: entity_type, record_id, output_format
+
+    Severity: ``warn``.
+    """
+    issues = []
+
+    if tool_name.endswith("_"):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="name_ends_with_underscore",
+            message=(
+                "tool name '{name}' ends with an underscore — this is a "
+                "Python reserved-word workaround; use a synonym instead."
+            ).format(name=tool_name),
+        ))
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name in properties:
+            if param_name.endswith("_"):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="name_ends_with_underscore",
+                    message=(
+                        "param '{param}' ends with an underscore — this is "
+                        "a Python reserved-word workaround; use a synonym "
+                        "instead."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
 # Check 125: param_name_is_number
 # ---------------------------------------------------------------------------
 
@@ -7662,6 +7718,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 125: param_name_is_number
         issues.extend(_check_param_name_is_number(name, schema))
+
+        # Check 126: name_ends_with_underscore
+        issues.extend(_check_name_ends_with_underscore(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

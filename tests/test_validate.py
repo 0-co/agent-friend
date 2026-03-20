@@ -118,6 +118,7 @@ from agent_friend.validate import (
     _check_param_name_has_double_underscore,
     _check_param_name_starts_with_underscore,
     _check_param_name_is_number,
+    _check_name_ends_with_underscore,
 )
 
 
@@ -11712,4 +11713,41 @@ class TestParamNameIsNumber:
 
     def test_empty_schema_passes(self):
         issues = _check_param_name_is_number("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 126: name_ends_with_underscore
+# ---------------------------------------------------------------------------
+
+
+class TestNameEndsWithUnderscore:
+    """Tests for _check_name_ends_with_underscore (Check 126)."""
+
+    @staticmethod
+    def _schema(*param_names: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {n: {"type": "string", "description": "A param."} for n in param_names},
+        }
+
+    def test_tool_name_trailing_underscore_fires(self):
+        issues = _check_name_ends_with_underscore("class_", self._schema("id"))
+        tool_issues = [i for i in issues if "tool name" in i.message]
+        assert len(tool_issues) == 1
+        assert tool_issues[0].check == "name_ends_with_underscore"
+        assert tool_issues[0].severity == "warn"
+
+    def test_param_trailing_underscore_fires(self):
+        issues = _check_name_ends_with_underscore("get_item", self._schema("type_"))
+        param_issues = [i for i in issues if "param" in i.message]
+        assert len(param_issues) == 1
+        assert "type_" in param_issues[0].message
+
+    def test_normal_name_passes(self):
+        issues = _check_name_ends_with_underscore("get_user", self._schema("user_id"))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_name_ends_with_underscore("get_user", {})
         assert issues == []
