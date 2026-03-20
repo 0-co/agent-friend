@@ -48,6 +48,7 @@ from agent_friend.validate import (
     _check_param_description_says_optional,
     _check_required_param_has_default,
     _check_tool_description_non_imperative,
+    _check_description_this_tool,
 )
 
 
@@ -7145,3 +7146,132 @@ class TestToolDescriptionNonImperative:
         }
         issue = _check_tool_description_non_imperative("get_config_url", obj, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 57: description_this_tool
+# ---------------------------------------------------------------------------
+
+class TestDescriptionThisTool:
+    """Tests for check 57: description_this_tool."""
+
+    def _make_mcp_tool(self, description: str) -> dict:
+        return {
+            "name": "do_thing",
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "required": []},
+        }
+
+    def test_fires_for_this_tool(self):
+        """Description starting with 'This tool' fires."""
+        tools = [self._make_mcp_tool("This tool creates a new user account.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_fires_for_this_function(self):
+        """Description starting with 'This function' fires."""
+        tools = [self._make_mcp_tool("This function retrieves all active sessions.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_fires_for_this_api(self):
+        """Description starting with 'This API' fires."""
+        tools = [self._make_mcp_tool("This API allows you to search for records.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_fires_for_this_endpoint(self):
+        """Description starting with 'This endpoint' fires."""
+        tools = [self._make_mcp_tool("This endpoint returns the current balance.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_fires_for_this_command(self):
+        """Description starting with 'This command' fires."""
+        tools = [self._make_mcp_tool("This command deletes the specified file.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_fires_case_insensitive(self):
+        """Fires regardless of case (THIS TOOL, this tool, This Tool)."""
+        tools = [self._make_mcp_tool("THIS TOOL creates a user.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+    def test_no_fire_for_imperative(self):
+        """Imperative description does not fire."""
+        tools = [self._make_mcp_tool("Create a new user account.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_the_tool(self):
+        """'The tool' does not fire (only 'This tool')."""
+        tools = [self._make_mcp_tool("The tool creates a new user account.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_mid_sentence(self):
+        """'This tool' mid-sentence does not fire (only at start)."""
+        tools = [self._make_mcp_tool("Use this tool to create a user.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 0
+
+    def test_no_fire_empty_description(self):
+        """Empty description does not fire."""
+        tools = [self._make_mcp_tool("")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Severity is warn, not error."""
+        tools = [self._make_mcp_tool("This tool creates a user.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_message_includes_preamble(self):
+        """Message includes the matched preamble text."""
+        tools = [self._make_mcp_tool("This function deletes a session.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+        assert "This function" in hits[0].message
+
+    def test_direct_function_fires(self):
+        """Direct function call fires for 'This tool' preamble."""
+        obj = {
+            "name": "search_records",
+            "description": "This API allows you to search for records.",
+            "inputSchema": {"type": "object", "properties": {}},
+        }
+        issue = _check_description_this_tool("search_records", obj, "mcp")
+        assert issue is not None
+        assert issue.check == "description_this_tool"
+
+    def test_direct_function_no_fire(self):
+        """Direct function does not fire for imperative description."""
+        obj = {
+            "name": "search_records",
+            "description": "Search for records matching the query.",
+            "inputSchema": {"type": "object", "properties": {}},
+        }
+        issue = _check_description_this_tool("search_records", obj, "mcp")
+        assert issue is None
+
+    def test_fires_for_this_method(self):
+        """'This method' preamble fires."""
+        tools = [self._make_mcp_tool("This method updates the user profile.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1

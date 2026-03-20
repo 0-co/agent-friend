@@ -1608,6 +1608,75 @@ def _check_required_param_has_default(tool_name: str, schema: Dict[str, Any]) ->
 
 
 # ---------------------------------------------------------------------------
+# Check 57: description_this_tool
+# ---------------------------------------------------------------------------
+
+_THIS_TOOL_PREAMBLE_RE = re.compile(
+    r'^This\s+(?:tool|function|API|endpoint|command|method|operation|action|call|request|route)\b',
+    re.IGNORECASE,
+)
+"""Patterns matching redundant 'This tool/function/API...' preambles."""
+
+
+def _check_description_this_tool(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 57: description_this_tool — tool description starts with a redundant
+    'This tool/function/API...' preamble instead of jumping straight to the action.
+
+    The model reading a tool schema already knows it is reading a tool description.
+    Starting with "This tool creates a record" wastes tokens on noise.  The
+    imperative form — "Create a record" — is shorter, clearer, and consistent
+    with how the best-documented tools are written.
+
+    Fires when the tool description starts with:
+
+    * ``This tool …``
+    * ``This function …``
+    * ``This API …``
+    * ``This endpoint …``
+    * ``This command …``
+    * ``This method …``
+    * ``This operation …``
+    * ``This action …``
+    * ``This call …``
+    * ``This request …``
+    * ``This route …``
+
+    Does **not** fire on:
+    * "The tool…" (different pattern; not flagged)
+    * "This returns…" (bare "This" without a tool-type noun)
+    * Descriptions that happen to contain "this tool" mid-sentence
+
+    Examples::
+
+        # flagged — redundant preamble
+        "This tool creates a new user account."
+        "This function retrieves all active sessions."
+        "This API allows you to search for records."
+
+        # correct — no preamble needed
+        "Create a new user account."
+        "List all active sessions."
+        "Search for records."
+    """
+    desc = _get_tool_description(obj, fmt)
+    if not desc or not isinstance(desc, str):
+        return None
+    m = _THIS_TOOL_PREAMBLE_RE.match(desc)
+    if not m:
+        return None
+    return Issue(
+        tool=name,
+        severity="warn",
+        check="description_this_tool",
+        message=(
+            "tool description starts with redundant preamble '{preamble}' — "
+            "the model already knows it's reading a tool description; "
+            "start with the action directly (e.g. 'Create a user' not 'This tool creates a user')."
+        ).format(preamble=m.group(0)),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Check 56: tool_description_non_imperative
 # ---------------------------------------------------------------------------
 
@@ -3305,6 +3374,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 56: tool_description_non_imperative
         issue = _check_tool_description_non_imperative(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 57: description_this_tool
+        issue = _check_description_this_tool(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 
