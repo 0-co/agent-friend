@@ -2140,6 +2140,11 @@ _INTEGER_NAMES = frozenset({
     "page_size", "pagesize", "max_results", "max_tokens",
     "top_k", "top_n", "skip", "take", "batch", "batch_size",
     "chunk_size", "per_page", "cursor", "start", "end",
+    # Additional integer-implying names (merged from check 52 in v0.103.1)
+    "port", "level", "rank", "priority", "row", "col", "column", "line",
+    "concurrency", "workers", "n_results", "max_length", "max_size",
+    "page_number", "start_page", "end_page", "start_index", "end_index",
+    "retry_count",
 })
 _INTEGER_SUFFIX_RE = re.compile(
     r'(?:^|_)(?:' + "|".join(re.escape(n) for n in sorted(_INTEGER_NAMES, key=len, reverse=True)) + r')s?$',
@@ -2863,8 +2868,8 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         # Check 51: range_described_not_constrained
         issues.extend(_check_range_described_not_constrained(name, schema))
 
-        # Check 52: number_should_be_integer
-        issues.extend(_check_number_should_be_integer(name, schema))
+        # Note: check 52 (number_should_be_integer) is subsumed by check 40
+        # (number_type_for_integer) — merged into check 40 in v0.103.1.
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

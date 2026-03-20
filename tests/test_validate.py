@@ -6461,7 +6461,7 @@ class TestCheck52NumberShouldBeInteger:
         assert len(issues) == 0
 
     def test_validate_tools_integration(self):
-        """validate_tools() includes number_should_be_integer."""
+        """number_should_be_integer is subsumed by number_type_for_integer (check 40)."""
         from agent_friend.validate import validate_tools
         tools = [{"name": "list", "description": "List items.", "inputSchema": {
             "type": "object",
@@ -6472,8 +6472,11 @@ class TestCheck52NumberShouldBeInteger:
             "required": ["page"],
         }}]
         issues, _ = validate_tools(tools)
+        # check 52 is subsumed by check 40 (number_type_for_integer)
         hits = [i for i in issues if i.check == "number_should_be_integer"]
-        assert len(hits) == 2
+        assert len(hits) == 0
+        hits40 = [i for i in issues if i.check == "number_type_for_integer"]
+        assert len(hits40) == 2
 
     def test_suffix_count_fires(self):
         """Param ending in _count fires (e.g. result_count)."""
