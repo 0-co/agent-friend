@@ -133,6 +133,7 @@ from agent_friend.validate import (
     _check_param_empty_schema,
     _check_param_name_describes_output,
     _check_tool_count_exceeds_limit,
+    _check_description_has_numbered_list,
 )
 
 
@@ -12361,4 +12362,46 @@ class TestToolCountExceedsLimit:
 
     def test_empty_passes(self):
         issues = _check_tool_count_exceeds_limit([])
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 141: description_has_numbered_list
+# ---------------------------------------------------------------------------
+
+class TestDescriptionHasNumberedList:
+    def _run(self, tool_desc=None, param_desc=None):
+        obj = {}
+        if tool_desc is not None:
+            obj["description"] = tool_desc
+        schema = {}
+        if param_desc is not None:
+            schema["properties"] = {"x": {"type": "string", "description": param_desc}}
+        return _check_description_has_numbered_list("tool", obj, schema, "mcp")
+
+    def test_numbered_list_newline_fires(self):
+        issues = self._run(tool_desc="Fetch resources.\n1. Must authenticate first.\n2. Pass the ID.")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_numbered_list"
+        assert issues[0].severity == "warn"
+
+    def test_numbered_list_paren_fires(self):
+        issues = self._run(tool_desc="Steps:\n1) Open connection\n2) Send request")
+        assert len(issues) == 1
+
+    def test_param_numbered_list_fires(self):
+        issues = self._run(param_desc="Options:\n1. fast\n2. slow")
+        assert len(issues) == 1
+        assert "x" in issues[0].message
+
+    def test_plain_sentence_passes(self):
+        issues = self._run(tool_desc="Fetch a resource by its ID.")
+        assert issues == []
+
+    def test_number_in_middle_passes(self):
+        issues = self._run(tool_desc="Returns up to 100 results.")
+        assert issues == []
+
+    def test_empty_passes(self):
+        issues = self._run(tool_desc="")
         assert issues == []

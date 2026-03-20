@@ -2478,6 +2478,75 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 141: description_has_numbered_list
+# ---------------------------------------------------------------------------
+
+_NUMBERED_LIST_RE = re.compile(
+    r"(?:^|\n)\s*\d+[\.\)]\s+\S",
+    re.MULTILINE,
+)
+
+
+def _check_description_has_numbered_list(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 141: description_has_numbered_list — a tool or parameter
+    description contains a numbered list (``1.``, ``2.``, etc.).
+
+    Numbered lists in schema descriptions are a sign that procedural
+    instructions, documentation, or how-to guides have been embedded in the
+    schema.  This bloats token usage and violates separation of concerns —
+    descriptions should be a single concise sentence, not multi-step guides::
+
+        # bad — numbered list buries the key information
+        {"description": "Fetch resources.\\n1. Must authenticate first.\\n2. Pass the ID."}
+
+        # good — single focused sentence
+        {"description": "Fetch a resource by its ID. Authentication required."}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    tool_desc = _get_tool_description(obj, fmt)
+    if isinstance(tool_desc, str) and _NUMBERED_LIST_RE.search(tool_desc):
+        issues.append(
+            Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_numbered_list",
+                message=(
+                    "tool '{name}' description contains a numbered list — "
+                    "descriptions should be a single concise sentence, not "
+                    "multi-step documentation."
+                ).format(name=tool_name),
+            )
+        )
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        for param, pschema in props.items():
+            if not isinstance(pschema, dict):
+                continue
+            desc = pschema.get("description", "")
+            if isinstance(desc, str) and _NUMBERED_LIST_RE.search(desc):
+                issues.append(
+                    Issue(
+                        tool=tool_name,
+                        severity="warn",
+                        check="description_has_numbered_list",
+                        message=(
+                            "tool '{name}' param '{param}' description "
+                            "contains a numbered list — use a single concise "
+                            "sentence instead."
+                        ).format(name=tool_name, param=param),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 140: tool_count_exceeds_limit
 # ---------------------------------------------------------------------------
 
@@ -8568,6 +8637,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 139: param_name_describes_output
         issues.extend(_check_param_name_describes_output(name, schema))
+
+        # Check 141: description_has_numbered_list
+        issues.extend(_check_description_has_numbered_list(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
