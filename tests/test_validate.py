@@ -77,6 +77,7 @@ from agent_friend.validate import (
     _check_enum_boolean_string,
     _check_param_nullable_field,
     _check_schema_has_x_field,
+    _check_default_violates_minimum,
 )
 
 
@@ -9678,3 +9679,66 @@ class TestSchemaHasXField:
         issues = _check_schema_has_x_field("tool", schema)
         assert len(issues) == 1
         assert "timeout" in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Tests for Check 85: default_violates_minimum
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultViolatesMinimum:
+    """Tests for Check 85: default_violates_minimum."""
+
+    def _schema(self, param, **kwargs):
+        ps = {"type": "integer", "description": "A count."}
+        ps.update(kwargs)
+        return {"type": "object", "properties": {param: ps}}
+
+    def test_default_below_minimum_fires(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", minimum=1, default=0))
+        assert len(issues) == 1
+        assert issues[0].check == "default_violates_minimum"
+        assert issues[0].severity == "error"
+
+    def test_default_above_maximum_fires(self):
+        issues = _check_default_violates_minimum("tool", self._schema("limit", maximum=100, default=200))
+        assert len(issues) == 1
+        assert issues[0].check == "default_violates_minimum"
+
+    def test_default_equal_minimum_passes(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", minimum=1, default=1))
+        assert issues == []
+
+    def test_default_equal_maximum_passes(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", maximum=100, default=100))
+        assert issues == []
+
+    def test_default_within_range_passes(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", minimum=1, maximum=100, default=10))
+        assert issues == []
+
+    def test_no_default_passes(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", minimum=1))
+        assert issues == []
+
+    def test_no_minimum_passes(self):
+        issues = _check_default_violates_minimum("tool", self._schema("count", default=10))
+        assert issues == []
+
+    def test_string_type_skipped(self):
+        schema = {"type": "object", "properties": {
+            "name": {"type": "string", "minimum": 1, "default": 0, "description": "Name."},
+        }}
+        issues = _check_default_violates_minimum("tool", schema)
+        assert issues == []
+
+    def test_float_default_violates_integer_minimum(self):
+        schema = {"type": "object", "properties": {
+            "ratio": {"type": "number", "minimum": 0.5, "default": 0.1, "description": "Ratio."},
+        }}
+        issues = _check_default_violates_minimum("tool", schema)
+        assert len(issues) == 1
+
+    def test_empty_schema_passes(self):
+        issues = _check_default_violates_minimum("tool", {})
+        assert issues == []

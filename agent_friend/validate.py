@@ -2802,6 +2802,73 @@ def _check_schema_has_x_field(
 
 
 # ---------------------------------------------------------------------------
+# Check 85: default_violates_minimum
+# ---------------------------------------------------------------------------
+
+
+def _check_default_violates_minimum(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 85: default_violates_minimum — a parameter's ``default`` value
+    falls outside the declared ``minimum``/``maximum`` range.
+
+    This is a schema correctness bug: if the default is invalid under the
+    schema's own constraints, the schema is self-contradictory::
+
+        # bad — minimum is 1 but default is 0 (invalid!)
+        {"type": "integer", "minimum": 1, "default": 0}
+
+        # bad — maximum is 100 but default is 200 (invalid!)
+        {"type": "number", "maximum": 100, "default": 200}
+
+        # good — default is within the allowed range
+        {"type": "integer", "minimum": 1, "maximum": 100, "default": 10}
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") not in ("integer", "number"):
+            continue
+        default = param_schema.get("default")
+        if default is None or not isinstance(default, (int, float)):
+            continue
+        minimum = param_schema.get("minimum")
+        maximum = param_schema.get("maximum")
+        if minimum is not None and isinstance(minimum, (int, float)):
+            if default < minimum:
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="error",
+                    check="default_violates_minimum",
+                    message=(
+                        "param '{param}' has default={default} but minimum={min}; "
+                        "the default value violates the minimum constraint."
+                    ).format(param=param_name, default=default, min=minimum),
+                ))
+                continue  # Don't double-report for same param
+        if maximum is not None and isinstance(maximum, (int, float)):
+            if default > maximum:
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="error",
+                    check="default_violates_minimum",
+                    message=(
+                        "param '{param}' has default={default} but maximum={max}; "
+                        "the default value violates the maximum constraint."
+                    ).format(param=param_name, default=default, max=maximum),
+                ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5363,6 +5430,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 84: schema_has_x_field
         issues.extend(_check_schema_has_x_field(name, schema))
+
+        # Check 85: default_violates_minimum
+        issues.extend(_check_default_violates_minimum(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
