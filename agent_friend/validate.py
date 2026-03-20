@@ -1106,6 +1106,80 @@ def _check_description_model_instructions(tool_name: str, tool_description: str)
     )
 
 
+_REQUIRED_STRING_CONTENT_PARTS = frozenset({
+    "query", "sql", "statement", "code", "script", "program", "command",
+    "message", "prompt", "instruction", "expression", "formula", "template",
+})
+"""Name-part keywords that strongly imply a string value cannot be empty."""
+
+
+def _check_required_string_no_minlength(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 49: required_string_no_minlength — required content-like string param has no minLength.
+
+    A required string parameter with a content-like name (query, code, message,
+    command, prompt, script, etc.) that omits ``minLength`` technically allows
+    an empty string ``""`` to pass JSON Schema validation.  At runtime the
+    downstream API will almost always reject the empty value, making this a
+    latent correctness bug.
+
+    Adding ``"minLength": 1`` makes the contract explicit: the model cannot
+    accidentally pass an empty string and get a confusing runtime error.
+
+    Does not fire when:
+    - The parameter is not in the ``required`` array
+    - The parameter type is not ``string`` (or unset string)
+    - The parameter already has ``minLength`` set
+    - The parameter has an ``enum`` (values already constrained)
+    - The parameter has a ``pattern`` (format already constrained)
+    - The parameter name ends with ``_id`` or ``_ids`` (it's an identifier, not content)
+    - The parameter name contains none of the content-like keywords
+    """
+    issues = []
+    required = schema.get("required", [])
+    if not isinstance(required, list) or not required:
+        return issues
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+    _id_suffix_re = re.compile(r'(?:_|-)?ids?$', re.IGNORECASE)
+    for param_name, param_schema in properties.items():
+        if param_name not in required:
+            continue
+        if not isinstance(param_schema, dict):
+            continue
+        # Skip ID params — they should use format/pattern constraints, not minLength
+        if _id_suffix_re.search(param_name):
+            continue
+        ptype = param_schema.get("type")
+        if ptype not in (None, "string"):
+            continue
+        if ptype is None and "properties" in param_schema:
+            # likely an object without explicit type — skip
+            continue
+        if param_schema.get("minLength") is not None:
+            continue
+        if param_schema.get("enum") is not None:
+            continue
+        if param_schema.get("pattern") is not None:
+            continue
+        # Check if any name part is a content keyword
+        parts = set(re.split(r'[_\-\s]+', param_name.lower()))
+        if not parts & _REQUIRED_STRING_CONTENT_PARTS:
+            continue
+        matched = next(iter(parts & _REQUIRED_STRING_CONTENT_PARTS))
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="required_string_no_minlength",
+            message=(
+                "required param '{param}' is a content string ('{kw}') with no 'minLength' — "
+                "the schema allows '\"\"' (empty string); add 'minLength: 1' to reject "
+                "empty values at validation time."
+            ).format(param=param_name, kw=matched),
+        ))
+    return issues
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2537,6 +2611,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_description_model_instructions(name, _tool_desc_48)
         if issue is not None:
             issues.append(issue)
+
+        # Check 49: required_string_no_minlength
+        issues.extend(_check_required_string_no_minlength(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

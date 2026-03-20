@@ -5900,3 +5900,165 @@ class TestCheckDescriptionModelInstructions:
         hits = [i for i in issues if i.check == "description_model_instructions"]
         assert len(hits) == 1
         assert "always call" in hits[0].message.lower()
+
+
+
+
+class TestCheckRequiredStringNoMinlength:
+    """Tests for Check 49: required_string_no_minlength."""
+
+    @staticmethod
+    def _make_tool(properties=None, required=None):
+        tool = {
+            "name": "test_tool",
+            "description": "Does something.",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        if required is not None:
+            tool["inputSchema"]["required"] = required
+        return tool
+
+    def test_fires_on_query_param_no_minlength(self):
+        """Required 'query' string with no minLength fires."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "The SQL query to execute."}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+        assert "query" in hits[0].message
+
+    def test_fires_on_code_param_no_minlength(self):
+        """Required 'code' string with no minLength fires."""
+        tools = [self._make_tool(
+            properties={"code": {"type": "string", "description": "Python code to execute."}},
+            required=["code"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_fires_on_message_param_no_minlength(self):
+        """Required 'message' string with no minLength fires."""
+        tools = [self._make_tool(
+            properties={"message": {"type": "string", "description": "Message to send."}},
+            required=["message"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_fires_on_compound_name_with_keyword(self):
+        """'execute_query' contains 'query' — fires."""
+        tools = [self._make_tool(
+            properties={"execute_query": {"type": "string", "description": "Query string."}},
+            required=["execute_query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_no_fire_when_minlength_present(self):
+        """Required query param with minLength set does not fire."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "The query.", "minLength": 1}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_enum_present(self):
+        """Required string with enum already constrained — no fire."""
+        tools = [self._make_tool(
+            properties={"command": {"type": "string", "description": "Command.", "enum": ["start", "stop"]}},
+            required=["command"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_pattern_present(self):
+        """Required string with pattern constraint does not fire."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Query.", "pattern": ".+"}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_not_in_required(self):
+        """Optional 'query' param does not fire (only required params)."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Optional search query."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_generic_name(self):
+        """Required 'name' or 'value' param does not fire (not content-like)."""
+        tools = [self._make_tool(
+            properties={"name": {"type": "string", "description": "Resource name."}},
+            required=["name"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_non_string_type(self):
+        """Required integer 'command' does not fire."""
+        tools = [self._make_tool(
+            properties={"command": {"type": "integer", "description": "Command code."}},
+            required=["command"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Check 49 should be a warning."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "SQL query."}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_fires_on_prompt_param(self):
+        """Required 'prompt' string with no minLength fires."""
+        tools = [self._make_tool(
+            properties={"prompt": {"type": "string", "description": "The prompt to send to the model."}},
+            required=["prompt"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_no_fire_on_message_id(self):
+        """Required 'message_id' param does not fire — it's an identifier, not content."""
+        tools = [self._make_tool(
+            properties={"message_id": {"type": "string", "description": "The message ID."}},
+            required=["message_id"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_template_id(self):
+        """Required 'template_id' param does not fire — it's an identifier."""
+        tools = [self._make_tool(
+            properties={"template_id": {"type": "string", "description": "The template ID."}},
+            required=["template_id"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_string_no_minlength"]
+        assert len(hits) == 0
