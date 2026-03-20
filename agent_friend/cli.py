@@ -43,10 +43,12 @@ def _get_api_key():
 
 
 def _resolve_file_or_example(args) -> str:
-    """Resolve the input source from --example or file argument.
+    """Resolve the input source from --example, URL, or file argument.
 
     If --example is provided, writes the example data to a temp file and
-    returns the path. Otherwise returns the file argument as-is.
+    returns the path. If the file argument looks like a URL (http/https),
+    fetches it and writes to a temp file. Otherwise returns the file
+    argument as-is.
 
     Returns the file path string to pass to run_* functions.
     """
@@ -67,7 +69,36 @@ def _resolve_file_or_example(args) -> str:
             json.dump(data, f)
         return path
 
-    return getattr(args, "file", "-")
+    file_arg = getattr(args, "file", "-")
+    if isinstance(file_arg, str) and file_arg.startswith(("http://", "https://")):
+        import tempfile
+        import urllib.request
+        import urllib.error
+
+        print("Fetching {url} ...".format(url=file_arg), file=sys.stderr)
+        try:
+            req = urllib.request.Request(
+                file_arg,
+                headers={"User-Agent": "agent-friend/0.1 (schema grader)"},
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                raw = resp.read()
+        except urllib.error.HTTPError as e:
+            print("Error: HTTP {code} fetching URL".format(code=e.code), file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.URLError as e:
+            print("Error: could not fetch URL — {reason}".format(reason=e.reason), file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print("Error: {err}".format(err=e), file=sys.stderr)
+            sys.exit(1)
+
+        fd, path = tempfile.mkstemp(suffix=".json", prefix="agent-friend-url-")
+        with os.fdopen(fd, "wb") as f:
+            f.write(raw)
+        return path
+
+    return file_arg
 
 
 def _add_example_flag(parser: argparse.ArgumentParser) -> None:
@@ -128,6 +159,7 @@ def main() -> None:
             "  agent-friend validate <file.json>     # check schemas for correctness\n"
             "  agent-friend fix <file.json>          # auto-fix schema issues\n"
             "  agent-friend grade <file.json>        # combined quality report card\n"
+            "  agent-friend grade https://...        # grade a remote schema URL\n"
             "  agent-friend grade --example notion    # grade a bundled example schema\n"
             "  agent-friend examples                 # list available example schemas"
         ),
@@ -416,7 +448,7 @@ def _run_grade_command(argv: list) -> None:
         "file",
         nargs="?",
         default="-",
-        help='Path to a JSON file with tool definitions, or "-" for stdin (default: stdin)',
+        help='Path to a JSON file, URL (https://...), or "-" for stdin (default: stdin)',
     )
     _add_example_flag(grade_parser)
     grade_parser.add_argument(
