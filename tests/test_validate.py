@@ -92,6 +92,7 @@ from agent_friend.validate import (
     _check_array_max_items_zero,
     _check_description_says_see_docs,
     _check_description_has_internal_path,
+    _check_param_accepts_secret_no_format,
 )
 
 
@@ -10468,4 +10469,59 @@ class TestDescriptionHasInternalPath:
     def test_empty_description_passes(self):
         obj, schema = self._mcp_obj("")
         issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 100: param_accepts_secret_no_format
+# ---------------------------------------------------------------------------
+
+
+class TestParamAcceptsSecretNoFormat:
+    """Tests for _check_param_accepts_secret_no_format (Check 100)."""
+
+    @staticmethod
+    def _schema(param_name: str, extra: dict = None) -> dict:
+        param_def = {"type": "string", "description": "A value."}
+        if extra:
+            param_def.update(extra)
+        return {"type": "object", "properties": {param_name: param_def}}
+
+    def test_password_fires(self):
+        issues = _check_param_accepts_secret_no_format("tool", self._schema("password"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_accepts_secret_no_format"
+        assert issues[0].severity == "warn"
+
+    def test_api_key_fires(self):
+        issues = _check_param_accepts_secret_no_format("tool", self._schema("api_key"))
+        assert len(issues) == 1
+
+    def test_secret_fires(self):
+        issues = _check_param_accepts_secret_no_format("tool", self._schema("client_secret"))
+        assert len(issues) == 1
+
+    def test_access_token_fires(self):
+        issues = _check_param_accepts_secret_no_format("tool", self._schema("access_token"))
+        assert len(issues) == 1
+
+    def test_password_with_format_passes(self):
+        issues = _check_param_accepts_secret_no_format(
+            "tool", self._schema("password", {"format": "password"})
+        )
+        assert issues == []
+
+    def test_plain_name_passes(self):
+        issues = _check_param_accepts_secret_no_format("tool", self._schema("username"))
+        assert issues == []
+
+    def test_non_string_type_passes(self):
+        schema = {"type": "object", "properties": {
+            "password": {"type": "integer", "description": "Not a real password."}
+        }}
+        issues = _check_param_accepts_secret_no_format("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_accepts_secret_no_format("tool", {})
         assert issues == []

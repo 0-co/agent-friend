@@ -2429,6 +2429,71 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 100: param_accepts_secret_no_format
+# ---------------------------------------------------------------------------
+
+_SECRET_PARAM_RE = re.compile(
+    r"\bpassword\b|\bpasswd\b"
+    r"|\bsecret\b"
+    r"|\bapi[_\-]?key\b"
+    r"|\baccess[_\-]?token\b"
+    r"|\bauth[_\-]?token\b"
+    r"|\bprivate[_\-]?key\b"
+    r"|\bapi[_\-]?secret\b"
+    r"|\bclient[_\-]?secret\b",
+    re.IGNORECASE,
+)
+
+
+def _check_param_accepts_secret_no_format(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 100: param_accepts_secret_no_format — a parameter whose name
+    implies it holds a secret value (password, api_key, secret, access_token,
+    private_key, etc.) is declared as ``type: string`` but does not have
+    ``"format": "password"``.
+
+    The ``password`` format signals to UIs and developer tools that the
+    value should be masked/redacted.  Without it, secrets may be logged
+    or displayed in plain text::
+
+        # bad — no masking hint
+        {"api_key": {"type": "string", "description": "Your API key."}}
+
+        # good — format signals that the value should be masked
+        {"api_key": {"type": "string", "format": "password",
+                     "description": "Your API key."}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "string":
+            continue
+        if param_schema.get("format") == "password":
+            continue
+        if _SECRET_PARAM_RE.search(param_name):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_accepts_secret_no_format",
+                message=(
+                    "param '{param}' looks like a secret value but is missing "
+                    "\"format\": \"password\" — add this so UIs and tools "
+                    "know to mask the value."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 99: description_has_internal_path
 # ---------------------------------------------------------------------------
 
@@ -6117,6 +6182,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 99: description_has_internal_path
         issues.extend(_check_description_has_internal_path(name, raw_obj, schema, fmt))
+
+        # Check 100: param_accepts_secret_no_format
+        issues.extend(_check_param_accepts_secret_no_format(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
