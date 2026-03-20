@@ -2478,6 +2478,60 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 110: param_name_starts_with_type
+# ---------------------------------------------------------------------------
+
+_TYPE_PREFIX_RE = re.compile(
+    r"^(?:str|int|bool|num|float|arr|list|dict|obj)_",
+    re.IGNORECASE,
+)
+
+
+def _check_param_name_starts_with_type(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 110: param_name_starts_with_type — a parameter name starts with a
+    type prefix such as ``str_``, ``int_``, ``bool_``, ``arr_``, etc.
+
+    The type is already declared in the schema's ``type`` field.  Prefixing the
+    name with the type is a C-style Hungarian notation convention that adds noise
+    without meaning::
+
+        # bad — type redundantly encoded in the name
+        {"str_query": {"type": "string", ...}}
+        {"int_limit": {"type": "integer", ...}}
+        {"bool_active": {"type": "boolean", ...}}
+        {"arr_tags": {"type": "array", ...}}
+
+        # good — descriptive names; type is in the schema
+        {"query": {"type": "string", ...}}
+        {"limit": {"type": "integer", ...}}
+        {"active": {"type": "boolean", ...}}
+        {"tags": {"type": "array", ...}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name in properties:
+        if _TYPE_PREFIX_RE.match(param_name):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_name_starts_with_type",
+                message=(
+                    "param '{param}' name starts with a type prefix — the "
+                    "type is already in the schema; use a descriptive name "
+                    "without the type prefix."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 109: description_has_parenthetical_type
 # ---------------------------------------------------------------------------
 
@@ -6729,6 +6783,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 109: description_has_parenthetical_type
         issues.extend(_check_description_has_parenthetical_type(name, schema))
+
+        # Check 110: param_name_starts_with_type
+        issues.extend(_check_param_name_starts_with_type(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

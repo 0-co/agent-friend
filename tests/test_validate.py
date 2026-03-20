@@ -102,6 +102,7 @@ from agent_friend.validate import (
     _check_object_no_props_additional_false,
     _check_array_items_empty_schema,
     _check_description_has_parenthetical_type,
+    _check_param_name_starts_with_type,
 )
 
 
@@ -10947,4 +10948,51 @@ class TestDescriptionHasParentheticalType:
 
     def test_empty_schema_passes(self):
         issues = _check_description_has_parenthetical_type("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 110: param_name_starts_with_type
+# ---------------------------------------------------------------------------
+
+
+class TestParamNameStartsWithType:
+    """Tests for _check_param_name_starts_with_type (Check 110)."""
+
+    @staticmethod
+    def _schema(*param_names: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {n: {"type": "string", "description": "A param."} for n in param_names},
+        }
+
+    def test_str_prefix_fires(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("str_query"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_starts_with_type"
+        assert issues[0].severity == "warn"
+
+    def test_int_prefix_fires(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("int_limit"))
+        assert len(issues) == 1
+        assert "int_limit" in issues[0].message
+
+    def test_bool_prefix_fires(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("bool_active"))
+        assert len(issues) == 1
+
+    def test_arr_prefix_fires(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("arr_tags"))
+        assert len(issues) == 1
+
+    def test_list_prefix_fires(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("list_items"))
+        assert len(issues) == 1
+
+    def test_descriptive_name_passes(self):
+        issues = _check_param_name_starts_with_type("tool", self._schema("query", "limit", "active"))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_name_starts_with_type("tool", {})
         assert issues == []
