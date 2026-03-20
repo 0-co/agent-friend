@@ -1005,6 +1005,53 @@ def _check_default_undocumented(name: str, schema: Dict[str, Any]) -> Optional[I
     return None
 
 
+def _check_enum_undocumented(name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 31: enum_undocumented — param has 4+ enum values but description mentions none.
+
+    When a parameter defines 4 or more discrete enum values, the description
+    should reference at least one of them so models understand what each option
+    does.  A description like ``'Sort field'`` with eleven possible values
+    (``'comments'``, ``'reactions'``, ``'reactions-+1'``, …) forces the model
+    to choose blindly.
+
+    Threshold of 4 avoids flagging obvious 3-value sets such as
+    ``['open', 'closed', 'all']`` where the values are self-explanatory.
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return None
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        enum_val = param_schema.get("enum")
+        if not isinstance(enum_val, list) or len(enum_val) < 4:
+            continue
+        desc = param_schema.get("description", "")
+        if not desc:
+            continue  # no description — already caught by check 18
+        desc_lower = desc.lower()
+        # Use word-boundary matching so single-letter values like 'a' don't
+        # match incidentally inside words like 'data' or 'field'.
+        import re as _re
+        def _val_in_desc(val: str, text: str) -> bool:
+            escaped = _re.escape(str(val).lower())
+            return bool(_re.search(r'(?<![a-z0-9])' + escaped + r'(?![a-z0-9])', text))
+        mentioned = any(_val_in_desc(val, desc_lower) for val in enum_val)
+        if not mentioned:
+            sample = enum_val[:3]
+            return Issue(
+                tool=name,
+                severity="warn",
+                check="enum_undocumented",
+                message=(
+                    "param '{param}' has {n} enum values but description mentions none "
+                    "— models can't tell what each option does "
+                    "(e.g. {sample}...)"
+                ).format(param=param_name, n=len(enum_val), sample=sample),
+            )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1247,6 +1294,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 30: default_undocumented
         issue = _check_default_undocumented(name, schema)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 31: enum_undocumented
+        issue = _check_enum_undocumented(name, schema)
         if issue is not None:
             issues.append(issue)
 

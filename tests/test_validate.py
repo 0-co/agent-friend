@@ -3613,3 +3613,142 @@ class TestCheckDefaultUndocumented:
         """Schema without properties → no issue."""
         from agent_friend.validate import _check_default_undocumented
         assert _check_default_undocumented("t", {}) is None
+
+
+# ---------------------------------------------------------------------------
+# Check 31: enum_undocumented
+# ---------------------------------------------------------------------------
+
+class TestCheck31EnumUndocumented:
+    """Tests for Check 31: enum_undocumented."""
+
+    def _schema_with_enum(self, param_name, enum_vals, desc):
+        return {
+            "type": "object",
+            "properties": {
+                param_name: {
+                    "type": "string",
+                    "enum": enum_vals,
+                    "description": desc,
+                }
+            },
+        }
+
+    def test_no_properties_ok(self):
+        """Schema without properties → no issue."""
+        from agent_friend.validate import _check_enum_undocumented
+        assert _check_enum_undocumented("t", {}) is None
+
+    def test_no_enum_ok(self):
+        """Param without enum → no issue."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = {"type": "object", "properties": {
+            "lang": {"type": "string", "description": "Language code"}
+        }}
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_three_values_below_threshold_ok(self):
+        """Enum with exactly 3 values doesn't trigger (threshold is 4)."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum("state", ["open", "closed", "all"], "Filter by state")
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_four_values_mentioned_ok(self):
+        """4 enum values, at least one appears in description → no issue."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum(
+            "sort", ["created", "updated", "comments", "reactions"],
+            "Sort by created, updated, comments, or reactions"
+        )
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_four_values_none_mentioned_fires(self):
+        """4 enum values, none appear in description → warn."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum(
+            "sort", ["created", "updated", "comments", "reactions"],
+            "Sort field"
+        )
+        issue = _check_enum_undocumented("t", schema)
+        assert issue is not None
+        assert issue.severity == "warn"
+        assert issue.check == "enum_undocumented"
+
+    def test_eleven_values_none_mentioned_fires(self):
+        """11 enum values (like GitHub sort), none in desc → warn."""
+        from agent_friend.validate import _check_enum_undocumented
+        vals = ["comments", "reactions", "reactions-+1", "reactions--1",
+                "reactions-smile", "reactions-thinking_face", "reactions-heart",
+                "reactions-tada", "interactions", "created", "updated"]
+        schema = self._schema_with_enum("sort", vals, "Sort field")
+        issue = _check_enum_undocumented("t", schema)
+        assert issue is not None
+        assert "11" in issue.message
+
+    def test_empty_description_ok(self):
+        """Empty description → caught by check 18, not this one."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = {"type": "object", "properties": {
+            "mode": {"type": "string", "enum": ["a", "b", "c", "d"], "description": ""}
+        }}
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_no_description_field_ok(self):
+        """Missing description field → caught by check 18, not this one."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = {"type": "object", "properties": {
+            "mode": {"type": "string", "enum": ["a", "b", "c", "d"]}
+        }}
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_case_insensitive_match(self):
+        """Enum value match is case-insensitive → no issue."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum(
+            "region", ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"],
+            "Primary region. Options: US-EAST-1, US-WEST-2, EU-WEST-1, AP-SOUTH-1"
+        )
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_partial_match_ok(self):
+        """Partial string match counts (e.g. 'created' in desc satisfies 'created' enum val)."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum(
+            "order", ["created", "updated", "comments", "score"],
+            "Order results by created date or other field"
+        )
+        assert _check_enum_undocumented("t", schema) is None
+
+    def test_only_first_bad_param_fires(self):
+        """Only one issue per tool even if multiple params have undocumented enums."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = {
+            "type": "object",
+            "properties": {
+                "sort": {"type": "string", "enum": ["a", "b", "c", "d"], "description": "Sort field"},
+                "filter": {"type": "string", "enum": ["x", "y", "z", "w"], "description": "Filter type"},
+            }
+        }
+        issue = _check_enum_undocumented("t", schema)
+        assert issue is not None  # fires on first bad param
+
+    def test_issue_mentions_param_name(self):
+        """Issue message includes the parameter name."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = self._schema_with_enum("dimension", ["a", "b", "c", "d"], "Data dimension")
+        issue = _check_enum_undocumented("t", schema)
+        assert "dimension" in issue.message
+
+    def test_non_string_enum_values_checked(self):
+        """Integer enum values also trigger the check."""
+        from agent_friend.validate import _check_enum_undocumented
+        schema = {"type": "object", "properties": {
+            "priority": {
+                "type": "integer",
+                "enum": [1, 2, 3, 4],
+                "description": "Task priority level"
+            }
+        }}
+        issue = _check_enum_undocumented("t", schema)
+        assert issue is not None
+        assert issue.check == "enum_undocumented"
