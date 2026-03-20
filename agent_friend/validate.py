@@ -2429,6 +2429,56 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 95: description_has_version_info
+# ---------------------------------------------------------------------------
+
+_DESC_VERSION_RE = re.compile(
+    r"\bapi\s+v\d+\b"           # API v1, API v2
+    r"|\bv\d+\.\d+\b"           # v1.0, v2.3
+    r"|\bversion\s+\d+\b"       # version 2, version 3
+    r"|\bapi[\s-]version\b",    # api-version, api version
+    re.IGNORECASE,
+)
+
+
+def _check_description_has_version_info(
+    tool_name: str,
+    obj: Dict[str, Any],
+    fmt: str = "mcp",
+) -> Optional[Issue]:
+    """Check 95: description_has_version_info — a tool description mentions
+    an API version (e.g., "API v2", "v1.0", "version 2").
+
+    Version strings in tool descriptions go stale when APIs change and
+    clutter context with information that belongs in the server manifest
+    or deployment URL, not in individual tool definitions::
+
+        # bad — version info will drift
+        "description": "Get user data using the Users API v2."
+
+        # good — omit API version from individual tool descriptions
+        "description": "Get user data."
+
+    Severity: ``warn``.
+    """
+    desc = _get_tool_description(obj, fmt)
+    if not isinstance(desc, str):
+        return None
+    if _DESC_VERSION_RE.search(desc):
+        return Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_version_info",
+            message=(
+                "tool '{name}' description contains an API version string — "
+                "version info belongs in server metadata, not tool "
+                "descriptions."
+            ).format(name=tool_name),
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Check 93: tool_name_contains_version
 # ---------------------------------------------------------------------------
 
@@ -5784,6 +5834,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 42: tool_description_just_the_name
         issue = _check_tool_description_just_the_name(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 95: description_has_version_info
+        issue = _check_description_has_version_info(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 

@@ -87,6 +87,7 @@ from agent_friend.validate import (
     _check_object_param_no_properties,
     _check_tool_name_contains_version,
     _check_param_name_is_reserved_word,
+    _check_description_has_version_info,
 )
 
 
@@ -10220,3 +10221,48 @@ class TestParamNameIsReservedWord:
     def test_empty_schema_passes(self):
         issues = _check_param_name_is_reserved_word("tool", {})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 95: description_has_version_info
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasVersionInfo:
+    """Tests for _check_description_has_version_info (Check 95)."""
+
+    @staticmethod
+    def _mcp_obj(desc: str) -> dict:
+        return {"description": desc, "inputSchema": {"type": "object"}}
+
+    def test_api_v2_fires(self):
+        issue = _check_description_has_version_info(
+            "get_user", self._mcp_obj("Get user data using the Users API v2."), "mcp"
+        )
+        assert issue is not None
+        assert issue.check == "description_has_version_info"
+        assert issue.severity == "warn"
+
+    def test_version_number_fires(self):
+        issue = _check_description_has_version_info(
+            "list", self._mcp_obj("List items via version 3 of the API."), "mcp"
+        )
+        assert issue is not None
+
+    def test_semver_fires(self):
+        issue = _check_description_has_version_info(
+            "query", self._mcp_obj("Query using v1.0 protocol."), "mcp"
+        )
+        assert issue is not None
+
+    def test_plain_description_passes(self):
+        issue = _check_description_has_version_info(
+            "get_user", self._mcp_obj("Get user profile by ID."), "mcp"
+        )
+        assert issue is None
+
+    def test_empty_description_passes(self):
+        issue = _check_description_has_version_info(
+            "tool", self._mcp_obj(""), "mcp"
+        )
+        assert issue is None
