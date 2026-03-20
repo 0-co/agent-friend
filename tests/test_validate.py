@@ -45,6 +45,7 @@ from agent_friend.validate import (
     _check_param_format_missing,
     _check_boolean_default_missing,
     _check_enum_default_missing,
+    _check_param_description_says_optional,
 )
 
 
@@ -6062,3 +6063,141 @@ class TestCheckRequiredStringNoMinlength:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "required_string_no_minlength"]
         assert len(hits) == 0
+
+class TestCheckParamDescriptionSaysOptional:
+    """Tests for Check 50: param_description_says_optional."""
+
+    @staticmethod
+    def _make_tool(properties=None, required=None):
+        tool = {
+            "name": "test_tool",
+            "description": "Does something.",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        if required is not None:
+            tool["inputSchema"]["required"] = required
+        return tool
+
+    def test_fires_on_optional_colon_prefix(self):
+        """Non-required param description starting with 'Optional:' fires."""
+        tools = [self._make_tool(
+            properties={"lang": {"type": "string", "description": "Optional: Language code (e.g. 'en')."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 1
+        assert "lang" in hits[0].message
+
+    def test_fires_on_optional_dash_prefix(self):
+        """Non-required param description starting with 'Optional -' fires."""
+        tools = [self._make_tool(
+            properties={"limit": {"type": "integer", "description": "Optional - max results to return"}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 1
+
+    def test_fires_on_paren_optional_prefix(self):
+        """Non-required param description starting with '(optional)' fires."""
+        tools = [self._make_tool(
+            properties={"filter": {"type": "string", "description": "(optional) Filter expression"}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 1
+
+    def test_fires_case_insensitive(self):
+        """Fires regardless of case: 'OPTIONAL:', 'Optional:', 'optional:'."""
+        for prefix in ["OPTIONAL:", "Optional:", "optional:", "Optional "]:
+            tools = [self._make_tool(
+                properties={"timeout": {"type": "integer", "description": f"{prefix} timeout in seconds"}},
+                required=[],
+            )]
+            issues, _ = validate_tools(tools)
+            hits = [i for i in issues if i.check == "param_description_says_optional"]
+            assert len(hits) == 1, f"Expected 1 hit for prefix '{prefix}', got {len(hits)}"
+
+    def test_no_fire_when_param_is_required(self):
+        """Required params do not fire even if description says 'Optional'."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Optional: the search query"}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_normal_description(self):
+        """Description without 'Optional' prefix does not fire."""
+        tools = [self._make_tool(
+            properties={"lang": {"type": "string", "description": "Language code for the output."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_optional_in_middle(self):
+        """'optional' in the middle of a description does not fire (only at start)."""
+        tools = [self._make_tool(
+            properties={"lang": {"type": "string", "description": "Language code; this field is optional."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_no_description(self):
+        """Params with no description do not fire."""
+        tools = [self._make_tool(
+            properties={"lang": {"type": "string"}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Check 50 issues should be warnings."""
+        tools = [self._make_tool(
+            properties={"limit": {"type": "integer", "description": "Optional: max results"}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_multiple_params_all_fire(self):
+        """Multiple non-required params with Optional prefix all fire."""
+        tools = [self._make_tool(
+            properties={
+                "lang": {"type": "string", "description": "Optional: Language code"},
+                "limit": {"type": "integer", "description": "(optional) Max results"},
+                "offset": {"type": "integer", "description": "Optional - Starting offset"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 3
+
+    def test_mixed_required_optional(self):
+        """Only non-required params with Optional prefix fire; required params do not."""
+        tools = [self._make_tool(
+            properties={
+                "query": {"type": "string", "description": "Optional: search query"},  # required — no fire
+                "limit": {"type": "integer", "description": "Optional: max results"},  # optional — fires
+            },
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "param_description_says_optional"]
+        assert len(hits) == 1
+        assert "limit" in hits[0].message

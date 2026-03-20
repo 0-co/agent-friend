@@ -1180,6 +1180,88 @@ def _check_required_string_no_minlength(tool_name: str, schema: Dict[str, Any]) 
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Check 50: param_description_says_optional
+# ---------------------------------------------------------------------------
+
+_SAYS_OPTIONAL_RE = re.compile(
+    r'^(\(optional\)\s*|optional\s*[:\-–]\s*|optional\s+)',
+    re.IGNORECASE,
+)
+
+
+def _check_param_description_says_optional(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 50: param_description_says_optional — param description starts with 'Optional:' or '(optional)'.
+
+    JSON Schema already expresses optionality through the ``required`` array: if
+    a parameter is not listed there, it is optional.  Repeating that fact in the
+    description prefix (``"Optional: ..."`` or ``"(optional) ..."`` etc.) is pure
+    redundancy — the model can read the schema; it does not need the prose to
+    re-state what the schema already encodes.  This also wastes tokens on every
+    call that includes the tool definition.
+
+    Common forms that fire:
+
+    * ``"Optional: Language code for the output"``
+    * ``"(Optional) Filter by status"``
+    * ``"Optional - maximum number of results"``
+    * ``"Optional. Overrides the default timeout."``
+
+    Fires when:
+
+    * Param is **not** listed in the tool's ``required`` array, AND
+    * Param description starts with the above patterns (case-insensitive)
+
+    Does **not** fire for required params (even if they mistakenly say
+    "optional" — that is a different, more severe issue) because the focus is
+    on the common redundancy pattern in optional params.
+
+    The fix is simply to remove the prefix and let the ``required`` array
+    communicate optionality.
+
+    Examples::
+
+        # flagged — 'optional' prefix is redundant with the schema required array
+        "lang":   {"type": "string", "description": "Optional: Language code (e.g. 'en', 'fr')"}
+        "limit":  {"type": "integer", "description": "Optional: Maximum results to return"}
+        "filter": {"type": "string", "description": "(optional) Filter expression"}
+
+        # correct — description goes straight to the point
+        "lang":   {"type": "string", "description": "Language code (e.g. 'en', 'fr')", "default": "en"}
+        "limit":  {"type": "integer", "description": "Maximum results to return (default: 10)", "default": 10}
+        "filter": {"type": "string", "description": "Filter expression"}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_name in required:
+            continue  # only flag optional params (non-required ones)
+        description = param_schema.get("description", "")
+        if not description or not isinstance(description, str):
+            continue
+        if _SAYS_OPTIONAL_RE.match(description.strip()):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_description_says_optional",
+                message=(
+                    "optional param '{param}' description starts with 'Optional' — "
+                    "redundant with the schema's 'required' array; remove the prefix "
+                    "and let the schema structure communicate optionality"
+                ).format(param=param_name),
+            ))
+
+    return issues
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2614,6 +2696,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 49: required_string_no_minlength
         issues.extend(_check_required_string_no_minlength(name, schema))
+
+        # Check 50: param_description_says_optional
+        issues.extend(_check_param_description_says_optional(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
