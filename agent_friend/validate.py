@@ -2478,6 +2478,75 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 132: param_min_equals_max
+# ---------------------------------------------------------------------------
+
+
+def _check_param_min_equals_max(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 132: param_min_equals_max — a parameter has equal ``minimum`` /
+    ``maximum`` (or ``minLength`` / ``maxLength``, or ``minItems`` /
+    ``maxItems``), creating a degenerate range with only one valid value.
+
+    When min == max, the param can only ever hold a single value.  That should
+    be expressed as a ``const`` or a single-value ``enum`` instead::
+
+        # bad — only one value is valid
+        {"type": "integer", "minimum": 5, "maximum": 5}
+        {"type": "string", "minLength": 10, "maxLength": 10}
+
+        # good — use const for a fixed value
+        {"type": "integer", "const": 5}
+        {"type": "string", "minLength": 10, "maxLength": 10, "const": "fixed-id"}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+
+    def _scan(properties: Dict[str, Any]) -> None:
+        for param, pschema in properties.items():
+            if not isinstance(pschema, dict):
+                continue
+            pairs = [
+                ("minimum", "maximum"),
+                ("minLength", "maxLength"),
+                ("minItems", "maxItems"),
+            ]
+            for lo_key, hi_key in pairs:
+                lo = pschema.get(lo_key)
+                hi = pschema.get(hi_key)
+                if lo is not None and hi is not None and lo == hi:
+                    issues.append(
+                        Issue(
+                            tool=tool_name,
+                            severity="warn",
+                            check="param_min_equals_max",
+                            message=(
+                                "tool '{name}' param '{param}' has {lo}={hi}={v} "
+                                "— degenerate range with only one valid value; "
+                                "use 'const' instead."
+                            ).format(
+                                name=tool_name,
+                                param=param,
+                                lo=lo_key,
+                                hi=hi_key,
+                                v=lo,
+                            ),
+                        )
+                    )
+            nested = pschema.get("properties")
+            if isinstance(nested, dict):
+                _scan(nested)
+
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        _scan(props)
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 131: description_has_ellipsis
 # ---------------------------------------------------------------------------
 
@@ -8026,6 +8095,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 131: description_has_ellipsis
         issues.extend(_check_description_has_ellipsis(name, raw_obj, schema, fmt))
+
+        # Check 132: param_min_equals_max
+        issues.extend(_check_param_min_equals_max(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

@@ -124,6 +124,7 @@ from agent_friend.validate import (
     _check_description_has_trailing_colon,
     _check_enum_mixed_types,
     _check_description_has_ellipsis,
+    _check_param_min_equals_max,
 )
 
 
@@ -11980,4 +11981,47 @@ class TestDescriptionHasEllipsis:
 
     def test_no_desc_passes(self):
         issues = self._run()
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 132: param_min_equals_max
+# ---------------------------------------------------------------------------
+
+class TestParamMinEqualsMax:
+    def _schema(self, **kwargs):
+        return {"properties": {"n": {"type": "integer", **kwargs}}}
+
+    def test_minimum_equals_maximum_fires(self):
+        issues = _check_param_min_equals_max("tool", self._schema(minimum=5, maximum=5))
+        assert len(issues) == 1
+        assert issues[0].check == "param_min_equals_max"
+        assert issues[0].severity == "warn"
+        assert "5" in issues[0].message
+
+    def test_minlength_equals_maxlength_fires(self):
+        schema = {"properties": {"s": {"type": "string", "minLength": 10, "maxLength": 10}}}
+        issues = _check_param_min_equals_max("tool", schema)
+        assert len(issues) == 1
+        assert "minLength" in issues[0].message
+
+    def test_minitems_equals_maxitems_fires(self):
+        schema = {"properties": {"arr": {"type": "array", "minItems": 3, "maxItems": 3}}}
+        issues = _check_param_min_equals_max("tool", schema)
+        assert len(issues) == 1
+
+    def test_different_min_max_passes(self):
+        issues = _check_param_min_equals_max("tool", self._schema(minimum=1, maximum=100))
+        assert issues == []
+
+    def test_only_min_passes(self):
+        issues = _check_param_min_equals_max("tool", self._schema(minimum=1))
+        assert issues == []
+
+    def test_only_max_passes(self):
+        issues = _check_param_min_equals_max("tool", self._schema(maximum=10))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_min_equals_max("tool", {})
         assert issues == []
