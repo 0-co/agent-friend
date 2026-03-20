@@ -33,7 +33,7 @@ CLEAN_OPENAI_TOOL = {
         "parameters": {
             "type": "object",
             "properties": {
-                "city": {"type": "string", "description": "Name of the target city"},
+                "city": {"type": "string", "description": "City name"},
             },
             "required": ["city"],
         },

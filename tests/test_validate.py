@@ -32,6 +32,7 @@ from agent_friend.validate import (
     _check_param_description_missing,
     _check_nested_param_description_missing,
     _check_description_too_short,
+    _check_description_too_long,
     _check_param_description_too_short,
     _check_param_type_missing,
     _check_nested_param_type_missing,
@@ -2393,6 +2394,93 @@ class TestCheckDescriptionTooShort:
         tool = {"name": "t", "description": "Get the current user"}  # exactly 20
         issue = _check_description_too_short("t", tool, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 25: tool_description_too_long
+# ---------------------------------------------------------------------------
+
+
+class TestCheckDescriptionTooLong:
+    def _long_desc(self, n: int) -> str:
+        """Generate a description of exactly n characters."""
+        return ("x" * n)
+
+    def test_long_description_flagged(self):
+        desc = self._long_desc(501)
+        tool = {"name": "analyze_data", "description": desc}
+        issue = _check_description_too_long("analyze_data", tool, "mcp")
+        assert issue is not None
+        assert issue.check == "tool_description_too_long"
+        assert issue.severity == "warn"
+
+    def test_exactly_500_chars_ok(self):
+        desc = self._long_desc(500)
+        tool = {"name": "t", "description": desc}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is None
+
+    def test_exactly_501_chars_flagged(self):
+        desc = self._long_desc(501)
+        tool = {"name": "t", "description": desc}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is not None
+
+    def test_normal_description_ok(self):
+        tool = {"name": "get_user", "description": "Get the current user profile."}
+        issue = _check_description_too_long("get_user", tool, "mcp")
+        assert issue is None
+
+    def test_empty_description_not_flagged(self):
+        """Empty descriptions are caught by check 6, not check 25."""
+        tool = {"name": "t", "description": ""}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is None
+
+    def test_no_description_not_flagged(self):
+        """Missing descriptions are caught by check 5, not check 25."""
+        tool = {"name": "t"}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is None
+
+    def test_openai_format(self):
+        desc = self._long_desc(600)
+        tool = {
+            "type": "function",
+            "function": {"name": "analyze", "description": desc}
+        }
+        issue = _check_description_too_long("analyze", tool, "openai")
+        assert issue is not None
+        assert issue.check == "tool_description_too_long"
+
+    def test_char_count_in_message(self):
+        desc = self._long_desc(750)
+        tool = {"name": "t", "description": desc}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is not None
+        assert "750" in issue.message
+
+    def test_token_estimate_in_message(self):
+        desc = self._long_desc(800)
+        tool = {"name": "t", "description": desc}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is not None
+        assert "200" in issue.message  # 800 // 4 = 200 tokens
+
+    def test_whitespace_stripped_before_check(self):
+        """Leading/trailing whitespace should not count toward length."""
+        desc = "  " + self._long_desc(498) + "  "  # 502 with whitespace, 498 without
+        tool = {"name": "t", "description": desc}
+        issue = _check_description_too_long("t", tool, "mcp")
+        assert issue is None
+
+    def test_very_long_description_flagged(self):
+        """Extremely long descriptions (like GA4's 8376-char behemoth) trigger check."""
+        desc = self._long_desc(8376)
+        tool = {"name": "run_report", "description": desc}
+        issue = _check_description_too_long("run_report", tool, "mcp")
+        assert issue is not None
+        assert "8376" in issue.message
 
 
 # ---------------------------------------------------------------------------

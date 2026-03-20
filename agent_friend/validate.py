@@ -158,6 +158,43 @@ def _check_description_not_empty(name: str, obj: Dict[str, Any], fmt: str) -> Op
 
 _MIN_DESCRIPTION_LENGTH = 20
 _MIN_PARAM_DESCRIPTION_LENGTH = 10
+_MAX_DESCRIPTION_LENGTH = 500
+
+
+def _check_description_too_long(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 25: tool_description_too_long — tool description over 500 characters.
+
+    A description longer than 500 characters adds significant token overhead before
+    any user message is processed. At ~4 chars per token, a 500-char description costs
+    ~125 tokens. Across 20 tools, that's 2,500 tokens of description overhead alone.
+
+    Good descriptions are informative but concise — enough to distinguish the tool and
+    guide parameter use, not a full API reference. If a description needs more than
+    500 characters, consider splitting the tool or moving detail to parameter descriptions.
+
+    Only fires when a description IS present and not empty (checks 5/6 passed).
+    """
+    desc = _get_tool_description(obj, fmt)
+    if desc is None or not isinstance(desc, str):
+        return None
+    stripped = desc.strip()
+    if not stripped:
+        return None
+    if len(stripped) > _MAX_DESCRIPTION_LENGTH:
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="tool_description_too_long",
+            message=(
+                "description is {n} characters — exceeds {max}-character limit. "
+                "Long descriptions add ~{tokens} tokens of overhead per tool call."
+            ).format(
+                n=len(stripped),
+                max=_MAX_DESCRIPTION_LENGTH,
+                tokens=len(stripped) // 4,
+            ),
+        )
+    return None
 
 
 def _check_description_too_short(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
@@ -975,6 +1012,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 20: tool_description_too_short
         issue = _check_description_too_short(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 25: tool_description_too_long
+        issue = _check_description_too_long(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 
