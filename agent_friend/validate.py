@@ -2478,6 +2478,67 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 156: description_has_changelog_entry
+# ---------------------------------------------------------------------------
+
+_CHANGELOG_RE = re.compile(
+    r"(?:added|introduced|available|deprecated|removed|changed|updated|fixed)"
+    r"\s+(?:in|since|as\s+of)\s+(?:version\s+)?v?\d",
+    re.IGNORECASE,
+)
+
+
+def _check_description_has_changelog_entry(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 156: description_has_changelog_entry — a description contains
+    changelog or version-history language such as "Added in v2.0" or
+    "Deprecated since version 3".
+
+    Versioning belongs in release notes, not in tool schemas.  LLMs have no
+    use for changelog entries and they waste tokens.
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    tool_desc = _get_tool_description(obj, fmt) or ""
+    if _CHANGELOG_RE.search(tool_desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_changelog_entry",
+            message=(
+                "tool description contains changelog/version-history language "
+                "(e.g. 'Added in v2.0'); versioning belongs in release notes, "
+                "not in schema descriptions."
+            ),
+        ))
+
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        return issues
+    for pname, pschema in props.items():
+        if not isinstance(pschema, dict):
+            continue
+        desc = pschema.get("description", "")
+        if isinstance(desc, str) and _CHANGELOG_RE.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_changelog_entry",
+                message=(
+                    "param '{pname}' description contains changelog/version-history "
+                    "language; versioning belongs in release notes, not in schema "
+                    "descriptions.".format(pname=pname)
+                ),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 155: enum_string_has_whitespace
 # ---------------------------------------------------------------------------
 
@@ -9482,6 +9543,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 155: enum_string_has_whitespace
         issues.extend(_check_enum_string_has_whitespace(name, schema))
+
+        # Check 156: description_has_changelog_entry
+        issues.extend(_check_description_has_changelog_entry(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

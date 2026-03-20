@@ -148,6 +148,7 @@ from agent_friend.validate import (
     _check_schema_has_comment_field,
     _check_description_has_windows_path,
     _check_enum_string_has_whitespace,
+    _check_description_has_changelog_entry,
 )
 
 
@@ -13029,4 +13030,53 @@ class TestEnumStringHasWhitespace:
         # internal spaces are allowed (e.g. "in progress")
         schema = {"properties": {"status": {"enum": ["in progress", "done"]}}}
         issues = _check_enum_string_has_whitespace("tool", schema)
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 156: description_has_changelog_entry
+# ---------------------------------------------------------------------------
+
+class TestDescriptionHasChangelogEntry:
+    def test_added_in_v_fires(self):
+        obj = {"name": "search", "description": "Search files. Added in v2.0."}
+        issues = _check_description_has_changelog_entry("search", obj, {}, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_changelog_entry"
+        assert issues[0].severity == "warn"
+
+    def test_deprecated_since_fires(self):
+        obj = {"name": "old_search", "description": "Deprecated since v1.5 — use search_v2 instead."}
+        issues = _check_description_has_changelog_entry("old_search", obj, {}, "mcp")
+        assert len(issues) == 1
+
+    def test_available_since_fires(self):
+        obj = {"name": "tool", "description": "Available since version 3.0 only."}
+        issues = _check_description_has_changelog_entry("tool", obj, {}, "mcp")
+        assert len(issues) == 1
+
+    def test_param_desc_fires(self):
+        obj = {"name": "tool"}
+        schema = {
+            "properties": {
+                "fmt": {"type": "string", "description": "Output format. Changed in v2.1."}
+            }
+        }
+        issues = _check_description_has_changelog_entry("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_no_changelog_passes(self):
+        obj = {"name": "search", "description": "Search for files matching a pattern."}
+        issues = _check_description_has_changelog_entry("search", obj, {}, "mcp")
+        assert issues == []
+
+    def test_empty_desc_passes(self):
+        obj = {"name": "tool"}
+        issues = _check_description_has_changelog_entry("tool", obj, {}, "mcp")
+        assert issues == []
+
+    def test_version_number_alone_passes(self):
+        # "v2.0" alone shouldn't fire without the preceding keyword
+        obj = {"name": "tool", "description": "Use API v2.0 format."}
+        issues = _check_description_has_changelog_entry("tool", obj, {}, "mcp")
         assert issues == []
