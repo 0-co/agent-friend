@@ -1684,6 +1684,76 @@ def _check_number_type_for_integer(tool_name: str, schema: Dict[str, Any]) -> Li
     return issues
 
 
+def _check_array_items_object_no_properties(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 41: array_items_object_no_properties — array items typed as object but no 'properties' defined.
+
+    Check 12 (``nested_objects_have_properties``) catches top-level params that
+    are ``type: "object"`` with no ``properties``.  This check extends that
+    coverage to array items: when an array param's ``items`` schema declares
+    ``type: "object"`` but provides no ``properties``, the model knows each
+    element should be an object but has no idea what fields that object should
+    contain.
+
+    Without ``properties``, the model must hallucinate the object structure
+    based on the param name, description, and training data — none of which
+    are machine-readable contracts.  This leads to incorrectly shaped objects,
+    missing required fields, and failed API calls.
+
+    Fires when:
+
+    * A top-level param is ``type: "array"``, AND
+    * Its ``items`` schema exists, AND
+    * ``items.type`` is ``"object"``, AND
+    * ``items`` has no ``properties`` field.
+
+    Examples::
+
+        # flagged — array of objects with no defined structure
+        "scopes":      {"type": "array", "items": {"type": "object"}}
+        "headers":     {"type": "array", "items": {"type": "object", "description": "..."}}
+        "operations":  {"type": "array", "items": {"type": "object"}}
+
+        # correct — model knows what each object should contain
+        "scopes":  {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "value": {"type": "string", "description": "Scope identifier"},
+                    "description": {"type": "string"}
+                },
+                "required": ["value"]
+            }
+        }
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "array":
+            continue
+        items = param_schema.get("items")
+        if not isinstance(items, dict):
+            continue
+        if items.get("type") == "object" and "properties" not in items:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="array_items_object_no_properties",
+                message=(
+                    "array param '{param}' items are typed as object but have no 'properties' defined; "
+                    "models cannot know what fields each object should contain — "
+                    "add a 'properties' schema to the items definition"
+                ).format(param=param_name),
+            ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1966,6 +2036,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 40: number_type_for_integer
         issues.extend(_check_number_type_for_integer(name, schema))
+
+        # Check 41: array_items_object_no_properties
+        issues.extend(_check_array_items_object_no_properties(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

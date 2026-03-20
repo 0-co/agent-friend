@@ -5046,3 +5046,124 @@ class TestCheckNumberTypeForInteger:
         assert len(int_issues) == 2
         params = {i.message.split("'")[1] for i in int_issues}
         assert params == {"limit", "page"}
+
+
+class TestCheckArrayItemsObjectNoProperties:
+    """Tests for Check 41: array_items_object_no_properties."""
+
+    def _make_schema(self, props):
+        return {"type": "object", "properties": props}
+
+    def test_array_items_object_no_props_fires(self):
+        """Array param whose items are type:object with no properties should fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "scopes": {"type": "array", "items": {"type": "object"}}
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "array_items_object_no_properties"
+        assert "scopes" in issues[0].message
+
+    def test_array_items_object_with_description_fires(self):
+        """Items with type:object and description but no properties should still fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "headers": {"type": "array", "items": {"type": "object", "description": "A header object."}}
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_array_items_object_with_properties_no_fire(self):
+        """Array items with both type:object and properties defined should not fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "scopes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "string"},
+                        "description": {"type": "string"}
+                    }
+                }
+            }
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_non_array_param_no_fire(self):
+        """Non-array params should not fire even if type:object."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "config": {"type": "object"}
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_array_items_string_no_fire(self):
+        """Array of strings (items.type != object) should not fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "tags": {"type": "array", "items": {"type": "string"}}
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_array_no_items_no_fire(self):
+        """Array with no items schema should not fire (caught by Check 17)."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "items": {"type": "array"}
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_multiple_params_fire_independently(self):
+        """Multiple array params with unstructured object items each fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "scopes": {"type": "array", "items": {"type": "object"}},
+            "headers": {"type": "array", "items": {"type": "object"}},
+        })
+        issues = _check_array_items_object_no_properties("my_tool", schema)
+        assert len(issues) == 2
+
+    def test_no_properties_in_schema_no_fire(self):
+        """Schema with no top-level properties should not fire."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        issues = _check_array_items_object_no_properties("my_tool", {})
+        assert len(issues) == 0
+
+    def test_tool_name_set_correctly(self):
+        """Issue tool attribute should match the tool name passed."""
+        from agent_friend.validate import _check_array_items_object_no_properties
+        schema = self._make_schema({
+            "dependencies": {"type": "array", "items": {"type": "object"}}
+        })
+        issues = _check_array_items_object_no_properties("create_action", schema)
+        assert issues[0].tool == "create_action"
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        from agent_friend.validate import validate_tools
+        tools = [{
+            "name": "create_resource_server",
+            "description": "Create a resource server with scopes.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "identifier": {"type": "string", "description": "The unique identifier."},
+                    "scopes": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "List of scopes."
+                    },
+                },
+                "required": ["identifier"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        obj_issues = [i for i in issues if i.check == "array_items_object_no_properties"]
+        assert len(obj_issues) == 1
+        assert "scopes" in obj_issues[0].message
