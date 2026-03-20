@@ -80,6 +80,7 @@ from agent_friend.validate import (
     _check_default_violates_minimum,
     _check_param_name_single_char,
     _check_allof_single_schema,
+    _check_enum_has_duplicates,
 )
 
 
@@ -9867,4 +9868,51 @@ class TestAllofSingleSchema:
 
     def test_empty_schema_passes(self):
         issues = _check_allof_single_schema("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for Check 88: enum_has_duplicates
+# ---------------------------------------------------------------------------
+
+
+class TestEnumHasDuplicates:
+    """Tests for Check 88: enum_has_duplicates."""
+
+    def _schema(self, param, enum_vals):
+        return {
+            "type": "object",
+            "properties": {
+                param: {"type": "string", "enum": enum_vals, "description": "Status."},
+            },
+        }
+
+    def test_duplicate_fires(self):
+        issues = _check_enum_has_duplicates("tool", self._schema("status", ["active", "inactive", "active"]))
+        assert len(issues) == 1
+        assert issues[0].check == "enum_has_duplicates"
+        assert issues[0].severity == "error"
+
+    def test_multiple_duplicates_one_issue(self):
+        issues = _check_enum_has_duplicates("tool", self._schema("s", ["a", "b", "a", "b", "c"]))
+        assert len(issues) == 1
+
+    def test_unique_values_passes(self):
+        issues = _check_enum_has_duplicates("tool", self._schema("status", ["active", "inactive", "pending"]))
+        assert issues == []
+
+    def test_no_enum_passes(self):
+        schema = {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "Name."}},
+        }
+        issues = _check_enum_has_duplicates("tool", schema)
+        assert issues == []
+
+    def test_no_properties_passes(self):
+        issues = _check_enum_has_duplicates("tool", {"type": "object"})
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_enum_has_duplicates("tool", {})
         assert issues == []

@@ -2979,6 +2979,62 @@ def _check_allof_single_schema(
 
 
 # ---------------------------------------------------------------------------
+# Check 88: enum_has_duplicates
+# ---------------------------------------------------------------------------
+
+
+def _check_enum_has_duplicates(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 88: enum_has_duplicates — a parameter's ``enum`` array contains
+    duplicate values.
+
+    Duplicate values in an ``enum`` are a schema correctness bug.  JSON Schema
+    (draft-06+) states that enum values SHOULD be unique.  Duplicates most
+    likely result from copy-paste errors or merging lists without deduplication::
+
+        # bad — 'active' appears twice
+        {"enum": ["active", "inactive", "active"]}
+
+        # good — unique values
+        {"enum": ["active", "inactive"]}
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        enum_vals = param_schema.get("enum")
+        if not isinstance(enum_vals, list):
+            continue
+        # Convert to hashable form to detect duplicates
+        try:
+            hashable = [json.dumps(v, sort_keys=True) if isinstance(v, (dict, list)) else v
+                        for v in enum_vals]
+        except (TypeError, ValueError):
+            continue
+        if len(hashable) != len(set(map(str, hashable))):
+            from collections import Counter
+            counts = Counter(str(v) for v in hashable)
+            dupes = [v for v, c in counts.items() if c > 1]
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="enum_has_duplicates",
+                message=(
+                    "param '{param}' enum has duplicate values: {dupes}."
+                ).format(param=param_name, dupes=dupes),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5549,6 +5605,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 87: allof_single_schema
         issues.extend(_check_allof_single_schema(name, schema))
+
+        # Check 88: enum_has_duplicates
+        issues.extend(_check_enum_has_duplicates(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
