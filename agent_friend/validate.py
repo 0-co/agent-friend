@@ -2478,6 +2478,82 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 106: description_ends_abruptly
+# ---------------------------------------------------------------------------
+
+
+def _check_description_ends_abruptly(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str = "mcp",
+) -> List[Issue]:
+    """Check 106: description_ends_abruptly — a tool or param description
+    ends with a punctuation character that suggests the text was cut off
+    (trailing comma, colon, semi-colon, or conjunction word).
+
+    These patterns indicate the description was truncated before being
+    published::
+
+        # bad — description appears cut off
+        "description": "Get user data including name, email, and"
+        "description": "Supported formats: json, xml,"
+
+        # good — complete sentence
+        "description": "Get user data including name and email."
+
+    Severity: ``warn``.
+    """
+    issues = []
+
+    def _is_abrupt(text: str) -> bool:
+        if not isinstance(text, str):
+            return False
+        t = text.rstrip()
+        if not t:
+            return False
+        # Ends with comma, colon, or semi-colon
+        if t[-1] in (",", ";", ":"):
+            return True
+        # Ends with conjunction word
+        words = t.lower().split()
+        if words and words[-1] in ("and", "or", "but", "the", "a", "an", "for",
+                                    "with", "of", "in", "to", "by", "from"):
+            return True
+        return False
+
+    desc = _get_tool_description(obj, fmt)
+    if _is_abrupt(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_ends_abruptly",
+            message=(
+                "tool '{name}' description appears to end abruptly "
+                "(ends with '{ending}') — check for truncation."
+            ).format(name=tool_name, ending=(desc or "").rstrip()[-10:].strip()),
+        ))
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if _is_abrupt(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_ends_abruptly",
+                    message=(
+                        "param '{param}' description appears to end abruptly "
+                        "— check for truncation."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 105: schema_has_definitions
 # ---------------------------------------------------------------------------
 
@@ -6483,6 +6559,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_schema_has_definitions(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
+
+        # Check 106: description_ends_abruptly
+        issues.extend(_check_description_ends_abruptly(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

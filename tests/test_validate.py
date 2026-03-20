@@ -98,6 +98,7 @@ from agent_friend.validate import (
     _check_string_minlength_zero,
     _check_enum_values_inconsistent_case,
     _check_schema_has_definitions,
+    _check_description_ends_abruptly,
 )
 
 
@@ -10755,3 +10756,53 @@ class TestSchemaHasDefinitions:
     def test_empty_obj_passes(self):
         issue = _check_schema_has_definitions("tool", {}, "mcp")
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 106: description_ends_abruptly
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionEndsAbruptly:
+    """Tests for _check_description_ends_abruptly (Check 106)."""
+
+    @staticmethod
+    def _mcp_obj(desc: str, params: dict = None) -> tuple:
+        props = params or {}
+        obj = {"description": desc, "inputSchema": {"type": "object", "properties": props}}
+        schema = {"type": "object", "properties": props}
+        return obj, schema
+
+    def test_trailing_comma_fires(self):
+        obj, schema = self._mcp_obj("Supported formats: json, xml,")
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_ends_abruptly"
+
+    def test_trailing_colon_fires(self):
+        obj, schema = self._mcp_obj("Available options:")
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_ends_with_and_fires(self):
+        obj, schema = self._mcp_obj("Get user data including name, email, and")
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_param_trailing_comma_fires(self):
+        obj, schema = self._mcp_obj(
+            "Get data.",
+            {"mode": {"type": "string", "description": "Mode: fast, slow,"}},
+        )
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_complete_description_passes(self):
+        obj, schema = self._mcp_obj("Get paginated user data.")
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        obj, schema = self._mcp_obj("")
+        issues = _check_description_ends_abruptly("tool", obj, schema, "mcp")
+        assert issues == []
