@@ -2429,6 +2429,82 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 98: description_says_see_docs
+# ---------------------------------------------------------------------------
+
+_SEE_DOCS_RE = re.compile(
+    r"\bsee\s+(the\s+)?docs?\b"
+    r"|\bsee\s+(the\s+)?documentation\b"
+    r"|\bsee\s+(the\s+)?readme\b"
+    r"|\brefer\s+to\s+(the\s+)?docs?\b"
+    r"|\brefer\s+to\s+(the\s+)?documentation\b"
+    r"|\bcheck\s+(the\s+)?docs?\b"
+    r"|\bcheck\s+(the\s+)?documentation\b"
+    r"|\bfor\s+details?,?\s+see\b"
+    r"|\bmore\s+info(rmation)?\s+at\b",
+    re.IGNORECASE,
+)
+
+
+def _check_description_says_see_docs(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str = "mcp",
+) -> List[Issue]:
+    """Check 98: description_says_see_docs — a tool or param description
+    defers to external documentation ("see docs", "see the documentation",
+    "refer to README", etc.) instead of describing the parameter inline.
+
+    LLMs cannot follow documentation links at inference time.  Descriptions
+    that say "see docs" provide no actionable information.  The relevant
+    details must be in the schema itself::
+
+        # bad — LLM cannot access the docs
+        "description": "Filter options. See the documentation for details."
+
+        # good — self-contained description
+        "description": "Comma-separated list of status filters (open, closed, draft)."
+
+    Severity: ``warn``.
+    """
+    issues = []
+
+    # Tool description
+    desc = _get_tool_description(obj, fmt)
+    if isinstance(desc, str) and _SEE_DOCS_RE.search(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_says_see_docs",
+            message=(
+                "tool '{name}' description defers to external docs — "
+                "LLMs cannot follow links at inference time; put the "
+                "relevant details in the description."
+            ).format(name=tool_name),
+        ))
+
+    # Param descriptions
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if isinstance(pdesc, str) and _SEE_DOCS_RE.search(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_says_see_docs",
+                    message=(
+                        "param '{param}' description defers to external docs "
+                        "— put the relevant details inline."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 97: array_max_items_zero
 # ---------------------------------------------------------------------------
 
@@ -5965,6 +6041,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 97: array_max_items_zero
         issues.extend(_check_array_max_items_zero(name, schema))
+
+        # Check 98: description_says_see_docs
+        issues.extend(_check_description_says_see_docs(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

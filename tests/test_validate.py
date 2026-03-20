@@ -90,6 +90,7 @@ from agent_friend.validate import (
     _check_description_has_version_info,
     _check_description_has_todo_marker,
     _check_array_max_items_zero,
+    _check_description_says_see_docs,
 )
 
 
@@ -10365,4 +10366,55 @@ class TestArrayMaxItemsZero:
 
     def test_empty_schema_passes(self):
         issues = _check_array_max_items_zero("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 98: description_says_see_docs
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionSaysSeeDocs:
+    """Tests for _check_description_says_see_docs (Check 98)."""
+
+    @staticmethod
+    def _mcp_obj(desc: str, params: dict = None) -> tuple:
+        props = params or {}
+        obj = {"description": desc, "inputSchema": {"type": "object", "properties": props}}
+        schema = {"type": "object", "properties": props}
+        return obj, schema
+
+    def test_see_docs_in_tool_fires(self):
+        obj, schema = self._mcp_obj("Filter options. See the documentation for details.")
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_says_see_docs"
+        assert issues[0].severity == "warn"
+
+    def test_see_readme_fires(self):
+        obj, schema = self._mcp_obj("Configure the client. See the README.")
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_refer_to_docs_fires(self):
+        obj, schema = self._mcp_obj("Refer to the docs for accepted formats.")
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_param_see_docs_fires(self):
+        obj, schema = self._mcp_obj(
+            "Create a record.",
+            {"format": {"type": "string", "description": "Output format. Check the docs."}},
+        )
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_clean_description_passes(self):
+        obj, schema = self._mcp_obj("Get paginated user data sorted by created date.")
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        obj, schema = self._mcp_obj("")
+        issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
         assert issues == []
