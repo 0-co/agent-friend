@@ -1845,6 +1845,69 @@ def _check_tool_description_just_the_name(name: str, obj: Dict[str, Any], fmt: s
     return None
 
 
+# ---------------------------------------------------------------------------
+# Check 43: string_comma_separated
+# ---------------------------------------------------------------------------
+
+_COMMA_SEP_RE = re.compile(
+    r'comma[- ]separated|comma[- ]delimited|pipe[- ]separated'
+    r'|newline[- ]separated|space[- ]separated',
+    re.IGNORECASE,
+)
+
+
+def _check_string_comma_separated(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 43: string_comma_separated — param description says "comma-separated" but type is string.
+
+    When a description says the param is "comma-separated", the value is
+    actually a list — and JSON Schema has native support for lists via
+    ``type: "array"``.  Using a string forces the model to manually construct
+    a delimited string, which is error-prone and forfeits schema-level
+    validation of individual items.
+
+    This check fires when:
+
+    * ``type`` is ``"string"``
+    * No ``enum`` field (enum strings are intentional)
+    * Description matches: comma-separated / comma-delimited / pipe-separated
+      / newline-separated / space-separated
+
+    The fix is to change the type to ``"array"`` and add an ``items`` schema.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        ptype = param_schema.get("type")
+        if ptype != "string":
+            continue
+        if "enum" in param_schema:
+            continue
+        desc = param_schema.get("description") or ""
+        if not isinstance(desc, str):
+            continue
+        if not _COMMA_SEP_RE.search(desc):
+            continue
+
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="string_comma_separated",
+            message=(
+                "param '{param}' description says values are delimited "
+                "(e.g. 'comma-separated') but type is 'string'; "
+                "use type: 'array' with an items schema so each element "
+                "is validated individually"
+            ).format(param=param_name),
+        ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -2135,6 +2198,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 41: array_items_object_no_properties
         issues.extend(_check_array_items_object_no_properties(name, schema))
+
+        # Check 43: string_comma_separated
+        issues.extend(_check_string_comma_separated(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

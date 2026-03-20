@@ -5289,3 +5289,101 @@ class TestCheckToolDescriptionJustTheName:
         assert "approve_merge_request" in flagged
         assert "delete_content_type" in flagged
         assert "get_file" not in flagged
+
+
+# ---------------------------------------------------------------------------
+# Check 43: string_comma_separated
+# ---------------------------------------------------------------------------
+
+class TestCheckStringCommaSeparated:
+    """Tests for Check 43: string_comma_separated."""
+
+    def _make_tool(self, pname, ptype, desc, **extra):
+        schema = {"type": "object", "properties": {pname: {"type": ptype, "description": desc, **extra}}}
+        return {"name": "my_tool", "description": "Does something.", "inputSchema": schema}
+
+    def test_comma_separated_string_flagged(self):
+        tools = [self._make_tool("airports", "string", "Comma-separated airport ICAO codes")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_comma_delimited_flagged(self):
+        tools = [self._make_tool("ids", "string", "Comma-delimited list of IDs to fetch")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
+
+    def test_pipe_separated_flagged(self):
+        tools = [self._make_tool("tags", "string", "Pipe-separated list of tag names")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
+
+    def test_newline_separated_flagged(self):
+        tools = [self._make_tool("lines", "string", "Newline-separated list of values")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
+
+    def test_space_separated_flagged(self):
+        tools = [self._make_tool("words", "string", "Space-separated list of search terms")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
+
+    def test_array_type_not_flagged(self):
+        """Already an array — no issue."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "airports": {"type": "array", "description": "Comma-separated airport codes", "items": {"type": "string"}},
+            },
+        }
+        tools = [{"name": "t", "description": "x" * 25, "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 0
+
+    def test_enum_string_not_flagged(self):
+        """String with enum — intentional value list, not a delimited string."""
+        tools = [self._make_tool("mode", "string", "Comma-separated values: a, b, c", enum=["a", "b", "c"])]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 0
+
+    def test_non_delimited_string_not_flagged(self):
+        """Normal string description — no match."""
+        tools = [self._make_tool("query", "string", "The search query to send to the API")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 0
+
+    def test_integer_type_not_flagged(self):
+        """Description mentions comma-separated but type is integer — not applicable."""
+        tools = [self._make_tool("count", "integer", "Comma-separated count of items")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 0
+
+    def test_multiple_params_multiple_issues(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "airports": {"type": "string", "description": "Comma-separated airport codes"},
+                "airlines": {"type": "string", "description": "Comma-separated airline names"},
+                "query": {"type": "string", "description": "The main search query"},
+            },
+        }
+        tools = [{"name": "search", "description": "Search for flights.", "inputSchema": schema}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 2
+
+    def test_case_insensitive(self):
+        """Regex should match regardless of case."""
+        tools = [self._make_tool("tags", "string", "COMMA-SEPARATED list of tags")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "string_comma_separated"]
+        assert len(hits) == 1
