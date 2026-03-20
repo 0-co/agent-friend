@@ -2478,6 +2478,45 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 128: schema_type_not_object
+# ---------------------------------------------------------------------------
+
+
+def _check_schema_type_not_object(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> Optional[Issue]:
+    """Check 128: schema_type_not_object — the tool's ``inputSchema`` has a
+    ``type`` field set to something other than ``"object"``.
+
+    MCP tool input schemas must be JSON Schema objects (``type: "object"``).
+    Setting the type to ``"string"``, ``"array"``, ``"integer"``, etc. is
+    invalid — the schema describes the entire set of parameters, not a single
+    value::
+
+        # bad — inputSchema type must be "object"
+        {"type": "string", "properties": {...}}
+        {"type": "array", "items": {...}}
+
+        # good — inputSchema is always an object
+        {"type": "object", "properties": {...}}
+
+    Severity: ``error``.
+    """
+    stype = schema.get("type")
+    if stype is not None and stype != "object":
+        return Issue(
+            tool=tool_name,
+            severity="error",
+            check="schema_type_not_object",
+            message=(
+                "tool '{name}' inputSchema has type '{t}' — tool input "
+                "schemas must have type 'object'."
+            ).format(name=tool_name, t=stype),
+        )
+    return None
+
+
 # Check 127: param_name_has_space
 # ---------------------------------------------------------------------------
 
@@ -7771,6 +7810,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 127: param_name_has_space
         issues.extend(_check_param_name_has_space(name, schema))
+
+        # Check 128: schema_type_not_object
+        issue = _check_schema_type_not_object(name, schema)
+        if issue is not None:
+            issues.append(issue)
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

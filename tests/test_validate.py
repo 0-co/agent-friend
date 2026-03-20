@@ -120,6 +120,7 @@ from agent_friend.validate import (
     _check_param_name_is_number,
     _check_name_ends_with_underscore,
     _check_param_name_has_space,
+    _check_schema_type_not_object,
 )
 
 
@@ -11787,3 +11788,45 @@ class TestParamNameHasSpace:
     def test_empty_schema_passes(self):
         issues = _check_param_name_has_space("tool", {})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 128: schema_type_not_object
+# ---------------------------------------------------------------------------
+
+
+class TestSchemaTypeNotObject:
+    """Tests for _check_schema_type_not_object (Check 128)."""
+
+    def test_string_type_fires(self):
+        issue = _check_schema_type_not_object(
+            "tool", {"type": "string", "properties": {"x": {"type": "string"}}}
+        )
+        assert issue is not None
+        assert issue.check == "schema_type_not_object"
+        assert issue.severity == "error"
+        assert "string" in issue.message
+
+    def test_array_type_fires(self):
+        issue = _check_schema_type_not_object("tool", {"type": "array"})
+        assert issue is not None
+
+    def test_integer_type_fires(self):
+        issue = _check_schema_type_not_object("tool", {"type": "integer"})
+        assert issue is not None
+
+    def test_object_type_passes(self):
+        issue = _check_schema_type_not_object(
+            "tool", {"type": "object", "properties": {"x": {"type": "string"}}}
+        )
+        assert issue is None
+
+    def test_no_type_passes(self):
+        issue = _check_schema_type_not_object(
+            "tool", {"properties": {"x": {"type": "string"}}}
+        )
+        assert issue is None
+
+    def test_empty_schema_passes(self):
+        issue = _check_schema_type_not_object("tool", {})
+        assert issue is None
