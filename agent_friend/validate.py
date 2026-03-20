@@ -2545,6 +2545,71 @@ def _check_description_lists_enum_values(
 
 
 # ---------------------------------------------------------------------------
+# Check 81: param_description_says_ignored
+# ---------------------------------------------------------------------------
+
+_SAYS_IGNORED_PATTERNS = _re.compile(
+    r"\bignored\b"                           # this field is ignored
+    r"|\bnot used\b"                         # not used
+    r"|\bnot currently used\b"              # not currently used
+    r"|\bcurrently unused\b"                 # currently unused
+    r"|\bunused\b"                           # unused
+    r"|\breserved for future\b"             # reserved for future use
+    r"|\breserved\b"                         # reserved
+    r"|\bno[\-\s]op\b"                       # no-op / noop
+    r"|\bdeprecated,? (?:use|replaced)\b",  # deprecated, use X instead
+    _re.IGNORECASE,
+)
+
+
+def _check_param_description_says_ignored(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 81: param_description_says_ignored — a parameter description
+    says the parameter is ignored, unused, reserved, or a no-op.
+
+    If a parameter is truly unused, it should be removed from the schema.
+    Including dead parameters:
+
+    * Wastes tokens on every call that sends the schema.
+    * Confuses models into passing values that have no effect.
+    * Makes the schema harder to understand.
+
+    Common patterns::
+
+        # should be removed
+        {"name": "format", "description": "Ignored. Always returns JSON."}
+        {"name": "version", "description": "Reserved for future use."}
+        {"name": "legacy_id", "description": "Not used. Kept for backwards compatibility."}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        desc = param_schema.get("description", "")
+        if not isinstance(desc, str) or not desc:
+            continue
+        if _SAYS_IGNORED_PATTERNS.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_description_says_ignored",
+                message=(
+                    "param '{param}' description says it is ignored/unused/"
+                    "reserved; remove unused params from the schema."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5094,6 +5159,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 80: description_lists_enum_values
         issues.extend(_check_description_lists_enum_values(name, schema))
+
+        # Check 81: param_description_says_ignored
+        issues.extend(_check_param_description_says_ignored(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.

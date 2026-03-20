@@ -73,6 +73,7 @@ from agent_friend.validate import (
     _check_param_name_uses_hyphen,
     _check_description_has_example,
     _check_description_lists_enum_values,
+    _check_param_description_says_ignored,
 )
 
 
@@ -9385,3 +9386,62 @@ class TestDescriptionListsEnumValues:
         }
         issues = _check_description_lists_enum_values("tool", schema)
         assert len(issues) == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests for Check 81: param_description_says_ignored
+# ---------------------------------------------------------------------------
+
+
+class TestParamDescriptionSaysIgnored:
+    """Tests for Check 81: param_description_says_ignored."""
+
+    def _schema(self, param, desc):
+        return {
+            "type": "object",
+            "properties": {
+                param: {"type": "string", "description": desc},
+            },
+        }
+
+    def test_ignored_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("format", "Ignored. Always returns JSON."))
+        assert len(issues) == 1
+        assert issues[0].check == "param_description_says_ignored"
+        assert issues[0].severity == "warn"
+
+    def test_not_used_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("v", "Not used. Kept for backwards compatibility."))
+        assert len(issues) == 1
+
+    def test_currently_unused_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("legacy", "Currently unused field."))
+        assert len(issues) == 1
+
+    def test_reserved_for_future_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("extra", "Reserved for future use."))
+        assert len(issues) == 1
+
+    def test_reserved_alone_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("flags", "Reserved."))
+        assert len(issues) == 1
+
+    def test_unused_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("debug", "Unused debug field."))
+        assert len(issues) == 1
+
+    def test_noop_fires(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("mode", "No-op. Has no effect."))
+        assert len(issues) == 1
+
+    def test_clean_description_passes(self):
+        issues = _check_param_description_says_ignored("tool", self._schema("query", "Search query to execute."))
+        assert issues == []
+
+    def test_no_properties_passes(self):
+        issues = _check_param_description_says_ignored("tool", {"type": "object"})
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_description_says_ignored("tool", {})
+        assert issues == []
