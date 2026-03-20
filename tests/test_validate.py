@@ -46,6 +46,7 @@ from agent_friend.validate import (
     _check_boolean_default_missing,
     _check_enum_default_missing,
     _check_param_description_says_optional,
+    _check_required_param_has_default,
 )
 
 
@@ -6832,3 +6833,164 @@ class TestCheck54OptionalStringNoMinlength:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "optional_string_no_minlength"]
         assert len(hits) == 1
+
+
+class TestCheck55RequiredParamHasDefault:
+    """Tests for Check 55: required_param_has_default."""
+
+    @staticmethod
+    def _make_tool(properties=None, required=None):
+        tool = {
+            "name": "test_tool",
+            "description": "Does something.",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        if required is not None:
+            tool["inputSchema"]["required"] = required
+        return tool
+
+    def test_fires_on_required_string_with_default(self):
+        """Required string param with a default fires."""
+        tools = [self._make_tool(
+            properties={"model": {"type": "string", "default": "gpt-4o", "description": "Model ID."}},
+            required=["model"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+        assert "model" in hits[0].message
+
+    def test_fires_on_required_integer_with_default(self):
+        """Required integer param with a non-null default fires."""
+        tools = [self._make_tool(
+            properties={"limit": {"type": "integer", "default": 10, "description": "Max results."}},
+            required=["limit"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+        assert "limit" in hits[0].message
+
+    def test_fires_on_required_boolean_with_default(self):
+        """Required boolean param with a default fires."""
+        tools = [self._make_tool(
+            properties={"verbose": {"type": "boolean", "default": False, "description": "Enable verbose output."}},
+            required=["verbose"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+
+    def test_fires_on_multiple_required_with_defaults(self):
+        """Multiple required params with defaults each fire once."""
+        tools = [self._make_tool(
+            properties={
+                "model": {"type": "string", "default": "gpt-4o", "description": "Model."},
+                "format": {"type": "string", "default": "json", "description": "Format."},
+                "query": {"type": "string", "description": "Search query."},
+            },
+            required=["model", "format", "query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 2
+        param_names = {h.message.split("'")[1] for h in hits}
+        assert "model" in param_names
+        assert "format" in param_names
+
+    def test_no_fire_for_optional_param_with_default(self):
+        """Optional param with a default does not fire (correct schema)."""
+        tools = [self._make_tool(
+            properties={"format": {"type": "string", "default": "json", "description": "Output format."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_required_param_no_default(self):
+        """Required param with no default does not fire (correct schema)."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Search query."}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_null_default(self):
+        """Required param with default: null does not fire (null is an edge case)."""
+        tools = [self._make_tool(
+            properties={"filter": {"type": "string", "default": None, "description": "Filter expression."}},
+            required=["filter"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_no_required_array(self):
+        """Tool with no required array has no required params — does not fire."""
+        tools = [self._make_tool(
+            properties={"model": {"type": "string", "default": "gpt-4o", "description": "Model ID."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_empty_required_array(self):
+        """Tool with required: [] has no required params — does not fire."""
+        tools = [self._make_tool(
+            properties={"model": {"type": "string", "default": "gpt-4o", "description": "Model ID."}},
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 0
+
+    def test_fires_with_string_default_zero(self):
+        """Default value of 0 (integer zero) fires — it is not null."""
+        tools = [self._make_tool(
+            properties={"offset": {"type": "integer", "default": 0, "description": "Start offset."}},
+            required=["offset"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+
+    def test_fires_with_false_default(self):
+        """Default value of False fires — it is not null."""
+        tools = [self._make_tool(
+            properties={"enabled": {"type": "boolean", "default": False, "description": "Enable flag."}},
+            required=["enabled"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+
+    def test_issue_severity_is_warn(self):
+        """Severity is warn, not error."""
+        tools = [self._make_tool(
+            properties={"model": {"type": "string", "default": "gpt-4o", "description": "Model ID."}},
+            required=["model"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_param_has_default"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_direct_function_fires(self):
+        """Direct function call fires for required param with default."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "model": {"type": "string", "default": "claude-3", "description": "Model."},
+            },
+            "required": ["model"],
+        }
+        issues = _check_required_param_has_default("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "required_param_has_default"
+        assert "model" in issues[0].message

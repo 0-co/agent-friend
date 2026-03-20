@@ -1520,8 +1520,94 @@ def _check_param_description_says_optional(tool_name: str, schema: Dict[str, Any
 
 
 # ---------------------------------------------------------------------------
-# Check 51: range_described_not_constrained
+# Check 55: required_param_has_default
 # ---------------------------------------------------------------------------
+
+
+def _check_required_param_has_default(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 55: required_param_has_default — required param also declares a ``default``.
+
+    In JSON Schema the ``required`` array means the caller **must** supply the
+    parameter — the server will reject the call if it is absent.  The
+    ``default`` keyword means "use this value when the caller omits the
+    parameter."  These two signals contradict each other: if the caller must
+    always provide the parameter, the default can never be applied; if the
+    default is meaningful, the parameter should be optional.
+
+    This contradiction confuses LLMs: the model sees ``required`` and infers it
+    must supply a value, but also sees ``default: "gpt-4o"`` and may assume it
+    can omit the param.  The resulting behaviour is unpredictable.
+
+    Common causes:
+
+    * Copy-paste from optional params where the ``default`` made sense.
+    * Required + default used as documentation (showing the typical value).
+    * Lazy schema migration where optionality changed but ``required`` was not
+      updated.
+
+    Fires when:
+
+    * Param is listed in the tool's ``required`` array, AND
+    * Param schema contains a ``"default"`` key (any non-null value)
+
+    Does **not** fire when the ``default`` value is ``null`` — a ``null``
+    default on a required param is unusual but may indicate nullability rather
+    than optionality.
+
+    Examples::
+
+        # flagged — required param with a contradictory default
+        properties:
+          model:    {type: string, default: "gpt-4o"}
+          format:   {type: string, default: "json"}
+        required: [model, format]
+
+        # correct — required param with no default (caller always provides it)
+        properties:
+          model:    {type: string, description: "Model ID to use"}
+        required: [model]
+
+        # correct — optional param with a default
+        properties:
+          format:   {type: string, default: "json", description: "Output format"}
+        required: []   # format is optional, default applies when omitted
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+    if not required:
+        return issues
+
+    for param_name in required:
+        param_schema = properties.get(param_name)
+        if not isinstance(param_schema, dict):
+            continue
+        if "default" not in param_schema:
+            continue
+        default_value = param_schema["default"]
+        if default_value is None:
+            continue  # null default is an edge case, skip
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="required_param_has_default",
+            message=(
+                "required param '{param}' has 'default: {default}' — "
+                "required params must always be supplied by the caller so the "
+                "default can never apply; either remove the param from 'required' "
+                "(if the default is meaningful) or remove the 'default' field "
+                "(if the param is truly mandatory)"
+            ).format(param=param_name, default=repr(default_value)),
+        ))
+
+    return issues
+
+
+
 
 _RANGE_IN_DESC_RE = re.compile(
     r'(?<!\d)(\d+)\s*(?:[-–—]|to)\s*(\d+)(?!\d)',
@@ -3127,6 +3213,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 54: optional_string_no_minlength
         issues.extend(_check_optional_string_no_minlength(name, schema))
+
+        # Check 55: required_param_has_default
+        issues.extend(_check_required_param_has_default(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
