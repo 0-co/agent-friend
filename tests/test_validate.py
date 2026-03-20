@@ -81,6 +81,7 @@ from agent_friend.validate import (
     _check_param_name_single_char,
     _check_allof_single_schema,
     _check_enum_has_duplicates,
+    _check_description_has_html,
 )
 
 
@@ -9916,3 +9917,57 @@ class TestEnumHasDuplicates:
     def test_empty_schema_passes(self):
         issues = _check_enum_has_duplicates("tool", {})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for Check 89: description_has_html
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasHtml:
+    """Tests for Check 89: description_has_html."""
+
+    def _make_tool(self, tool_desc, param_desc=None):
+        raw_obj = {"name": "test_tool", "description": tool_desc}
+        schema = {"type": "object", "properties": {}}
+        if param_desc:
+            schema["properties"]["q"] = {"type": "string", "description": param_desc}
+        return raw_obj, schema
+
+    def test_bold_in_tool_description_fires(self):
+        raw_obj, schema = self._make_tool("Fetch the <b>resource</b>.")
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_html"
+        assert issues[0].severity == "warn"
+        assert "tool description" in issues[0].message
+
+    def test_a_href_in_tool_description_fires(self):
+        raw_obj, schema = self._make_tool("See <a href='https://docs.example.com'>docs</a>.")
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert len(issues) == 1
+
+    def test_html_in_param_fires(self):
+        raw_obj, schema = self._make_tool("Clean desc.", "<code>SELECT *</code> query to run.")
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert len(issues) == 1
+        assert "param 'q'" in issues[0].message
+
+    def test_clean_descriptions_pass(self):
+        raw_obj, schema = self._make_tool("Fetch the resource.", "A SQL query to execute.")
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert issues == []
+
+    def test_no_description_passes(self):
+        raw_obj = {"name": "test_tool"}
+        schema = {"type": "object", "properties": {}}
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert issues == []
+
+    def test_angle_bracket_in_text_fires(self):
+        """Angle brackets in descriptions trigger the check."""
+        raw_obj, schema = self._make_tool("Returns data <200ms.", None)
+        # This contains '<' which looks like an HTML tag start but <200ms is not a valid tag
+        # The regex requires at least a word char after <
+        issues = _check_description_has_html("tool", raw_obj, schema)
+        assert issues == []  # <200ms doesn't match \w[\w.-]* pattern

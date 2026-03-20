@@ -3035,6 +3035,64 @@ def _check_enum_has_duplicates(
 
 
 # ---------------------------------------------------------------------------
+# Check 89: description_has_html
+# ---------------------------------------------------------------------------
+
+_HTML_TAG_RE = _re.compile(r"<(/?\w[\w.-]*)\s*[^>]*>", _re.IGNORECASE)
+
+
+def _check_description_has_html(
+    tool_name: str,
+    raw_obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str = "mcp",
+) -> List[Issue]:
+    """Check 89: description_has_html — a tool or parameter description
+    contains HTML tags.
+
+    Tool-calling descriptions are plain text.  HTML tags render as literal
+    angle-bracket sequences in LLM contexts and waste tokens::
+
+        # bad — HTML renders as literal text, not formatted output
+        {"description": "Fetch the <b>resource</b>. See <a href='...'>docs</a>."}
+
+        # good — plain prose
+        {"description": "Fetch the resource."}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    tool_desc = _get_tool_description(raw_obj, fmt) or ""
+    if _HTML_TAG_RE.search(tool_desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_html",
+            message="tool description contains HTML tags; use plain text instead.",
+        ))
+
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        desc = param_schema.get("description", "")
+        if isinstance(desc, str) and _HTML_TAG_RE.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_html",
+                message=(
+                    "param '{param}' description contains HTML tags; "
+                    "use plain text instead."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5608,6 +5666,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 88: enum_has_duplicates
         issues.extend(_check_enum_has_duplicates(name, schema))
+
+        # Check 89: description_has_html
+        issues.extend(_check_description_has_html(name, raw_obj, schema, fmt))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
