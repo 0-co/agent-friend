@@ -1512,6 +1512,95 @@ def _check_enum_default_missing(tool_name: str, schema: Dict[str, Any]) -> List[
     return issues
 
 
+_DEFAULT_IN_DESC_RE = re.compile(
+    r'(?:'
+    r'defaults?\s+to\b'         # "defaults to X", "default to X"
+    r'|default\s*:\s*\S'        # "default: X" — annotation-style
+    r'|default\s*=\s*\S'        # "default=X"
+    r'|\(defaults?\b'           # "(default..." or "(defaults..." — parenthetical
+    r'|by\s+default\s*[,:\s]'   # "by default, ...", "by default: ...", "by default X"
+    r')',
+    re.IGNORECASE,
+)
+_NO_DEFAULT_RE = re.compile(r'\bno\s+default\b', re.IGNORECASE)
+
+
+def _check_default_in_description_not_schema(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 39: default_in_description_not_schema — description mentions a default but schema has no 'default' field.
+
+    Check 30 (``default_undocumented``) catches the inverse: schema has a
+    ``default`` field that the description omits.  This check catches the
+    symmetric counterpart: the description *mentions* a default value in prose
+    but the schema has no ``default`` field.
+
+    The mismatch matters because:
+
+    * The schema is machine-readable; prose is not.  A model that parses the
+      description to find "defaults to 'en'" is doing fragile string matching
+      — a schema ``"default": "en"`` is authoritative.
+    * Tools like ``agent-friend fix``, OpenAPI generators, and IDE tooling
+      read schema fields, not prose.  A missing ``default`` field means these
+      tools can't auto-apply the documented default.
+    * Authors who bother to document a default in prose clearly intend one to
+      exist — not having it in the schema is almost certainly an oversight.
+
+    Only fires for optional parameters (not in ``required``) that have a
+    description matching a default-mention pattern and no ``default`` field in
+    the schema.  Skips params whose description says "no default".
+
+    Patterns detected (case-insensitive):
+
+    * "defaults to X" / "default to X"
+    * "default: X" / "default=X"
+    * "(default ...)" / "(defaults ...)"
+    * "by default, ..." / "by default: ..."
+
+    Examples::
+
+        # flagged — description claims a default that schema doesn't encode
+        "language": {"type": "string", "description": "Language code. Defaults to 'en'."}
+        "timeout":  {"type": "integer", "description": "Timeout in seconds (default: 30)."}
+        "format":   {"type": "string", "description": "Output format. By default, uses 'json'."}
+
+        # correct — schema default matches prose description
+        "language": {"type": "string", "description": "Language code. Defaults to 'en'.", "default": "en"}
+        "timeout":  {"type": "integer", "description": "Timeout in seconds (default: 30).", "default": 30}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_name in required:
+            continue  # required params must be supplied; prose default may be inaccurate
+        if "default" in param_schema:
+            continue  # schema already has a default — no mismatch
+        description = param_schema.get("description", "")
+        if not description or not isinstance(description, str):
+            continue
+        if _NO_DEFAULT_RE.search(description):
+            continue  # explicitly says there is no default
+        if _DEFAULT_IN_DESC_RE.search(description):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="default_in_description_not_schema",
+                message=(
+                    "optional param '{param}' description mentions a default value but schema has no 'default' field; "
+                    "prose defaults are invisible to tools — add the value as \"default\": <value> in the schema"
+                ).format(param=param_name),
+            ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1788,6 +1877,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 38: enum_default_missing
         issues.extend(_check_enum_default_missing(name, schema))
+
+        # Check 39: default_in_description_not_schema
+        issues.extend(_check_default_in_description_not_schema(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

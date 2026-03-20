@@ -4756,3 +4756,162 @@ class TestEnumDefaultMissing:
         enum_issues = [i for i in issues if i.check == "enum_default_missing"]
         assert len(enum_issues) == 2
         assert all(i.tool == "list_pull_requests" for i in enum_issues)
+
+
+class TestCheckDefaultInDescriptionNotSchema:
+    """Tests for Check 39: default_in_description_not_schema."""
+
+    def _make_schema(self, props, required=None):
+        s = {"type": "object", "properties": props}
+        if required:
+            s["required"] = required
+        return s
+
+    def test_defaults_to_pattern_fires(self):
+        """'Defaults to X' pattern should be caught."""
+        schema = self._make_schema(
+            {"language": {"type": "string", "description": "Language code. Defaults to 'en'."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "default_in_description_not_schema"
+        assert "language" in issues[0].message
+
+    def test_default_colon_pattern_fires(self):
+        """'default: X' annotation pattern should be caught."""
+        schema = self._make_schema(
+            {"timeout": {"type": "integer", "description": "Timeout in seconds (default: 30)."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_default_equals_pattern_fires(self):
+        """'default=X' annotation pattern should be caught."""
+        schema = self._make_schema(
+            {"limit": {"type": "integer", "description": "Max results (default=100)."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_by_default_pattern_fires(self):
+        """'by default, ...' pattern should be caught."""
+        schema = self._make_schema(
+            {"format": {"type": "string", "description": "Output format. By default, uses 'json'."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_parenthetical_defaults_pattern_fires(self):
+        """'(defaults ...' parenthetical pattern should be caught."""
+        schema = self._make_schema(
+            {"sort": {"type": "string", "description": "Sort field (defaults to best match)."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_schema_has_default_no_fire(self):
+        """When schema already has a 'default' field, do not fire."""
+        schema = self._make_schema(
+            {"language": {"type": "string", "description": "Language code. Defaults to 'en'.", "default": "en"}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_required_param_no_fire(self):
+        """Required params are skipped (must be supplied; prose default may be documentation error)."""
+        schema = self._make_schema(
+            {"query": {"type": "string", "description": "Search query. Defaults to '*'."}},
+            required=["query"],
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_no_default_phrase_explicitly_stated(self):
+        """'no default' phrase in description should suppress the check."""
+        schema = self._make_schema(
+            {"filter": {"type": "string", "description": "Filter expression (no default — must be set if used)."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_no_description_no_fire(self):
+        """Param with no description should not fire."""
+        schema = self._make_schema({"timeout": {"type": "integer"}})
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_description_without_default_mention_no_fire(self):
+        """Description that doesn't mention a default should not fire."""
+        schema = self._make_schema(
+            {"format": {"type": "string", "description": "Output format: json or csv."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_multiple_params_fire_independently(self):
+        """Multiple params with prose defaults each fire an issue."""
+        schema = self._make_schema({
+            "page": {"type": "integer", "description": "Page number (default: 1)."},
+            "per_page": {"type": "integer", "description": "Results per page (default: 30, max: 100)."},
+            "sort": {"type": "string", "description": "Sort field. Defaults to 'created_at'."},
+        })
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 3
+        assert all(i.check == "default_in_description_not_schema" for i in issues)
+
+    def test_tool_name_set_correctly(self):
+        """Issue tool attribute should match the tool name passed."""
+        schema = self._make_schema(
+            {"timeout": {"type": "integer", "description": "Timeout in seconds (default: 30)."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("query_database", schema)
+        assert issues[0].tool == "query_database"
+
+    def test_no_properties_no_fire(self):
+        """Schema with no properties should not fire."""
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", {})
+        assert len(issues) == 0
+
+    def test_case_insensitive_matching(self):
+        """Pattern matching is case-insensitive."""
+        schema = self._make_schema(
+            {"timeout": {"type": "integer", "description": "Timeout in seconds. DEFAULTS TO 30."}}
+        )
+        from agent_friend.validate import _check_default_in_description_not_schema
+        issues = _check_default_in_description_not_schema("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "list_repositories",
+            "description": "List repositories for a user.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "username": {"type": "string", "description": "GitHub username"},
+                    "page": {"type": "integer", "description": "Page number for pagination (default: 1)"},
+                    "per_page": {"type": "integer", "description": "Results per page (default: 30, max: 100)"},
+                },
+                "required": ["username"],
+            },
+        }]
+        from agent_friend.validate import validate_tools
+        issues, _ = validate_tools(tools)
+        desc_issues = [i for i in issues if i.check == "default_in_description_not_schema"]
+        assert len(desc_issues) == 2
+        params = {i.message.split("'")[1] for i in desc_issues}
+        assert params == {"page", "per_page"}
