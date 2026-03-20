@@ -93,6 +93,7 @@ from agent_friend.validate import (
     _check_description_says_see_docs,
     _check_description_has_internal_path,
     _check_param_accepts_secret_no_format,
+    _check_param_uses_schema_ref,
 )
 
 
@@ -10524,4 +10525,50 @@ class TestParamAcceptsSecretNoFormat:
 
     def test_empty_schema_passes(self):
         issues = _check_param_accepts_secret_no_format("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 101: param_uses_schema_ref
+# ---------------------------------------------------------------------------
+
+
+class TestParamUsesSchemaRef:
+    """Tests for _check_param_uses_schema_ref (Check 101)."""
+
+    def test_top_level_ref_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {"user": {"$ref": "#/definitions/User"}},
+        }
+        issues = _check_param_uses_schema_ref("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_uses_schema_ref"
+        assert issues[0].severity == "error"
+
+    def test_nested_ref_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "properties": {"nested": {"$ref": "#/definitions/Thing"}},
+                }
+            },
+        }
+        issues = _check_param_uses_schema_ref("tool", schema)
+        assert len(issues) == 1
+
+    def test_inline_schema_passes(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "user": {"type": "object", "properties": {"id": {"type": "integer"}}},
+            },
+        }
+        issues = _check_param_uses_schema_ref("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_uses_schema_ref("tool", {})
         assert issues == []

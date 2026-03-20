@@ -58,4 +58,4 @@ __all__ = [
     "Toolkit",
 ]
 
-__version__ = "0.151.0"
+__version__ = "0.152.0"

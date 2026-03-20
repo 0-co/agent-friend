@@ -2429,6 +2429,67 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 101: param_uses_schema_ref
+# ---------------------------------------------------------------------------
+
+
+def _check_param_uses_schema_ref(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 101: param_uses_schema_ref — a parameter or nested property uses
+    a JSON Schema ``$ref`` to reference another schema definition.
+
+    MCP tool schemas are self-contained JSON blobs passed inline to the LLM.
+    There is no base URI or ``$defs``/``definitions`` context to resolve
+    ``$ref`` against.  Unresolved references cause LLMs to see the literal
+    ``{"$ref": "#/definitions/..."}`` instead of the actual schema, which
+    provides no type or constraint information::
+
+        # bad — $ref is unresolvable in MCP context
+        {"user": {"$ref": "#/definitions/User"}}
+
+        # good — inline the schema
+        {"user": {"type": "object", "properties": {"id": {"type": "integer"}}}}
+
+    Fires on top-level parameters and nested properties that contain a
+    ``$ref`` key.
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    def _check_obj(obj: Any, path: str) -> None:
+        if not isinstance(obj, dict):
+            return
+        if "$ref" in obj:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="param_uses_schema_ref",
+                message=(
+                    "param '{path}' uses $ref which is unresolvable in MCP "
+                    "context — inline the schema definition instead."
+                ).format(path=path),
+            ))
+            return  # don't recurse into $ref object
+        for key, val in obj.items():
+            if isinstance(val, dict):
+                _check_obj(val, f"{path}.{key}")
+            elif isinstance(val, list):
+                for item in val:
+                    _check_obj(item, path)
+
+    for param_name, param_schema in properties.items():
+        _check_obj(param_schema, param_name)
+
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 100: param_accepts_secret_no_format
 # ---------------------------------------------------------------------------
 
@@ -6185,6 +6246,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 100: param_accepts_secret_no_format
         issues.extend(_check_param_accepts_secret_no_format(name, schema))
+
+        # Check 101: param_uses_schema_ref
+        issues.extend(_check_param_uses_schema_ref(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
