@@ -126,6 +126,7 @@ from agent_friend.validate import (
     _check_description_has_ellipsis,
     _check_param_min_equals_max,
     _check_object_additional_properties_redundant,
+    _check_enum_too_many_values,
 )
 
 
@@ -12063,4 +12064,41 @@ class TestObjectAdditionalPropertiesRedundant:
 
     def test_empty_schema_passes(self):
         issues = _check_object_additional_properties_redundant("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 134: enum_too_many_values
+# ---------------------------------------------------------------------------
+
+class TestEnumTooManyValues:
+    def _schema(self, count):
+        return {"properties": {"code": {"type": "string", "enum": [str(i) for i in range(count)]}}}
+
+    def test_21_values_fires(self):
+        issues = _check_enum_too_many_values("tool", self._schema(21))
+        assert len(issues) == 1
+        assert issues[0].check == "enum_too_many_values"
+        assert issues[0].severity == "warn"
+        assert "21" in issues[0].message
+
+    def test_50_values_fires(self):
+        issues = _check_enum_too_many_values("tool", self._schema(50))
+        assert len(issues) == 1
+
+    def test_20_values_passes(self):
+        issues = _check_enum_too_many_values("tool", self._schema(20))
+        assert issues == []
+
+    def test_5_values_passes(self):
+        issues = _check_enum_too_many_values("tool", self._schema(5))
+        assert issues == []
+
+    def test_no_enum_passes(self):
+        schema = {"properties": {"code": {"type": "string"}}}
+        issues = _check_enum_too_many_values("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_enum_too_many_values("tool", {})
         assert issues == []

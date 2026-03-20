@@ -2478,6 +2478,68 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 134: enum_too_many_values
+# ---------------------------------------------------------------------------
+
+_MAX_ENUM_VALUES = 20
+
+
+def _check_enum_too_many_values(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 134: enum_too_many_values — a parameter's enum list has more than
+    20 values.
+
+    Large enums bloat the schema, consume tokens, and are hard to read.
+    When you have more than 20 valid values, consider switching to a
+    ``string`` type with a clear description of the valid range, or using
+    an external reference::
+
+        # bad — 30-value enum is hard to read and token-heavy
+        {"type": "string", "enum": ["AF", "AX", "AL", ...30 values...]}
+
+        # better — document the constraint in prose
+        {"type": "string", "description": "ISO 3166-1 alpha-2 country code."}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+
+    def _scan(properties: Dict[str, Any]) -> None:
+        for param, pschema in properties.items():
+            if not isinstance(pschema, dict):
+                continue
+            enum_vals = pschema.get("enum")
+            if isinstance(enum_vals, list) and len(enum_vals) > _MAX_ENUM_VALUES:
+                issues.append(
+                    Issue(
+                        tool=tool_name,
+                        severity="warn",
+                        check="enum_too_many_values",
+                        message=(
+                            "tool '{name}' param '{param}' enum has {n} values "
+                            "(max recommended: {max}) — large enums waste tokens; "
+                            "document valid values in prose instead."
+                        ).format(
+                            name=tool_name,
+                            param=param,
+                            n=len(enum_vals),
+                            max=_MAX_ENUM_VALUES,
+                        ),
+                    )
+                )
+            nested = pschema.get("properties")
+            if isinstance(nested, dict):
+                _scan(nested)
+
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        _scan(props)
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 133: object_additional_properties_redundant
 # ---------------------------------------------------------------------------
 
@@ -8154,6 +8216,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 133: object_additional_properties_redundant
         issues.extend(_check_object_additional_properties_redundant(name, schema))
+
+        # Check 134: enum_too_many_values
+        issues.extend(_check_enum_too_many_values(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
