@@ -1344,6 +1344,84 @@ def _check_range_described_not_constrained(tool_name: str, schema: Dict[str, Any
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Check 52: number_should_be_integer
+# ---------------------------------------------------------------------------
+
+# Param names whose semantics are unambiguously integer (no fractional meaning).
+_INTEGER_PARAM_RE = re.compile(
+    r'^(page|limit|count|per_page|page_size|offset|'
+    r'num_|number_of_|n_results|max_results|top_k|top_n|'
+    r'batch_size|concurrency|workers|retries|retry_count|retry|'
+    r'port|depth|level|rank|priority|row|col|column|line|index|chunk|'
+    r'max_tokens|max_length|max_size|start_index|end_index|'
+    r'page_number|start_page|end_page|skip|take)'
+    r'|(_count|_limit|_size|_num|_page|_index|_max_tokens)$',
+    re.IGNORECASE,
+)
+
+
+def _check_number_should_be_integer(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 52: number_should_be_integer — param declared as ``number`` but name implies integer semantics.
+
+    ``number`` admits floats (1.5, 2.7) which makes no sense for pagination
+    params like ``page``, ``limit``, ``offset``, ``count``, ``per_page``, or
+    structural params like ``port``, ``depth``, ``index``.  Passing 1.5 as a
+    page number causes API errors downstream yet the schema would not reject it.
+
+    Using ``integer`` instead:
+
+    * Prevents models from generating invalid values (e.g. page 2.5)
+    * Communicates the intent unambiguously
+    * Enables downstream validators to enforce whole-number semantics
+
+    Fires when:
+
+    * Param type is ``number`` (not ``integer``), AND
+    * Param name matches an unambiguously-integer pattern (page, limit, offset,
+      count, per_page, port, depth, index, etc.)
+
+    Does **not** fire for ``timeout``, ``duration``, ``delay``, ``threshold``,
+    ``temperature``, ``ratio``, or similar params where fractional values are
+    legitimate.
+
+    Examples::
+
+        # flagged — should be integer
+        "page":     {"type": "number", "description": "Page number"}
+        "limit":    {"type": "number", "description": "Max results"}
+        "per_page": {"type": "number", "description": "Results per page"}
+
+        # correct
+        "page":       {"type": "integer", "description": "Page number"}
+        "temperature": {"type": "number",  "description": "Sampling temperature"}
+        "ratio":       {"type": "number",  "description": "Aspect ratio"}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "number":
+            continue
+        if _INTEGER_PARAM_RE.search(param_name.lower()):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="number_should_be_integer",
+                message=(
+                    "param '{param}' has type 'number' but the name implies integer semantics "
+                    "— use type 'integer' to prevent models from passing fractional values "
+                    "(e.g. page 1.5) that most APIs reject"
+                ).format(param=param_name),
+            ))
+
+    return issues
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2784,6 +2862,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 51: range_described_not_constrained
         issues.extend(_check_range_described_not_constrained(name, schema))
+
+        # Check 52: number_should_be_integer
+        issues.extend(_check_number_should_be_integer(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

@@ -6339,3 +6339,152 @@ class TestCheck51RangeDescribedNotConstrained:
         schema = {"type": "object"}
         issues = _check_range_described_not_constrained("t", schema)
         assert len(issues) == 0
+
+
+class TestCheck52NumberShouldBeInteger:
+    """Tests for check 52: number_should_be_integer."""
+
+    def _schema(self, param_name: str, ptype: str, **extra):
+        """Build a tool schema with one param."""
+        prop = {"type": ptype}
+        prop.update(extra)
+        return {
+            "type": "object",
+            "properties": {param_name: prop},
+            "required": [],
+        }
+
+    def test_page_number_fires(self):
+        """page param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("page", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "number_should_be_integer"
+
+    def test_limit_number_fires(self):
+        """limit param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("limit", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_offset_number_fires(self):
+        """offset param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("offset", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_per_page_number_fires(self):
+        """per_page param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("per_page", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_count_number_fires(self):
+        """count param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("count", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_index_number_fires(self):
+        """index param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("index", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_port_number_fires(self):
+        """port param with type number fires."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("port", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_page_integer_ok(self):
+        """page param with type integer does not fire."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("page", "integer")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_timeout_number_ok(self):
+        """timeout param with type number does not fire (fractional seconds valid)."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("timeout", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_temperature_number_ok(self):
+        """temperature param with type number does not fire."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("temperature", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_ratio_number_ok(self):
+        """ratio param with type number does not fire."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("ratio", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_string_type_ok(self):
+        """string page param does not fire."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("page", "string")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_severity_is_warn(self):
+        """Issue severity is warn."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("limit", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert issues[0].severity == "warn"
+
+    def test_message_mentions_param(self):
+        """Issue message names the param."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("per_page", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert "per_page" in issues[0].message
+
+    def test_no_properties_ok(self):
+        """Schema with no properties returns no issues."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = {"type": "object"}
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 0
+
+    def test_validate_tools_integration(self):
+        """validate_tools() includes number_should_be_integer."""
+        from agent_friend.validate import validate_tools
+        tools = [{"name": "list", "description": "List items.", "inputSchema": {
+            "type": "object",
+            "properties": {
+                "page": {"type": "number"},
+                "limit": {"type": "number"},
+            },
+            "required": ["page"],
+        }}]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "number_should_be_integer"]
+        assert len(hits) == 2
+
+    def test_suffix_count_fires(self):
+        """Param ending in _count fires (e.g. result_count)."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("result_count", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
+
+    def test_suffix_size_fires(self):
+        """Param ending in _size fires (e.g. batch_size)."""
+        from agent_friend.validate import _check_number_should_be_integer
+        schema = self._schema("chunk_size", "number")
+        issues = _check_number_should_be_integer("t", schema)
+        assert len(issues) == 1
