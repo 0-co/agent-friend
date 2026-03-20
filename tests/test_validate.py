@@ -89,6 +89,7 @@ from agent_friend.validate import (
     _check_param_name_is_reserved_word,
     _check_description_has_version_info,
     _check_description_has_todo_marker,
+    _check_array_max_items_zero,
 )
 
 
@@ -10317,4 +10318,51 @@ class TestDescriptionHasTodoMarker:
     def test_empty_description_passes(self):
         obj, schema = self._mcp_obj("")
         issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 97: array_max_items_zero
+# ---------------------------------------------------------------------------
+
+
+class TestArrayMaxItemsZero:
+    """Tests for _check_array_max_items_zero (Check 97)."""
+
+    @staticmethod
+    def _schema(param_name: str, param_def: dict) -> dict:
+        return {"type": "object", "properties": {param_name: param_def}}
+
+    def test_max_items_zero_fires(self):
+        issues = _check_array_max_items_zero(
+            "tool",
+            self._schema("tags", {"type": "array", "maxItems": 0}),
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "array_max_items_zero"
+        assert issues[0].severity == "error"
+
+    def test_max_items_one_passes(self):
+        issues = _check_array_max_items_zero(
+            "tool",
+            self._schema("tags", {"type": "array", "maxItems": 1}),
+        )
+        assert issues == []
+
+    def test_array_no_max_items_passes(self):
+        issues = _check_array_max_items_zero(
+            "tool",
+            self._schema("tags", {"type": "array"}),
+        )
+        assert issues == []
+
+    def test_non_array_type_passes(self):
+        issues = _check_array_max_items_zero(
+            "tool",
+            self._schema("count", {"type": "integer", "maxItems": 0}),
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_array_max_items_zero("tool", {})
         assert issues == []

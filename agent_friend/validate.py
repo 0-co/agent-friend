@@ -2429,6 +2429,55 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 97: array_max_items_zero
+# ---------------------------------------------------------------------------
+
+
+def _check_array_max_items_zero(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 97: array_max_items_zero — an array parameter has ``maxItems: 0``.
+
+    When ``maxItems`` is 0, only the empty array ``[]`` is valid.  This is
+    almost always a mistake (a typo, a leftover from a template, or a
+    misunderstanding of the field).  If an empty array is truly the only
+    acceptable value, use ``const: []`` instead::
+
+        # bad — only [] is valid, but expressed confusingly
+        {"tags": {"type": "array", "maxItems": 0}}
+
+        # good — express intent with const
+        {"tags": {"type": "array", "const": []}}
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "array":
+            continue
+        max_items = param_schema.get("maxItems")
+        if max_items == 0:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="array_max_items_zero",
+                message=(
+                    "param '{param}' has maxItems: 0 — only [] is valid; "
+                    "this is almost certainly a mistake. Use const: [] if "
+                    "intentional."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 96: description_has_todo_marker
 # ---------------------------------------------------------------------------
 
@@ -5913,6 +5962,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 96: description_has_todo_marker
         issues.extend(_check_description_has_todo_marker(name, raw_obj, schema, fmt))
+
+        # Check 97: array_max_items_zero
+        issues.extend(_check_array_max_items_zero(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
