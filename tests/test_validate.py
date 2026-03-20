@@ -67,6 +67,7 @@ from agent_friend.validate import (
     _check_param_name_too_long,
     _check_description_word_repetition,
     _check_default_type_mismatch,
+    _check_param_name_implies_boolean,
 )
 
 
@@ -8917,3 +8918,103 @@ class TestDefaultTypeMismatch:
     def test_none_schema_no_fire(self):
         issues = _check_default_type_mismatch("my_tool", None)
         assert issues == []
+
+
+class TestCheckParamNameImpliesBoolean:
+    """Tests for Check 76: param_name_implies_boolean."""
+
+    def _schema(self, param_name: str, param_type: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                param_name: {"type": param_type, "description": "A param."},
+            },
+        }
+
+    # --- Cases that SHOULD fire ---
+
+    def test_is_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("is_enabled", "string"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_implies_boolean"
+        assert issues[0].severity == "warn"
+        assert "is_enabled" in issues[0].message
+
+    def test_has_prefix_integer_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("has_access", "integer"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_implies_boolean"
+
+    def test_should_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("should_retry", "string"))
+        assert len(issues) == 1
+
+    def test_can_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("can_upload", "string"))
+        assert len(issues) == 1
+
+    def test_was_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("was_deleted", "string"))
+        assert len(issues) == 1
+
+    def test_enable_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("enable_debug", "string"))
+        assert len(issues) == 1
+
+    def test_use_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("use_cache", "string"))
+        assert len(issues) == 1
+
+    def test_include_prefix_string_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("include_metadata", "string"))
+        assert len(issues) == 1
+
+    def test_show_prefix_integer_fires(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("show_details", "integer"))
+        assert len(issues) == 1
+
+    # --- Cases that should NOT fire ---
+
+    def test_is_prefix_boolean_ok(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("is_enabled", "boolean"))
+        assert issues == []
+
+    def test_has_prefix_boolean_ok(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("has_access", "boolean"))
+        assert issues == []
+
+    def test_no_prefix_string_ok(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("username", "string"))
+        assert issues == []
+
+    def test_no_type_no_fire(self):
+        schema = {
+            "type": "object",
+            "properties": {"is_enabled": {"description": "No type."}},
+        }
+        issues = _check_param_name_implies_boolean("my_tool", schema)
+        assert issues == []
+
+    def test_null_type_no_fire(self):
+        issues = _check_param_name_implies_boolean("my_tool", self._schema("is_enabled", "null"))
+        assert issues == []
+
+    def test_empty_schema_no_fire(self):
+        issues = _check_param_name_implies_boolean("my_tool", {})
+        assert issues == []
+
+    def test_nested_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "is_recursive": {"type": "string", "description": "Nested bool param."},
+                    },
+                }
+            },
+        }
+        issues = _check_param_name_implies_boolean("my_tool", schema)
+        assert len(issues) == 1
+        assert "is_recursive" in issues[0].message

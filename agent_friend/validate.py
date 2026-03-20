@@ -2128,6 +2128,100 @@ def _check_default_type_mismatch(tool_name: str, schema: Dict[str, Any]) -> List
 
 
 # ---------------------------------------------------------------------------
+# Check 76: param_name_implies_boolean
+# ---------------------------------------------------------------------------
+
+# Name prefixes that, by near-universal convention, signal a boolean parameter.
+_BOOL_PREFIX_RE = re.compile(
+    r'^(is|has|should|can|was|will|did|are|were|enable|disable|use|show|hide|allow|include)_',
+    re.IGNORECASE,
+)
+
+
+def _check_param_name_implies_boolean(
+    tool_name: str, schema: Dict[str, Any]
+) -> List[Issue]:
+    """Check 76: param_name_implies_boolean — a parameter name starts with a
+    conventional boolean prefix (``is_``, ``has_``, ``should_``, ``can_``,
+    ``was_``, ``will_``, etc.) but the declared ``type`` is not ``"boolean"``.
+
+    These prefixes signal boolean semantics across virtually all languages and
+    API conventions: ``is_active``, ``has_permissions``, ``should_retry``,
+    ``can_upload``.  When the declared type is ``"string"`` or ``"integer"``
+    instead, the model receives conflicting signals — the name says boolean but
+    the schema says otherwise — which degrades tool-selection accuracy.
+
+    Common causes:
+
+    * Auto-generated schema from a typed language where the bool was
+      accidentally mapped to ``"string"`` (e.g., JSON serialisation quirk).
+    * Developer intended a boolean flag but declared ``"string"`` accepting
+      ``"true"``/``"false"`` strings instead of a proper boolean.
+    * Copy-paste from a string param with the name left unchanged.
+
+    Fires when:
+
+    * A parameter name matches the boolean-prefix pattern, AND
+    * The declared ``type`` is not ``"boolean"`` (and not absent — check 22
+      handles missing type), AND
+    * The type is not ``"null"``
+
+    Examples::
+
+        # flagged — 'is_' prefix but type is "string"
+        {"name": "is_enabled", "type": "string", "description": "Whether enabled."}
+
+        # flagged — 'has_' prefix but type is "integer"
+        {"name": "has_access", "type": "integer", "description": "Access flag."}
+
+        # correct
+        {"name": "is_enabled", "type": "boolean", "description": "Whether enabled."}
+    """
+    issues: List[Issue] = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    def _check_props(props: Dict[str, Any], path: str) -> None:
+        for param_name, param_schema in props.items():
+            if not isinstance(param_schema, dict):
+                continue
+            full_path = f"{path}.{param_name}" if path else param_name
+            declared_type = param_schema.get("type")
+            if (
+                declared_type is not None
+                and declared_type not in ("boolean", "null")
+                and _BOOL_PREFIX_RE.match(param_name)
+            ):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="param_name_implies_boolean",
+                    message=(
+                        "param '{param}' name implies boolean ('{prefix}_' prefix) "
+                        "but declares type '{type}' — use type 'boolean' or rename the param."
+                    ).format(
+                        param=full_path,
+                        prefix=_BOOL_PREFIX_RE.match(param_name).group(1),
+                        type=declared_type,
+                    ),
+                ))
+            # Recurse into nested objects
+            nested_props = param_schema.get("properties") or {}
+            if isinstance(nested_props, dict) and nested_props:
+                _check_props(nested_props, full_path)
+            # Recurse into array items
+            items = param_schema.get("items") or {}
+            if isinstance(items, dict):
+                item_props = items.get("properties") or {}
+                if isinstance(item_props, dict) and item_props:
+                    _check_props(item_props, f"{full_path}[]")
+
+    _check_props(properties, "")
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -4657,6 +4751,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 75: default_type_mismatch
         issues.extend(_check_default_type_mismatch(name, schema))
+
+        # Check 76: param_name_implies_boolean
+        issues.extend(_check_param_name_implies_boolean(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.
