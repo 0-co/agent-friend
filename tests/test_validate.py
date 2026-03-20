@@ -5812,3 +5812,91 @@ class TestCheckDescriptionMarkdownFormatting:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "description_markdown_formatting"]
         assert len(hits) >= 1
+
+
+class TestCheckDescriptionModelInstructions:
+    """Tests for Check 48: description_model_instructions."""
+
+    @staticmethod
+    def _make_tool(tool_desc="Does something useful.", properties=None):
+        tool = {
+            "name": "test_tool",
+            "description": tool_desc,
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        return tool
+
+    def test_fires_on_you_must(self):
+        """'You must' in tool description fires."""
+        tools = [self._make_tool(tool_desc="You must call get_context before using this tool.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_always_call(self):
+        """'Always call' fires."""
+        tools = [self._make_tool(tool_desc="Always call get_user first to retrieve context.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_never_call(self):
+        """'Never call' fires."""
+        tools = [self._make_tool(tool_desc="Never call this tool more than once per session.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_must_be_called_before(self):
+        """'Must be called before' fires."""
+        tools = [self._make_tool(tool_desc="Must be called before any write operations.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_you_should(self):
+        """'You should' fires."""
+        tools = [self._make_tool(tool_desc="Runs a query. You should use transactions when possible.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_no_fire_on_plain_description(self):
+        """Plain tool description does not fire."""
+        tools = [self._make_tool(tool_desc="Fetches the user record from the database by user ID.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_descriptive_should(self):
+        """'Should' describing the tool's outcome does not fire (not model-directed)."""
+        tools = [self._make_tool(tool_desc="The response should contain a list of matching records.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 0
+
+    def test_no_fire_on_always_on(self):
+        """'Always-on' as compound adjective does not fire."""
+        tools = [self._make_tool(tool_desc="Checks status of an always-on background service.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Check 48 issues are warnings, not errors."""
+        tools = [self._make_tool(tool_desc="You must call init first.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_message_includes_matched_phrase(self):
+        """Issue message should include the matched phrase."""
+        tools = [self._make_tool(tool_desc="Always call setup before running this.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+        assert "always call" in hits[0].message.lower()

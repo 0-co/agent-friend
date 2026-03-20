@@ -1056,6 +1056,56 @@ def _check_description_markdown_formatting(tool_name: str, tool_description: str
     return issues
 
 
+_TOOL_MODEL_INSTRUCTIONS_RE = re.compile(
+    r'\byou (?:must|should|need to|have to|always|never)\b'
+    r'|\balways (?:call|use|pass|include|check|verify|ensure|start|begin|run)\b'
+    r'|\bnever (?:call|use|pass|include|skip|omit)\b'
+    r'|\bIMPORTANT:\s*(?:call|use|this tool must|always)\b'
+    r'|\bmust be called (?:before|first|after|instead)\b'
+    r'|\bprioritize (?:this|using)\b',
+    re.IGNORECASE,
+)
+"""Patterns that indicate model-directing language in tool descriptions."""
+
+
+def _check_description_model_instructions(tool_name: str, tool_description: str) -> Optional[Issue]:
+    """Check 48: description_model_instructions — tool description contains language
+    directing model behavior rather than describing what the tool does.
+
+    Tool descriptions should describe what a tool does.  Phrases like
+    "you must call X first", "always pass Y", "never skip Z" are
+    operational instructions for the model — they belong in the system
+    prompt, not in the schema.  Putting them here:
+
+    * wastes tokens on every tool call (the model re-reads the full
+      schema each time)
+    * mixes "what" (schema) with "how" (system prompt)
+    * may conflict with system-level instructions from the host application
+
+    Does not fire on:
+    - "always" used as a modifier unrelated to model behavior
+      ("always-on service", "always returns a list")
+    - descriptive use of "should" meaning a normal outcome
+      ("the response should contain...")
+    - Check 13 already covers malicious override patterns.
+    """
+    if not isinstance(tool_description, str) or not tool_description:
+        return None
+    m = _TOOL_MODEL_INSTRUCTIONS_RE.search(tool_description)
+    if not m:
+        return None
+    return Issue(
+        tool=tool_name,
+        severity="warn",
+        check="description_model_instructions",
+        message=(
+            "tool description contains model-directing language ({sample}) — "
+            "instructions on how to use the tool belong in the system prompt, "
+            "not in the schema."
+        ).format(sample=repr(m.group(0)[:50])),
+    )
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2481,6 +2531,12 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         # Check 47: description_markdown_formatting
         _tool_desc_47 = (raw_obj.get('description', '') or '') if isinstance(raw_obj, dict) else ''
         issues.extend(_check_description_markdown_formatting(name, _tool_desc_47, schema))
+
+        # Check 48: description_model_instructions
+        _tool_desc_48 = (raw_obj.get('description', '') or '') if isinstance(raw_obj, dict) else ''
+        issue = _check_description_model_instructions(name, _tool_desc_48)
+        if issue is not None:
+            issues.append(issue)
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
