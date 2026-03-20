@@ -1441,6 +1441,77 @@ def _check_boolean_default_missing(tool_name: str, schema: Dict[str, Any]) -> Li
     return issues
 
 
+def _check_enum_default_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 38: enum_default_missing — optional enum param has no 'default' field.
+
+    When an enum parameter is optional (not in ``required``), omitting the
+    ``default`` field forces models to guess which value the server assumes
+    when the parameter is not supplied.  Unlike booleans (two choices),
+    enum params can have many values — so the probability of guessing
+    correctly is 1-in-N, and guessing wrong means the wrong data is
+    returned or the wrong action is taken.
+
+    Without a machine-readable default, a model calling ``list_pull_requests``
+    with no ``state`` argument doesn't know whether it will receive open PRs,
+    closed PRs, or all PRs.  The model must either:
+
+    * guess (likely wrong for rarer defaults like ``"all"``), or
+    * always supply the param (adds noise to every call), or
+    * ask the user (unnecessary friction for a param with a clear default).
+
+    JSON Schema's ``default`` keyword is advisory but critical for tool-calling
+    LLMs — it lets them infer ``"if I leave this out, the server assumes X"``.
+
+    Only fires for optional parameters (not in ``required``) with an
+    ``enum`` field and no existing ``default``.  Fires once per affected
+    parameter.
+
+    Examples::
+
+        # missing — model guesses which enum value is assumed
+        "state":     {"type": "string", "enum": ["open", "closed", "all"]}
+        "direction": {"type": "string", "enum": ["asc", "desc"]}
+
+        # correct — model knows the assumed value when param is omitted
+        "state":     {"type": "string", "enum": ["open", "closed", "all"], "default": "open"}
+        "direction": {"type": "string", "enum": ["asc", "desc"], "default": "desc"}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_name in required:
+            continue  # required params must be supplied — no default needed
+        if "enum" not in param_schema:
+            continue
+        if "default" in param_schema:
+            continue
+        enum_vals = param_schema.get("enum", [])
+        if not isinstance(enum_vals, list) or len(enum_vals) == 0:
+            continue
+
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="enum_default_missing",
+            message=(
+                "optional enum param '{param}' has no 'default' — models must guess "
+                "which of {n} values the server assumes when the param is omitted; "
+                "add \"default\": \"{first}\" (or whichever value is the server default)"
+            ).format(param=param_name, n=len(enum_vals), first=enum_vals[0]),
+        ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1714,6 +1785,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 37: boolean_default_missing
         issues.extend(_check_boolean_default_missing(name, schema))
+
+        # Check 38: enum_default_missing
+        issues.extend(_check_enum_default_missing(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

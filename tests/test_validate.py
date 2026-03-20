@@ -44,6 +44,7 @@ from agent_friend.validate import (
     _check_description_redundant_type,
     _check_param_format_missing,
     _check_boolean_default_missing,
+    _check_enum_default_missing,
 )
 
 
@@ -58,7 +59,7 @@ VALID_ANTHROPIC_TOOL = {
         "type": "object",
         "properties": {
             "city": {"type": "string", "description": "Name of the target city"},
-            "units": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "Temperature unit (celsius or fahrenheit)"},
+            "units": {"type": "string", "enum": ["celsius", "fahrenheit"], "default": "celsius", "description": "Temperature unit: celsius (default) or fahrenheit"},
         },
         "required": ["city"],
     },
@@ -4597,3 +4598,161 @@ class TestBooleanDefaultMissing:
         bool_issues = [i for i in issues if i.check == "boolean_default_missing"]
         assert len(bool_issues) == 1
         assert bool_issues[0].tool == "list_files"
+
+
+class TestEnumDefaultMissing:
+    """Tests for Check 38: enum_default_missing."""
+
+    def _make_schema(self, props, required=None):
+        s = {"type": "object", "properties": props}
+        if required is not None:
+            s["required"] = required
+        return s
+
+    def test_optional_enum_no_default_fires(self):
+        """Optional enum param without default should fire."""
+        schema = self._make_schema(
+            {"state": {"type": "string", "enum": ["open", "closed", "all"], "description": "Filter by state"}}
+        )
+        issues = _check_enum_default_missing("list_prs", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "enum_default_missing"
+
+    def test_required_enum_no_default_no_fire(self):
+        """Required enum param should not fire — caller must supply it."""
+        schema = self._make_schema(
+            {"state": {"type": "string", "enum": ["open", "closed"], "description": "State"}},
+            required=["state"],
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_optional_enum_with_default_no_fire(self):
+        """Enum param with default present should not fire."""
+        schema = self._make_schema(
+            {"state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_non_enum_param_no_fire(self):
+        """String param without enum field should not fire."""
+        schema = self._make_schema(
+            {"name": {"type": "string", "description": "A name"}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_boolean_param_no_fire(self):
+        """Boolean param (no enum) is covered by Check 37, not Check 38."""
+        schema = self._make_schema(
+            {"verbose": {"type": "boolean", "description": "Enable verbose output"}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_multiple_enum_params_multiple_issues(self):
+        """Multiple enum params without default each fire once."""
+        schema = self._make_schema({
+            "state": {"type": "string", "enum": ["open", "closed", "all"]},
+            "direction": {"type": "string", "enum": ["asc", "desc"]},
+            "sort": {"type": "string", "enum": ["created", "updated"], "default": "created"},
+        })
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 2
+        checks = {i.check for i in issues}
+        assert checks == {"enum_default_missing"}
+
+    def test_mixed_required_and_optional(self):
+        """Only optional enum params without default fire."""
+        schema = self._make_schema(
+            {
+                "action": {"enum": ["create", "update", "delete"]},  # required
+                "state": {"enum": ["open", "closed"]},  # optional, no default
+                "direction": {"enum": ["asc", "desc"], "default": "asc"},  # optional, has default
+            },
+            required=["action"],
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].message.find("state") != -1
+
+    def test_severity_is_warn(self):
+        """Check 38 should emit warnings, not errors."""
+        schema = self._make_schema(
+            {"state": {"type": "string", "enum": ["open", "closed"]}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert issues[0].severity == "warn"
+
+    def test_param_name_in_message(self):
+        """Issue message should include the param name."""
+        schema = self._make_schema(
+            {"sort_order": {"enum": ["asc", "desc"]}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert "sort_order" in issues[0].message
+
+    def test_enum_count_in_message(self):
+        """Issue message should mention the number of enum values."""
+        schema = self._make_schema(
+            {"priority": {"enum": ["low", "medium", "high", "critical"]}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert "4" in issues[0].message
+
+    def test_tool_name_set_correctly(self):
+        """Issue tool attribute should match the tool name passed."""
+        schema = self._make_schema({"state": {"enum": ["open", "closed"]}})
+        issues = _check_enum_default_missing("list_issues", schema)
+        assert issues[0].tool == "list_issues"
+
+    def test_no_properties_no_fire(self):
+        """Schema with no properties should not fire."""
+        issues = _check_enum_default_missing("my_tool", {})
+        assert len(issues) == 0
+
+    def test_empty_enum_list_no_fire(self):
+        """Enum param with empty enum list is malformed — do not fire."""
+        schema = self._make_schema({"state": {"enum": []}})
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_no_required_key_treats_all_as_optional(self):
+        """When required key is absent, all enum params are treated as optional."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "state": {"enum": ["open", "closed"]},
+            },
+        }
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_description_mentions_default_but_field_missing_still_fires(self):
+        """Prose default in description doesn't substitute for the JSON field."""
+        schema = self._make_schema(
+            {"state": {"enum": ["open", "closed", "all"], "description": "Filter by state (default: open)"}}
+        )
+        issues = _check_enum_default_missing("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "list_pull_requests",
+            "description": "List pull requests in a repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "Repository name"},
+                    "state": {"type": "string", "enum": ["open", "closed", "all"], "description": "Filter by state"},
+                    "direction": {"type": "string", "enum": ["asc", "desc"], "description": "Sort direction"},
+                },
+                "required": ["repo"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        enum_issues = [i for i in issues if i.check == "enum_default_missing"]
+        assert len(enum_issues) == 2
+        assert all(i.tool == "list_pull_requests" for i in enum_issues)
