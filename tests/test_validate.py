@@ -110,6 +110,7 @@ from agent_friend.validate import (
     _check_param_type_is_null,
     _check_enum_has_empty_value,
     _check_param_name_too_generic,
+    _check_description_uses_first_person,
 )
 
 
@@ -11325,4 +11326,61 @@ class TestParamNameTooGeneric:
 
     def test_empty_schema_passes(self):
         issues = _check_param_name_too_generic("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 118: description_uses_first_person
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionUsesFirstPerson:
+    """Tests for _check_description_uses_first_person (Check 118)."""
+
+    @staticmethod
+    def _tool_obj(desc: str) -> dict:
+        return {"description": desc}
+
+    @staticmethod
+    def _schema_with_param(param_name: str, desc: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": "string", "description": desc}},
+        }
+
+    def test_i_will_fires(self):
+        issues = _check_description_uses_first_person(
+            "search", self._tool_obj("I will search the database."), {}, "mcp"
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "description_uses_first_person"
+        assert issues[0].severity == "warn"
+
+    def test_i_can_fires(self):
+        issues = _check_description_uses_first_person(
+            "create", self._tool_obj("I can create, update, or delete items."), {}, "mcp"
+        )
+        assert len(issues) == 1
+
+    def test_ill_fires(self):
+        issues = _check_description_uses_first_person(
+            "fetch", self._tool_obj("I'll fetch the latest data."), {}, "mcp"
+        )
+        assert len(issues) == 1
+
+    def test_param_first_person_fires(self):
+        issues = _check_description_uses_first_person(
+            "tool", {}, self._schema_with_param("format", "I will use this to format output."), "mcp"
+        )
+        param_issues = [i for i in issues if "param" in i.message]
+        assert len(param_issues) == 1
+
+    def test_imperative_passes(self):
+        issues = _check_description_uses_first_person(
+            "search", self._tool_obj("Search the database for matching records."), {}, "mcp"
+        )
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        issues = _check_description_uses_first_person("tool", {}, {}, "mcp")
         assert issues == []

@@ -2478,6 +2478,75 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 118: description_uses_first_person
+# ---------------------------------------------------------------------------
+
+_FIRST_PERSON_RE = re.compile(
+    r"\bI(?:'ll|'ve|'m|'d)?\b"
+    r"|\bI\s+(?:will|can|am|was|have|had|would|should|could|might|must|shall)\b"
+    r"|\bmy\s+(?:tool|function|api|endpoint|server|service|assistant|implementation)\b",
+    re.IGNORECASE,
+)
+
+
+def _check_description_uses_first_person(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 118: description_uses_first_person — a tool or parameter
+    description uses first-person language (``"I will"``, ``"I can"``,
+    ``"I'll"``, ``"my tool"``).
+
+    Tools are utilities, not agents.  First-person language in a tool
+    description mixes the tool's role with the calling agent's identity
+    and is confusing when the model reads the schema::
+
+        # bad — first-person voice
+        "I will search the database for matching records."
+        "I can create, update, or delete items."
+        "My tool returns a JSON object."
+
+        # good — imperative or neutral voice
+        "Search the database for matching records."
+        "Create, update, or delete items."
+        "Returns a JSON object."
+
+    Severity: ``warn``.
+    """
+    issues = []
+    desc = _get_tool_description(obj, fmt)
+    if desc and _FIRST_PERSON_RE.search(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_uses_first_person",
+            message=(
+                "tool '{name}' description uses first-person language — "
+                "use imperative or neutral voice instead."
+            ).format(name=tool_name),
+        ))
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if isinstance(pdesc, str) and pdesc and _FIRST_PERSON_RE.search(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_uses_first_person",
+                    message=(
+                        "param '{param}' description uses first-person language — "
+                        "use imperative or neutral voice instead."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
 # Check 117: param_name_too_generic
 # ---------------------------------------------------------------------------
 
@@ -7197,6 +7266,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 117: param_name_too_generic
         issues.extend(_check_param_name_too_generic(name, schema))
+
+        # Check 118: description_uses_first_person
+        issues.extend(_check_description_uses_first_person(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
