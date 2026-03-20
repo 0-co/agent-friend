@@ -2478,6 +2478,59 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 117: param_name_too_generic
+# ---------------------------------------------------------------------------
+
+_GENERIC_PARAM_NAMES = frozenset({
+    "data", "value", "val", "input", "output", "result", "response",
+    "payload", "content", "info", "item", "object", "obj", "stuff",
+    "thing", "param", "arg", "argument", "variable", "var",
+})
+
+
+def _check_param_name_too_generic(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 117: param_name_too_generic — a parameter name is a single generic
+    word that gives no context about what value should be passed.
+
+    Generic names like ``data``, ``value``, ``input``, ``output``,
+    ``result``, ``payload``, ``content``, ``info`` force the model to rely
+    entirely on the description to understand the parameter.  A descriptive
+    name (even one word) is always better::
+
+        # bad — generic names
+        {"data": {"type": "string", "description": "The SQL query to run."}}
+        {"value": {"type": "number", "description": "The temperature in Celsius."}}
+        {"input": {"type": "object", "description": "The request body."}}
+
+        # good — descriptive names
+        {"query": {"type": "string", "description": "The SQL query to run."}}
+        {"temperature_c": {"type": "number", "description": "Temperature in Celsius."}}
+        {"request_body": {"type": "object", "description": "The request body."}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name in properties:
+        if param_name.lower() in _GENERIC_PARAM_NAMES:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_name_too_generic",
+                message=(
+                    "param '{param}' has a generic name — use a descriptive "
+                    "name that conveys what value should be passed."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 116: enum_has_empty_value
 # ---------------------------------------------------------------------------
 
@@ -7141,6 +7194,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 116: enum_has_empty_value
         issues.extend(_check_enum_has_empty_value(name, schema))
+
+        # Check 117: param_name_too_generic
+        issues.extend(_check_param_name_too_generic(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

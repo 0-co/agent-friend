@@ -109,6 +109,7 @@ from agent_friend.validate import (
     _check_name_starts_with_uppercase,
     _check_param_type_is_null,
     _check_enum_has_empty_value,
+    _check_param_name_too_generic,
 )
 
 
@@ -11281,4 +11282,47 @@ class TestEnumHasEmptyValue:
 
     def test_empty_schema_passes(self):
         issues = _check_enum_has_empty_value("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 117: param_name_too_generic
+# ---------------------------------------------------------------------------
+
+
+class TestParamNameTooGeneric:
+    """Tests for _check_param_name_too_generic (Check 117)."""
+
+    @staticmethod
+    def _schema(*param_names: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {n: {"type": "string", "description": "A param."} for n in param_names},
+        }
+
+    def test_data_fires(self):
+        issues = _check_param_name_too_generic("tool", self._schema("data"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_too_generic"
+        assert issues[0].severity == "warn"
+
+    def test_value_fires(self):
+        issues = _check_param_name_too_generic("tool", self._schema("value"))
+        assert len(issues) == 1
+        assert "value" in issues[0].message
+
+    def test_input_fires(self):
+        issues = _check_param_name_too_generic("tool", self._schema("input"))
+        assert len(issues) == 1
+
+    def test_payload_fires(self):
+        issues = _check_param_name_too_generic("tool", self._schema("payload"))
+        assert len(issues) == 1
+
+    def test_descriptive_name_passes(self):
+        issues = _check_param_name_too_generic("tool", self._schema("query", "user_id", "file_path"))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_name_too_generic("tool", {})
         assert issues == []
