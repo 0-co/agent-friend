@@ -146,6 +146,7 @@ from agent_friend.validate import (
     _check_tool_name_has_double_underscore,
     _check_description_starts_with_tool_name,
     _check_schema_has_comment_field,
+    _check_description_has_windows_path,
 )
 
 
@@ -12939,4 +12940,48 @@ class TestSchemaHasCommentField:
 
     def test_empty_schema_passes(self):
         issues = _check_schema_has_comment_field("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 154: description_has_windows_path
+# ---------------------------------------------------------------------------
+
+class TestDescriptionHasWindowsPath:
+    def test_tool_desc_with_windows_path_fires(self):
+        obj = {"name": "read_file", "description": "Read a file from C:\\Users\\admin\\docs"}
+        issues = _check_description_has_windows_path("read_file", obj, {}, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_windows_path"
+        assert issues[0].severity == "warn"
+
+    def test_param_desc_with_windows_path_fires(self):
+        obj = {"name": "read_file"}
+        schema = {
+            "properties": {
+                "path": {"type": "string", "description": "Path like D:\\data\\file.txt"}
+            }
+        }
+        issues = _check_description_has_windows_path("read_file", obj, schema, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_windows_path"
+
+    def test_posix_path_passes(self):
+        obj = {"name": "read_file", "description": "Read a file from /home/user/docs"}
+        issues = _check_description_has_windows_path("read_file", obj, {}, "mcp")
+        assert issues == []
+
+    def test_no_path_passes(self):
+        obj = {"name": "read_file", "description": "Read a file by its path"}
+        issues = _check_description_has_windows_path("read_file", obj, {}, "mcp")
+        assert issues == []
+
+    def test_unc_path_fires(self):
+        obj = {"name": "tool", "description": "Connect to C:\\\\server\\share"}
+        issues = _check_description_has_windows_path("tool", obj, {}, "mcp")
+        assert len(issues) == 1
+
+    def test_empty_schema_passes(self):
+        obj = {"name": "tool", "description": "Simple tool"}
+        issues = _check_description_has_windows_path("tool", obj, {}, "mcp")
         assert issues == []

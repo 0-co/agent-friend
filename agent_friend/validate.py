@@ -2478,6 +2478,62 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 154: description_has_windows_path
+# ---------------------------------------------------------------------------
+
+_WINDOWS_PATH_RE = re.compile(r"\b[A-Za-z]:\\(?:[^\s/\\*?\"<>|\r\n]+\\?)*", re.IGNORECASE)
+
+
+def _check_description_has_windows_path(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 154: description_has_windows_path — a tool or parameter description
+    contains a Windows-style file path (e.g. ``C:\\Users\\...``).
+
+    Platform-specific examples hard-code assumptions about the host OS and
+    clutter the schema with irrelevant detail.  Use abstract placeholders
+    or POSIX-style paths instead.
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    tool_desc = _get_tool_description(obj, fmt) or ""
+    if _WINDOWS_PATH_RE.search(tool_desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_windows_path",
+            message=(
+                "tool description contains a Windows-style file path; "
+                "avoid platform-specific examples in schema descriptions."
+            ),
+        ))
+
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        return issues
+    for pname, pschema in props.items():
+        if not isinstance(pschema, dict):
+            continue
+        desc = pschema.get("description", "")
+        if isinstance(desc, str) and _WINDOWS_PATH_RE.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_windows_path",
+                message=(
+                    "param '{pname}' description contains a Windows-style "
+                    "file path; avoid platform-specific examples in schema "
+                    "descriptions.".format(pname=pname)
+                ),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 153: schema_has_comment_field
 # ---------------------------------------------------------------------------
 
@@ -9372,6 +9428,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 153: schema_has_comment_field
         issues.extend(_check_schema_has_comment_field(name, schema))
+
+        # Check 154: description_has_windows_path
+        issues.extend(_check_description_has_windows_path(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
