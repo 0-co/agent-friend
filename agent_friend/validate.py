@@ -896,6 +896,135 @@ def _check_tool_name_redundant_prefix(names: List[str]) -> List[Issue]:
     return []
 
 
+# ---------------------------------------------------------------------------
+# Check 54: optional_string_no_minlength
+# ---------------------------------------------------------------------------
+
+_OPTIONAL_STRING_CONTENT_PARTS = frozenset({
+    "query", "sql", "statement", "script", "command",
+    "message", "prompt", "instruction", "expression", "formula", "template",
+    "text", "search", "keyword", "term", "phrase",
+})
+"""Name-part keywords for optional string params that cannot meaningfully be empty."""
+
+_OPTIONAL_ID_SUFFIX_RE = re.compile(r'(?:_|-)?ids?$', re.IGNORECASE)
+_OPTIONAL_TYPE_SUFFIX_RE = re.compile(r'(?:_|-)type$', re.IGNORECASE)
+
+
+def _check_optional_string_no_minlength(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 54: optional_string_no_minlength — optional content-like string param has no minLength.
+
+    Complements check 49 (``required_string_no_minlength``), which only covers
+    required params.  An *optional* string param named ``query``, ``text``,
+    ``message``, ``prompt``, ``command``, etc. may be omitted entirely — but
+    if the model *does* supply it, an empty string ``""`` is almost always
+    semantically wrong and will cause a downstream API error.
+
+    JSON Schema allows ``""`` by default for any unconstrained string, so the
+    model cannot distinguish "omit this param" from "pass empty string".
+    Adding ``"minLength": 1`` closes the gap: validators reject ``""`` and the
+    model can only omit the param or supply a non-empty value.
+
+    Fires when **all** of the following hold:
+
+    * Param is **not** in the ``required`` array (optional), AND
+    * Param type is ``string`` (or unset, no nested properties), AND
+    * Param name contains a content-like keyword part (see list below), AND
+    * Param has no ``minLength``, ``enum``, ``pattern``, or ``const``, AND
+    * Param name does not end with ``_id`` / ``_ids`` (identifier), AND
+    * Param name does not end with ``_type`` (type discriminator)
+
+    Keywords that trigger: query, sql, statement, script, command, message,
+    prompt, instruction, expression, formula, template, text, search, keyword,
+    term, phrase.
+
+    Special case: bare ``code`` or ``code_*`` (but not ``*_code`` suffixes like
+    ``country_code``) is also included.
+
+    Examples::
+
+        # flagged — optional query string allows empty
+        "query":   {"type": "string"}
+        "search_query": {"type": "string", "description": "Search term"}
+        "message": {"type": "string"}
+
+        # correct — minLength prevents empty string
+        "query":   {"type": "string", "minLength": 1}
+        "message": {"type": "string", "minLength": 1}
+
+        # not flagged — already constrained
+        "status":  {"type": "string", "enum": ["active", "inactive"]}
+        "country_code": {"type": "string"}  # _code suffix, not content
+
+        # not flagged — required params handled by check 49
+        required: ["query"]
+    """
+    issues = []
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+    required_set = set(required)
+
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if param_name in required_set:
+            continue  # required params handled by check 49
+        if not isinstance(param_schema, dict):
+            continue
+        # Skip ID params
+        if _OPTIONAL_ID_SUFFIX_RE.search(param_name):
+            continue
+        # Skip type-discriminator params (query_type, filter_type, etc.)
+        if _OPTIONAL_TYPE_SUFFIX_RE.search(param_name):
+            continue
+
+        ptype = param_schema.get("type")
+        if ptype not in (None, "string"):
+            continue
+        if ptype is None and "properties" in param_schema:
+            continue  # object without explicit type — skip
+
+        # Already constrained
+        if param_schema.get("minLength") is not None:
+            continue
+        if param_schema.get("enum") is not None:
+            continue
+        if param_schema.get("pattern") is not None:
+            continue
+        if param_schema.get("const") is not None:
+            continue
+
+        # Check name parts against content keywords
+        parts = set(re.split(r'[_\-\s]+', param_name.lower()))
+        matched_kw = parts & _OPTIONAL_STRING_CONTENT_PARTS
+
+        # Special case for 'code': only match standalone or as first part
+        # (not as a suffix like country_code, zip_code, currency_code)
+        if not matched_kw:
+            name_parts = re.split(r'[_\-\s]+', param_name.lower())
+            if "code" in name_parts and name_parts.index("code") == 0:
+                matched_kw = {"code"}
+
+        if not matched_kw:
+            continue
+
+        matched = next(iter(matched_kw))
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="optional_string_no_minlength",
+            message=(
+                "optional param '{param}' is a content string ('{kw}') with no "
+                "'minLength' — the schema allows '\"\"' (empty string); add "
+                "'minLength: 1' so the model cannot accidentally pass an empty value"
+            ).format(param=param_name, kw=matched),
+        ))
+    return issues
+
+
 def _check_parameters_valid_type(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 8: parameters_valid_type — parameter type is a valid JSON Schema type."""
     issues = []
@@ -2995,6 +3124,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 51: range_described_not_constrained
         issues.extend(_check_range_described_not_constrained(name, schema))
+
+        # Check 54: optional_string_no_minlength
+        issues.extend(_check_optional_string_no_minlength(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.

@@ -6682,3 +6682,153 @@ class TestCheck53ToolNameRedundantPrefix:
         hits = [i for i in issues if i.check == "tool_name_redundant_prefix"]
         assert len(hits) == 1
         assert "notion_" in hits[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 54: optional_string_no_minlength
+# ---------------------------------------------------------------------------
+
+class TestCheck54OptionalStringNoMinlength:
+    """Tests for Check 54: optional_string_no_minlength."""
+
+    @staticmethod
+    def _make_tool(properties=None, required=None):
+        tool = {
+            "name": "test_tool",
+            "description": "Does something.",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties or {},
+            },
+        }
+        if required is not None:
+            tool["inputSchema"]["required"] = required
+        return tool
+
+    def test_fires_on_optional_query_no_minlength(self):
+        """Optional 'query' string without minLength fires."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Search query."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
+        assert "query" in hits[0].message
+
+    def test_fires_on_optional_message_no_minlength(self):
+        """Optional 'message' string without minLength fires."""
+        tools = [self._make_tool(
+            properties={"message": {"type": "string", "description": "Message to send."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_fires_on_optional_prompt_no_minlength(self):
+        """Optional 'prompt' string without minLength fires."""
+        tools = [self._make_tool(
+            properties={"prompt": {"type": "string", "description": "The prompt text."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_fires_on_compound_search_query(self):
+        """Optional 'search_query' contains 'query' keyword — fires."""
+        tools = [self._make_tool(
+            properties={"search_query": {"type": "string", "description": "Search string."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_no_fire_when_minlength_present(self):
+        """Optional query with minLength set does not fire."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Query.", "minLength": 1}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_enum_present(self):
+        """Optional string with enum does not fire."""
+        tools = [self._make_tool(
+            properties={"command": {"type": "string", "enum": ["start", "stop"]}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_pattern_present(self):
+        """Optional string with pattern does not fire."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "pattern": "^\\S+$"}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_required_param(self):
+        """Required params are handled by check 49, not check 54."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "string", "description": "Query."}},
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_id_suffix(self):
+        """Params ending in _id are identifiers — not flagged."""
+        tools = [self._make_tool(
+            properties={"query_id": {"type": "string", "description": "Query identifier."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_type_suffix(self):
+        """Params ending in _type are discriminators — not flagged."""
+        tools = [self._make_tool(
+            properties={"query_type": {"type": "string", "description": "Type of query."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_non_content_name(self):
+        """Non-content names like 'status' are not flagged."""
+        tools = [self._make_tool(
+            properties={"status": {"type": "string", "description": "The status."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_integer_type(self):
+        """Non-string typed params are not flagged."""
+        tools = [self._make_tool(
+            properties={"query": {"type": "integer", "description": "Query ID."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 0
+
+    def test_fires_on_text_param(self):
+        """Optional 'text' string without minLength fires."""
+        tools = [self._make_tool(
+            properties={"text": {"type": "string", "description": "Text content."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
+
+    def test_fires_on_optional_command(self):
+        """Optional 'command' string without minLength fires."""
+        tools = [self._make_tool(
+            properties={"command": {"type": "string", "description": "Shell command to run."}},
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "optional_string_no_minlength"]
+        assert len(hits) == 1
