@@ -1,0 +1,400 @@
+[
+  {
+    "name": "create_or_update_file",
+    "description": "Create or update a single file in a GitHub repository. Requires the file path, content (base64 encoded), commit message, and branch name. If updating, the SHA of the file being replaced is required.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner (username or organization)"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path where to create/update the file"
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the file (base64 encoded)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Commit message"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch to create/update the file in"
+        },
+        "sha": {
+          "type": "string",
+          "description": "SHA of file being replaced (required for updates)"
+        }
+      },
+      "required": ["owner", "repo", "path", "content", "message", "branch"]
+    }
+  },
+  {
+    "name": "search_repositories",
+    "description": "Search for GitHub repositories",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query (GitHub search syntax)"
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number for pagination (default: 1)"
+        },
+        "perPage": {
+          "type": "number",
+          "description": "Number of results per page (default: 30, max: 100)"
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "create_issue",
+    "description": "Create a new issue in a GitHub repository",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "title": {
+          "type": "string",
+          "description": "Issue title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Issue body content"
+        },
+        "assignees": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Usernames to assign to this issue"
+        },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Labels to associate with this issue"
+        },
+        "milestone": {
+          "type": "number",
+          "description": "Milestone number to associate with this issue"
+        }
+      },
+      "required": ["owner", "repo", "title"]
+    }
+  },
+  {
+    "name": "create_pull_request",
+    "description": "Create a new pull request in a GitHub repository",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "title": {
+          "type": "string",
+          "description": "Pull request title"
+        },
+        "body": {
+          "type": "string",
+          "description": "Pull request body"
+        },
+        "head": {
+          "type": "string",
+          "description": "The name of the branch where your changes are implemented"
+        },
+        "base": {
+          "type": "string",
+          "description": "The name of the branch you want the changes pulled into"
+        },
+        "draft": {
+          "type": "boolean",
+          "description": "Indicates whether the pull request is a draft"
+        },
+        "maintainer_can_modify": {
+          "type": "boolean",
+          "description": "Indicates whether maintainers can modify the pull request"
+        }
+      },
+      "required": ["owner", "repo", "title", "head", "base"]
+    }
+  },
+  {
+    "name": "push_files",
+    "description": "Push multiple files to a GitHub repository in a single commit",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch to push to"
+        },
+        "files": {
+          "type": "array",
+          "description": "Array of file objects to push",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path of the file in the repository"
+              },
+              "content": {
+                "type": "string",
+                "description": "Content of the file"
+              }
+            },
+            "required": ["path", "content"]
+          }
+        },
+        "message": {
+          "type": "string",
+          "description": "Commit message"
+        }
+      },
+      "required": ["owner", "repo", "branch", "files", "message"]
+    }
+  },
+  {
+    "name": "get_file_contents",
+    "description": "Get the contents of a file or directory from a GitHub repository",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the file or directory"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch to get contents from"
+        }
+      },
+      "required": ["owner", "repo", "path"]
+    }
+  },
+  {
+    "name": "fork_repository",
+    "description": "Fork a GitHub repository to your account or specified organization",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "organization": {
+          "type": "string",
+          "description": "Optional: organization to fork to"
+        }
+      },
+      "required": ["owner", "repo"]
+    }
+  },
+  {
+    "name": "create_branch",
+    "description": "Create a new branch in a GitHub repository",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Name for the new branch"
+        },
+        "from_branch": {
+          "type": "string",
+          "description": "Source branch to create from (default: repo default branch)"
+        }
+      },
+      "required": ["owner", "repo", "branch"]
+    }
+  },
+  {
+    "name": "list_issues",
+    "description": "List issues in a GitHub repository with filtering options",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "state": {
+          "type": "string",
+          "enum": ["open", "closed", "all"],
+          "description": "Filter by state"
+        },
+        "labels": {
+          "type": "string",
+          "description": "Comma-separated list of label names"
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["created", "updated", "comments"],
+          "description": "What to sort results by"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "description": "Sort direction"
+        },
+        "since": {
+          "type": "string",
+          "description": "Only show results updated after this time (ISO 8601 format)"
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number"
+        },
+        "per_page": {
+          "type": "number",
+          "description": "Results per page"
+        }
+      },
+      "required": ["owner", "repo"]
+    }
+  },
+  {
+    "name": "search_code",
+    "description": "Search for code across GitHub repositories",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string",
+          "description": "Search query using GitHub code search syntax"
+        },
+        "order": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "description": "Sort order"
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number"
+        },
+        "per_page": {
+          "type": "number",
+          "description": "Results per page (max 100)"
+        }
+      },
+      "required": ["q"]
+    }
+  },
+  {
+    "name": "search_issues",
+    "description": "Search for issues and pull requests across GitHub repositories",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string",
+          "description": "Search query using GitHub issues search syntax"
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["comments", "reactions", "reactions-+1", "reactions--1", "reactions-smile", "reactions-thinking_face", "reactions-heart", "reactions-tada", "interactions", "created", "updated"],
+          "description": "Sort field"
+        },
+        "order": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "description": "Sort order"
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number"
+        },
+        "per_page": {
+          "type": "number",
+          "description": "Results per page (max 100)"
+        }
+      },
+      "required": ["q"]
+    }
+  },
+  {
+    "name": "list_commits",
+    "description": "Get list of commits of a branch in a GitHub repository",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Repository owner"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "sha": {
+          "type": "string",
+          "description": "SHA or branch to start listing commits from"
+        },
+        "page": {
+          "type": "number",
+          "description": "Page number"
+        },
+        "per_page": {
+          "type": "number",
+          "description": "Results per page"
+        }
+      },
+      "required": ["owner", "repo"]
+    }
+  }
+]

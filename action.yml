@@ -1,0 +1,220 @@
+name: 'MCP Tool Quality'
+description: 'Validate, audit, and optimize MCP/OpenAI/Anthropic tool schemas. Like a bundle size check for AI tool definitions.'
+author: '0-co'
+
+branding:
+  icon: 'zap'
+  color: 'purple'
+
+inputs:
+  file:
+    description: 'Path to tool definition JSON file'
+    required: true
+  threshold:
+    description: 'Max allowed tokens — fail the check if exceeded (like a bundle size budget)'
+    required: false
+    default: ''
+  validate:
+    description: 'Run schema correctness checks before audit (true/false)'
+    required: false
+    default: 'false'
+  validate_strict:
+    description: 'Treat validation warnings as errors (true/false)'
+    required: false
+    default: 'false'
+  optimize:
+    description: 'Also run optimize to suggest token savings (true/false)'
+    required: false
+    default: 'false'
+  grade:
+    description: 'Run combined grade report card (true/false)'
+    required: false
+    default: 'false'
+  grade_threshold:
+    description: 'Minimum grade score (0-100) — fail if below this'
+    required: false
+    default: ''
+
+outputs:
+  total_tokens:
+    description: 'Total estimated tokens across all tools'
+    value: ${{ steps.audit.outputs.total_tokens }}
+  tool_count:
+    description: 'Number of tools analyzed'
+    value: ${{ steps.audit.outputs.tool_count }}
+  grade:
+    description: 'Letter grade (A+ through F)'
+    value: ${{ steps.grade.outputs.grade }}
+  grade_score:
+    description: 'Numeric score (0-100)'
+    value: ${{ steps.grade.outputs.grade_score }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install agent-friend
+      shell: bash
+      run: pip install git+https://github.com/0-co/agent-friend.git
+
+    - name: Run validate
+      if: inputs.validate == 'true'
+      shell: bash
+      run: |
+        STRICT_FLAG=""
+        if [ "${{ inputs.validate_strict }}" = "true" ]; then
+          STRICT_FLAG="--strict"
+        fi
+
+        echo "## Schema Validation" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        VALIDATE_JSON=$(agent-friend validate "${{ inputs.file }}" --json $STRICT_FLAG)
+        ERRORS=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['errors'])")
+        WARNINGS=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['warnings'])")
+        PASSED=$(echo "$VALIDATE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['passed'])")
+
+        echo "| Check | Count |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Errors | $ERRORS |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Warnings | $WARNINGS |" >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$PASSED" = "False" ]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          agent-friend validate "${{ inputs.file }}" --no-color $STRICT_FLAG >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Schema validation failed: $ERRORS errors, $WARNINGS warnings"
+          exit 1
+        else
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> Schema validation passed" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Run audit
+      id: audit
+      shell: bash
+      run: |
+        # Run JSON audit to capture data
+        AUDIT_JSON=$(agent-friend audit "${{ inputs.file }}" --json)
+        echo "$AUDIT_JSON"
+
+        # Extract metrics
+        TOTAL=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['total_tokens'])")
+        COUNT=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tool_count'])")
+        echo "total_tokens=$TOTAL" >> "$GITHUB_OUTPUT"
+        echo "tool_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+        # Write step summary
+        echo "## MCP Token Audit" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Tools | $COUNT |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Total tokens | $TOTAL |" >> "$GITHUB_STEP_SUMMARY"
+
+        # Threshold check
+        if [ -n "${{ inputs.threshold }}" ]; then
+          echo "| Threshold | ${{ inputs.threshold }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TOTAL" -gt "${{ inputs.threshold }}" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Token budget exceeded:** $TOTAL > ${{ inputs.threshold }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Token budget exceeded: $TOTAL tokens > ${{ inputs.threshold }} threshold"
+            exit 1
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Token budget OK: $TOTAL <= ${{ inputs.threshold }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+
+        # Format comparison
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Format comparison" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "$AUDIT_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        fmts = d.get('format_estimates', {})
+        if fmts:
+            print('| Format | Tokens |', file=sys.stdout)
+            print('|--------|--------|', file=sys.stdout)
+            for fmt in sorted(fmts, key=lambda f: fmts[f]):
+                print(f'| {fmt} | {fmts[f]} |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
+
+        # Context window impact
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Context window impact" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "$AUDIT_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        ctx = d.get('context_window_pct', {})
+        if ctx:
+            print('| Model | Usage |', file=sys.stdout)
+            print('|-------|-------|', file=sys.stdout)
+            for model, pct in ctx.items():
+                warn = ' ⚠️' if pct > 2.0 else ''
+                print(f'| {model} | {pct:.1f}%{warn} |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Run optimize
+      if: inputs.optimize == 'true'
+      shell: bash
+      run: |
+        agent-friend optimize "${{ inputs.file }}"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Optimization suggestions" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        agent-friend optimize "${{ inputs.file }}" --no-color >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Run grade
+      id: grade
+      if: inputs.grade == 'true'
+      shell: bash
+      run: |
+        GRADE_JSON=$(agent-friend grade "${{ inputs.file }}" --json)
+
+        GRADE=$(echo "$GRADE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_grade'])")
+        SCORE=$(echo "$GRADE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_score'])")
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "grade_score=$SCORE" >> "$GITHUB_OUTPUT"
+
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "## Schema Quality Grade" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "**Grade: $GRADE** ($SCORE/100)" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "$GRADE_JSON" | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        print('| Dimension | Grade | Score | Detail |', file=sys.stdout)
+        print('|-----------|-------|-------|--------|', file=sys.stdout)
+        c = d['correctness']
+        print(f'| Correctness | {c[\"grade\"]} | {c[\"score\"]}/100 | {c[\"errors\"]} errors, {c[\"warnings\"]} warnings |', file=sys.stdout)
+        e = d['efficiency']
+        print(f'| Efficiency | {e[\"grade\"]} | {e[\"score\"]}/100 | avg {int(e[\"avg_tokens_per_tool\"])} tokens/tool |', file=sys.stdout)
+        q = d['quality']
+        print(f'| Quality | {q[\"grade\"]} | {q[\"score\"]}/100 | {q[\"suggestions\"]} suggestions |', file=sys.stdout)
+        " >> "$GITHUB_STEP_SUMMARY"
+
+        # Threshold check
+        if [ -n "${{ inputs.grade_threshold }}" ]; then
+          THRESHOLD="${{ inputs.grade_threshold }}"
+          BELOW=$(python3 -c "print('yes' if $SCORE < $THRESHOLD else 'no')")
+          if [ "$BELOW" = "yes" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Grade threshold not met:** $SCORE < $THRESHOLD" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Grade threshold not met: $SCORE < $THRESHOLD (grade: $GRADE)"
+            exit 1
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Grade threshold OK: $SCORE >= $THRESHOLD" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
