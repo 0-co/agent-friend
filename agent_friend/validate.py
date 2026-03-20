@@ -1155,6 +1155,45 @@ def _check_description_just_the_name(tool_name: str, schema: Dict[str, Any]) -> 
     return None
 
 
+def _check_description_multiline(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 34: description_multiline — tool description contains embedded newlines.
+
+    MCP tool descriptions are serialised as JSON strings and consumed directly by
+    language models — markdown formatting does not render.  Newline characters inside
+    a description:
+
+    * add token overhead (each ``\\n`` is typically its own token)
+    * signal that the description was written as documentation prose, not as a
+      concise machine-readable hint
+    * often wrap bullet lists or multi-paragraph text that belongs in a README,
+      not a schema field
+
+    Fires when the tool description contains **two or more** newline characters.
+    A single trailing newline or one line-break between a summary and a single
+    sentence of detail is common enough to exempt; two or more newlines indicate
+    genuine multi-paragraph or bulleted formatting.
+    """
+    desc = _get_tool_description(obj, fmt)
+    if desc is None or not isinstance(desc, str):
+        return None
+    stripped = desc.strip()
+    if not stripped:
+        return None
+    newline_count = stripped.count("\n")
+    if newline_count >= 2:
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="description_multiline",
+            message=(
+                "description contains {n} newlines — use a single concise sentence; "
+                "embedded newlines add token overhead and suggest documentation prose "
+                "that belongs in a README, not a schema field"
+            ).format(n=newline_count),
+        )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1412,6 +1451,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 33: description_just_the_name
         issue = _check_description_just_the_name(name, schema)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 34: description_multiline
+        issue = _check_description_multiline(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 

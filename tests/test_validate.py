@@ -40,6 +40,7 @@ from agent_friend.validate import (
     _check_param_type_missing,
     _check_nested_param_type_missing,
     _check_array_items_type_missing,
+    _check_description_multiline,
 )
 
 
@@ -4031,3 +4032,108 @@ class TestCheck33DescriptionJustTheName:
             "search_query": {"type": "string", "description": "The search query string"}
         }}
         assert _check_description_just_the_name("t", schema) is None
+
+
+class TestCheck34DescriptionMultiline:
+    """Tests for Check 34: description_multiline."""
+
+    def _tool(self, description: str):
+        return {"name": "test_tool", "description": description, "inputSchema": {
+            "type": "object", "properties": {}, "required": [],
+        }}
+
+    def _mcp_obj(self, description: str):
+        return self._tool(description)
+
+    def test_two_newlines_fires(self):
+        """Tool description with 2+ newlines → warn."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("First line.\nSecond line.\nThird line.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue is not None
+
+    def test_many_newlines_fires(self):
+        """Stripe-style multi-paragraph description fires."""
+        desc = "Create a customer.\n\nArguments:\n- name: customer name\n- email: address"
+        obj = self._mcp_obj(desc)
+        from agent_friend.validate import _check_description_multiline
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue is not None
+
+    def test_single_newline_ok(self):
+        """Single newline (summary + one sentence) does not fire."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("Connect to WinDbg.\n                Opens a remote session.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue is None
+
+    def test_no_newline_ok(self):
+        """Clean single-line description is fine."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("Get the current weather for a city.")
+        assert _check_description_multiline("t", obj, "mcp") is None
+
+    def test_empty_description_ok(self):
+        """Empty description does not fire (caught by other checks)."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("")
+        assert _check_description_multiline("t", obj, "mcp") is None
+
+    def test_severity_is_warn(self):
+        """Severity must be warn."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("Line 1.\nLine 2.\nLine 3.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue.severity == "warn"
+
+    def test_check_id(self):
+        """Check id must be description_multiline."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("A.\nB.\nC.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue.check == "description_multiline"
+
+    def test_newline_count_in_message(self):
+        """Message should mention the count of newlines."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("A.\nB.\nC.\nD.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert "3" in issue.message
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "create_customer",
+            "description": "Create a customer.\n\nArguments:\n- name: customer name",
+            "inputSchema": {"type": "object", "properties": {}, "required": []},
+        }]
+        issues, _ = validate_tools(tools)
+        ml_issues = [i for i in issues if i.check == "description_multiline"]
+        assert len(ml_issues) == 1
+        assert ml_issues[0].tool == "create_customer"
+
+    def test_openai_format_fires(self):
+        """Also works for OpenAI format tools."""
+        from agent_friend.validate import _check_description_multiline
+        obj = {
+            "type": "function",
+            "function": {
+                "name": "test",
+                "description": "Line A.\nLine B.\nLine C.",
+            }
+        }
+        issue = _check_description_multiline("test", obj, "openai")
+        assert issue is not None
+
+    def test_trailing_newlines_only_ok(self):
+        """Trailing newlines stripped before count — single line with trailing newline is OK."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("Clean description.\n")
+        assert _check_description_multiline("t", obj, "mcp") is None
+
+    def test_two_newline_threshold(self):
+        """Exactly 2 newlines after stripping triggers the warning."""
+        from agent_friend.validate import _check_description_multiline
+        obj = self._mcp_obj("First.\nSecond.\nThird.")
+        issue = _check_description_multiline("t", obj, "mcp")
+        assert issue is not None
