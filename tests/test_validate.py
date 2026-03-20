@@ -6201,3 +6201,141 @@ class TestCheckParamDescriptionSaysOptional:
         hits = [i for i in issues if i.check == "param_description_says_optional"]
         assert len(hits) == 1
         assert "limit" in hits[0].message
+
+
+class TestCheck51RangeDescribedNotConstrained:
+    """Tests for Check 51: range_described_not_constrained."""
+
+    def _schema(self, param_name: str, param_type: str, description: str, **extra):
+        props = {"type": param_type, "description": description}
+        props.update(extra)
+        return {"type": "object", "properties": {param_name: props}}
+
+    def _make_tool(self, properties, required=None):
+        return [{
+            "name": "test_tool",
+            "description": "Test tool",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties,
+                "required": required or [],
+            },
+        }]
+
+    def test_integer_range_fires(self):
+        """'1-100' in description for integer param → warn."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("limit", "integer", "Number of results (1-100)")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "range_described_not_constrained"
+
+    def test_number_range_fires(self):
+        """'0-1' in description for number param → warn."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("temperature", "number", "Sampling temperature, 0-1")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 1
+
+    def test_range_with_to_fires(self):
+        """'1 to 100' syntax fires."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("count", "integer", "Max results, 1 to 100")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 1
+
+    def test_already_has_minimum_ok(self):
+        """Param with minimum set → does not fire."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("limit", "integer", "Results per page (1-100)", minimum=1)
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_already_has_maximum_ok(self):
+        """Param with maximum set → does not fire (partial constraint present)."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("limit", "integer", "Results per page (1-100)", maximum=100)
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_string_type_ok(self):
+        """String params don't fire even with a range pattern."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("code", "string", "Code between 1-100 characters")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_no_description_ok(self):
+        """No description → no fire."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = {"type": "object", "properties": {"n": {"type": "integer"}}}
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_lo_ge_hi_ok(self):
+        """Range like 100-1 (lo >= hi) doesn't fire."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("n", "integer", "Value from 100-1")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_huge_range_ok(self):
+        """Very large ranges like 0-1000000 don't fire (implausible constraint)."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("n", "integer", "Value 0-1000000")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0
+
+    def test_severity_is_warn(self):
+        """Issue severity is warn."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("fps", "integer", "Frames per second (1-30)")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert issues[0].severity == "warn"
+
+    def test_message_mentions_param_and_range(self):
+        """Message should mention param name and range bounds."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("per_page", "integer", "Items per page (1-100)")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert "per_page" in issues[0].message
+        assert "1" in issues[0].message
+        assert "100" in issues[0].message
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        from agent_friend.validate import validate_tools
+        tools = self._make_tool(
+            properties={"per_page": {"type": "integer", "description": "Results (1-100)"}},
+        )
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "range_described_not_constrained"]
+        assert len(hits) == 1
+        assert hits[0].tool == "test_tool"
+
+    def test_multiple_params_all_fire(self):
+        """Multiple params with ranges in description all fire."""
+        from agent_friend.validate import validate_tools
+        tools = self._make_tool(
+            properties={
+                "limit": {"type": "integer", "description": "Max results (1-100)"},
+                "fps":   {"type": "integer", "description": "Frames per second (1-30)"},
+            },
+        )
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "range_described_not_constrained"]
+        assert len(hits) == 2
+
+    def test_en_dash_range_fires(self):
+        """En-dash (–) range notation fires."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = self._schema("count", "integer", "Count (1\u201350)")
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 1
+
+    def test_no_properties_ok(self):
+        """Schema with no properties returns no issues."""
+        from agent_friend.validate import _check_range_described_not_constrained
+        schema = {"type": "object"}
+        issues = _check_range_described_not_constrained("t", schema)
+        assert len(issues) == 0

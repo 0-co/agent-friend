@@ -1262,6 +1262,88 @@ def _check_param_description_says_optional(tool_name: str, schema: Dict[str, Any
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Check 51: range_described_not_constrained
+# ---------------------------------------------------------------------------
+
+_RANGE_IN_DESC_RE = re.compile(
+    r'(?<!\d)(\d+)\s*(?:[-–—]|to)\s*(\d+)(?!\d)',
+    re.IGNORECASE,
+)
+
+
+def _check_range_described_not_constrained(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 51: range_described_not_constrained — numeric param description mentions a range but schema lacks min/max.
+
+    When a developer writes ``"limit": {"type": "integer", "description": "Number of results (1-100)"}``
+    they are documenting a constraint in prose.  But prose constraints are only
+    enforced at the API level — models see the description and *may* respect the
+    range, but JSON Schema validation does not prevent them from passing 0 or
+    9999.  Adding ``"minimum": 1, "maximum": 100`` to the schema makes the
+    constraint machine-readable, lets validators enforce it, and removes
+    ambiguity for the model.
+
+    Fires when:
+
+    * Param type is ``integer`` or ``number``, AND
+    * Description contains a range pattern like ``1-100``, ``0-5``, ``1 to 20``, AND
+    * The range bounds are plausible (low < high, difference ≤ 10000, high ≤ 1000000), AND
+    * Schema has no ``minimum`` or ``maximum`` (or exclusive variants)
+
+    Does **not** fire for params that already have min/max constraints, even
+    partial ones (e.g. only ``minimum`` is set).
+
+    Examples::
+
+        # flagged — range in English but not in schema
+        "per_page": {"type": "integer", "description": "Results per page (1-100)"}
+        "limit":    {"type": "integer", "description": "Max results, 1 to 100"}
+        "fps":      {"type": "integer", "description": "Frames per second, 1-30"}
+
+        # correct — schema enforces what description says
+        "per_page": {"type": "integer", "description": "Results per page (1-100)",
+                     "minimum": 1, "maximum": 100}
+        "temperature": {"type": "number", "description": "Sampling temp 0.0-1.0",
+                        "minimum": 0.0, "maximum": 1.0}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        ptype = param_schema.get("type", "")
+        if ptype not in ("integer", "number"):
+            continue
+        # Skip if already has any min/max constraint
+        if any(k in param_schema for k in ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum")):
+            continue
+        desc = param_schema.get("description", "")
+        if not desc or not isinstance(desc, str):
+            continue
+        m = _RANGE_IN_DESC_RE.search(desc)
+        if not m:
+            continue
+        lo, hi = int(m.group(1)), int(m.group(2))
+        # Plausibility filter: lo < hi, range ≤ 10000, hi ≤ 1_000_000
+        if lo >= hi or hi - lo > 10_000 or hi > 1_000_000:
+            continue
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="range_described_not_constrained",
+            message=(
+                "param '{param}' description says '{lo}–{hi}' but schema has no "
+                "minimum/maximum — models can pass out-of-range values; add "
+                "\"minimum\": {lo}, \"maximum\": {hi} to enforce the constraint"
+            ).format(param=param_name, lo=lo, hi=hi),
+        ))
+
+    return issues
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2699,6 +2781,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 50: param_description_says_optional
         issues.extend(_check_param_description_says_optional(name, schema))
+
+        # Check 51: range_described_not_constrained
+        issues.extend(_check_range_described_not_constrained(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
