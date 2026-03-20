@@ -1194,6 +1194,96 @@ def _check_description_multiline(name: str, obj: Dict[str, Any], fmt: str) -> Op
     return None
 
 
+def _check_description_redundant_type(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 35: description_redundant_type — param description begins with its own type name.
+
+    When a parameter already declares its JSON Schema type, starting the description
+    with that type name adds token overhead without providing new information.
+
+    Examples of the antipattern::
+
+        # type: "array" — redundant
+        "files":   {"type": "array",   "description": "array of file objects to push"}
+        "paths":   {"type": "array",   "description": "list of file paths to read"}
+        "tags":    {"type": "array",   "description": "an array of tag strings"}
+
+        # type: "string" — redundant
+        "token":   {"type": "string",  "description": "a string containing the API token"}
+        "mode":    {"type": "string",  "description": "string value: 'fast' or 'slow'"}
+
+        # type: "boolean" — redundant
+        "verbose": {"type": "boolean", "description": "boolean flag for verbose output"}
+
+    Better descriptions skip the type echo and describe *what the value means*::
+
+        "files":   "File objects to push, each with 'path' and 'content' keys"
+        "token":   "API authentication token from your account settings"
+        "verbose": "Whether to print detailed debug output"
+
+    Fires once per affected parameter (not once per tool).
+    """
+    # Type → tuple of lowercase prefix strings that are redundant for that type.
+    # We deliberately exclude "number of" for type:number since it is common English.
+    _REDUNDANT = {
+        "array": (
+            "array of ", "an array of ", "the array of ",
+            "array containing ", "array with ",
+            "list of ", "a list of ", "the list of ",
+        ),
+        "string": (
+            "a string ", "the string ", "string value",
+            "string that ", "string representing ", "string containing ",
+            "string with ",
+        ),
+        "integer": (
+            "an integer", "the integer", "integer value",
+            "integer representing ", "integer that ",
+        ),
+        "boolean": (
+            "a boolean", "the boolean", "boolean value",
+            "boolean flag", "boolean that ", "boolean indicating",
+            "boolean whether",
+        ),
+        "object": (
+            "an object ", "the object ", "object containing ",
+            "object with ", "json object",
+        ),
+    }
+
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        ptype = param_schema.get("type")
+        if not isinstance(ptype, str) or ptype not in _REDUNDANT:
+            continue
+        desc = param_schema.get("description", "")
+        if not desc or not isinstance(desc, str):
+            continue
+        desc_lower = desc.lower().strip()
+        if not desc_lower:
+            continue
+        for prefix in _REDUNDANT[ptype]:
+            if desc_lower.startswith(prefix):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_redundant_type",
+                    message=(
+                        "param '{param}' description '{desc}' starts with its type "
+                        "name — the type is already declared in the schema; describe "
+                        "what the value means instead"
+                    ).format(param=param_name, desc=desc[:60]),
+                ))
+                break  # one issue per param
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1458,6 +1548,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_description_multiline(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
+
+        # Check 35: description_redundant_type
+        issues.extend(_check_description_redundant_type(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

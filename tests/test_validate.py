@@ -41,6 +41,7 @@ from agent_friend.validate import (
     _check_nested_param_type_missing,
     _check_array_items_type_missing,
     _check_description_multiline,
+    _check_description_redundant_type,
 )
 
 
@@ -4137,3 +4138,159 @@ class TestCheck34DescriptionMultiline:
         obj = self._mcp_obj("First.\nSecond.\nThird.")
         issue = _check_description_multiline("t", obj, "mcp")
         assert issue is not None
+
+
+class TestCheck35DescriptionRedundantType:
+    """Tests for Check 35: description_redundant_type."""
+
+    def _schema(self, param_name: str, param_type: str, description: str):
+        return {"type": "object", "properties": {
+            param_name: {"type": param_type, "description": description}
+        }}
+
+    def test_array_of_fires(self):
+        """'array of file objects' for an array param → warn."""
+        schema = self._schema("files", "array", "array of file objects to push")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "description_redundant_type"
+
+    def test_list_of_fires(self):
+        """'list of file paths' for an array param → warn."""
+        schema = self._schema("paths", "array", "list of file paths to read")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_an_array_of_fires(self):
+        """'an array of tag strings' → warn."""
+        schema = self._schema("tags", "array", "an array of tag strings")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_a_list_of_fires(self):
+        """'a list of items to process' → warn."""
+        schema = self._schema("items", "array", "a list of items to process")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_array_good_description_ok(self):
+        """Descriptive array param without redundant prefix → no issue."""
+        schema = self._schema("files", "array", "File objects to push, each with path and content")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_string_a_string_fires(self):
+        """'a string containing the token' for string param → warn."""
+        schema = self._schema("token", "string", "a string containing the API token")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_string_value_fires(self):
+        """'string value representing the mode' → warn."""
+        schema = self._schema("mode", "string", "string value representing the mode")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_string_good_description_ok(self):
+        """'API authentication token from account settings' → no issue."""
+        schema = self._schema("token", "string", "API authentication token from account settings")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_boolean_flag_fires(self):
+        """'boolean flag for verbose output' → warn."""
+        schema = self._schema("verbose", "boolean", "boolean flag for verbose output")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_a_boolean_fires(self):
+        """'a boolean indicating recursive search' → warn."""
+        schema = self._schema("recursive", "boolean", "a boolean indicating recursive search")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_boolean_whether_ok(self):
+        """'Whether to include deleted items' → no issue (correct pattern)."""
+        schema = self._schema("include_deleted", "boolean", "Whether to include deleted items")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_integer_fires(self):
+        """'an integer specifying page size' → warn."""
+        schema = self._schema("page_size", "integer", "an integer specifying page size")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_number_of_no_fire(self):
+        """'number of results per page' for number param → no issue (semantic English)."""
+        schema = self._schema("per_page", "number", "number of results per page")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_object_fires(self):
+        """'an object containing user details' → warn."""
+        schema = self._schema("user", "object", "an object containing user details")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_no_type_no_fire(self):
+        """Param with no type declaration → no issue (other checks handle it)."""
+        schema = {"type": "object", "properties": {
+            "data": {"description": "array of items"}
+        }}
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_no_description_no_fire(self):
+        """Array param with no description → no issue (check 18 handles it)."""
+        schema = {"type": "object", "properties": {
+            "files": {"type": "array"}
+        }}
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 0
+
+    def test_multiple_params_multiple_issues(self):
+        """Multiple params with redundant type prefixes each get an issue."""
+        schema = {"type": "object", "properties": {
+            "files": {"type": "array", "description": "array of file objects"},
+            "tags": {"type": "array", "description": "list of tag strings"},
+        }}
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 2
+
+    def test_severity_is_warn(self):
+        """Issue is a warning, not an error."""
+        schema = self._schema("paths", "array", "list of paths to process")
+        issues = _check_description_redundant_type("t", schema)
+        assert issues[0].severity == "warn"
+
+    def test_param_name_in_message(self):
+        """Issue message mentions the affected parameter name."""
+        schema = self._schema("my_files", "array", "array of file objects")
+        issues = _check_description_redundant_type("t", schema)
+        assert "my_files" in issues[0].message
+
+    def test_case_insensitive(self):
+        """Description starting with 'Array of' (capitalized) also fires."""
+        schema = self._schema("items", "array", "Array of items to process")
+        issues = _check_description_redundant_type("t", schema)
+        assert len(issues) == 1
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "push_files",
+            "description": "Push files to a repository.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "files": {"type": "array", "description": "array of file objects to push"},
+                    "branch": {"type": "string", "description": "Target branch name"},
+                },
+                "required": ["files", "branch"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        rt_issues = [i for i in issues if i.check == "description_redundant_type"]
+        assert len(rt_issues) == 1
+        assert rt_issues[0].tool == "push_files"
