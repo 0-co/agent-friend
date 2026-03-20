@@ -43,6 +43,7 @@ from agent_friend.validate import (
     _check_description_multiline,
     _check_description_redundant_type,
     _check_param_format_missing,
+    _check_boolean_default_missing,
 )
 
 
@@ -4440,3 +4441,159 @@ class TestParamFormatMissing:
         fmt_issues = [i for i in issues if i.check == "param_format_missing"]
         assert len(fmt_issues) == 1
         assert fmt_issues[0].tool == "create_contact"
+
+
+class TestBooleanDefaultMissing:
+    """Tests for Check 37: boolean_default_missing."""
+
+    def _make_schema(self, props, required=None):
+        schema = {"type": "object", "properties": props}
+        if required is not None:
+            schema["required"] = required
+        return schema
+
+    def test_optional_boolean_no_default_fires(self):
+        """Optional boolean param without default should fire."""
+        schema = self._make_schema(
+            {"verbose": {"type": "boolean", "description": "Enable verbose output"}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "boolean_default_missing"
+
+    def test_required_boolean_no_default_no_fire(self):
+        """Required boolean without default should NOT fire (caller must supply it)."""
+        schema = self._make_schema(
+            {"confirm": {"type": "boolean", "description": "Confirm the action"}},
+            required=["confirm"],
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_optional_boolean_with_default_false_no_fire(self):
+        """Optional boolean with default: false should NOT fire."""
+        schema = self._make_schema(
+            {"recursive": {"type": "boolean", "default": False, "description": "..."}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_optional_boolean_with_default_true_no_fire(self):
+        """Optional boolean with default: true should NOT fire."""
+        schema = self._make_schema(
+            {"enabled": {"type": "boolean", "default": True, "description": "..."}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_non_boolean_no_fire(self):
+        """Non-boolean params should NOT fire even without default."""
+        schema = self._make_schema({
+            "count": {"type": "integer", "description": "Number of items"},
+            "name": {"type": "string", "description": "Name"},
+        })
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_multiple_boolean_params_multiple_issues(self):
+        """Multiple optional booleans without defaults should each fire."""
+        schema = self._make_schema({
+            "verbose": {"type": "boolean", "description": "Verbose"},
+            "recursive": {"type": "boolean", "description": "Recursive"},
+            "dry_run": {"type": "boolean", "description": "Dry run"},
+        })
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 3
+
+    def test_mixed_required_and_optional(self):
+        """Only optional booleans without defaults should fire."""
+        schema = self._make_schema(
+            {
+                "confirm": {"type": "boolean", "description": "Required confirm"},
+                "verbose": {"type": "boolean", "description": "Optional verbose"},
+                "trace": {"type": "boolean", "default": False, "description": "Has default"},
+            },
+            required=["confirm"],
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].message.count("verbose") == 1
+
+    def test_severity_is_warn(self):
+        """Issue severity should be 'warn'."""
+        schema = self._make_schema(
+            {"debug": {"type": "boolean", "description": "Debug mode"}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].severity == "warn"
+
+    def test_param_name_in_message(self):
+        """The param name should appear in the issue message."""
+        schema = self._make_schema(
+            {"allow_dangerous": {"type": "boolean", "description": "Allow dangerous ops"}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+        assert "allow_dangerous" in issues[0].message
+
+    def test_tool_name_set_correctly(self):
+        """Issue tool field should match the tool name."""
+        schema = self._make_schema(
+            {"flag": {"type": "boolean", "description": "A flag"}}
+        )
+        issues = _check_boolean_default_missing("specific_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].tool == "specific_tool"
+
+    def test_no_properties_no_fire(self):
+        """Schema without properties should not fire."""
+        issues = _check_boolean_default_missing("my_tool", {})
+        assert len(issues) == 0
+
+    def test_empty_required_list_treated_as_optional(self):
+        """Boolean with empty required list is optional and should fire."""
+        schema = self._make_schema(
+            {"silent": {"type": "boolean", "description": "Silent mode"}},
+            required=[],
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_no_required_key_treats_all_as_optional(self):
+        """When required key is absent, boolean without default should fire."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "verbose": {"type": "boolean", "description": "Verbose mode"},
+            },
+        }
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_description_mentions_default_but_field_missing_still_fires(self):
+        """Mentioning default in description but no default field should still fire."""
+        schema = self._make_schema(
+            {"follow_symlinks": {"type": "boolean", "description": "Follow symlinks (default: false)"}}
+        )
+        issues = _check_boolean_default_missing("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        tools = [{
+            "name": "list_files",
+            "description": "List files in a directory.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Directory path"},
+                    "recursive": {"type": "boolean", "description": "Search recursively"},
+                },
+                "required": ["path"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        bool_issues = [i for i in issues if i.check == "boolean_default_missing"]
+        assert len(bool_issues) == 1
+        assert bool_issues[0].tool == "list_files"

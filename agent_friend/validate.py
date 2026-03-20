@@ -1380,6 +1380,67 @@ def _check_param_format_missing(tool_name: str, schema: Dict[str, Any]) -> List[
     return issues
 
 
+def _check_boolean_default_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 37: boolean_default_missing — optional boolean param has no 'default' field.
+
+    When a boolean parameter is optional (not in ``required``), omitting the
+    ``default`` field forces models to guess the assumed state.  Without a
+    machine-readable default, a model doesn't know whether to:
+
+    * omit the parameter entirely (relies on an undocumented server default), or
+    * pass ``false`` (potentially overriding a ``true`` default), or
+    * ask the user (adds unnecessary friction).
+
+    JSON Schema's ``default`` keyword is advisory but critical for tool-calling
+    LLMs — it lets them infer ``"if I leave this out, the server assumes X"``.
+
+    Only fires for optional parameters (not in ``required``) with
+    ``type: boolean`` and no existing ``default``.  Fires once per affected
+    parameter.
+
+    Examples::
+
+        # missing — model guesses what omitting this means
+        "verbose":    {"type": "boolean", "description": "Enable verbose output"}
+        "recursive":  {"type": "boolean", "description": "Search recursively"}
+
+        # correct — model knows the assumed state when param is omitted
+        "verbose":    {"type": "boolean", "default": false, "description": "..."}
+        "recursive":  {"type": "boolean", "default": false, "description": "..."}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    required = schema.get("required", [])
+    if not isinstance(required, list):
+        required = []
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_name in required:
+            continue  # required params must be supplied — no default needed
+        if param_schema.get("type") != "boolean":
+            continue
+        if "default" in param_schema:
+            continue
+
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="boolean_default_missing",
+            message=(
+                "optional boolean param '{param}' has no 'default' — models will "
+                "guess whether omitting it means true or false; add "
+                "\"default\": false (or true) to declare the assumed state"
+            ).format(param=param_name),
+        ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1650,6 +1711,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 36: param_format_missing
         issues.extend(_check_param_format_missing(name, schema))
+
+        # Check 37: boolean_default_missing
+        issues.extend(_check_boolean_default_missing(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
