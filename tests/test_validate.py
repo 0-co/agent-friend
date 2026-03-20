@@ -112,6 +112,7 @@ from agent_friend.validate import (
     _check_param_name_too_generic,
     _check_description_uses_first_person,
     _check_description_has_json_example,
+    _check_required_not_array,
 )
 
 
@@ -11436,4 +11437,55 @@ class TestDescriptionHasJsonExample:
 
     def test_empty_description_passes(self):
         issues = _check_description_has_json_example("tool", {}, {}, "mcp")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 120: required_not_array
+# ---------------------------------------------------------------------------
+
+
+class TestRequiredNotArray:
+    """Tests for _check_required_not_array (Check 120)."""
+
+    def test_required_true_fires(self):
+        issues = _check_required_not_array(
+            "tool",
+            {"type": "object", "properties": {"x": {"type": "string"}}, "required": True},
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "required_not_array"
+        assert issues[0].severity == "error"
+
+    def test_required_false_fires(self):
+        issues = _check_required_not_array(
+            "tool",
+            {"type": "object", "properties": {"x": {"type": "string"}}, "required": False},
+        )
+        assert len(issues) == 1
+
+    def test_required_string_fires(self):
+        issues = _check_required_not_array(
+            "tool",
+            {"type": "object", "required": "param_name"},
+        )
+        assert len(issues) == 1
+        assert "param_name" in issues[0].message
+
+    def test_required_array_passes(self):
+        issues = _check_required_not_array(
+            "tool",
+            {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},
+        )
+        assert issues == []
+
+    def test_no_required_passes(self):
+        issues = _check_required_not_array(
+            "tool",
+            {"type": "object", "properties": {"x": {"type": "string"}}},
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_required_not_array("tool", {})
         assert issues == []

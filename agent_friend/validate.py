@@ -2478,6 +2478,68 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 120: required_not_array
+# ---------------------------------------------------------------------------
+
+
+def _check_required_not_array(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 120: required_not_array — the ``required`` field in an input
+    schema (or nested object) is not an array.
+
+    JSON Schema mandates that ``required`` is an array of strings.  Setting
+    it to ``true``, ``false``, a single string, or any non-array value is a
+    schema correctness error that will silently be ignored by most validators::
+
+        # bad — required must be an array
+        {"required": true}
+        {"required": "param_name"}
+        {"required": {"param_name": true}}
+
+        # good — required is an array
+        {"required": ["param_name", "other_param"]}
+
+    Severity: ``error``.
+    """
+    issues = []
+
+    def _check_obj(obj: Any, context: str) -> None:
+        if not isinstance(obj, dict):
+            return
+        req = obj.get("required")
+        if req is not None and not isinstance(req, list):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="required_not_array",
+                message=(
+                    "'{ctx}' has 'required: {val}' — 'required' must be "
+                    "an array of param name strings."
+                ).format(ctx=context, val=repr(req)),
+            ))
+        # Recurse into nested properties
+        props = obj.get("properties")
+        if isinstance(props, dict):
+            for pname, pschema in props.items():
+                if isinstance(pschema, dict):
+                    nested_req = pschema.get("required")
+                    if nested_req is not None and not isinstance(nested_req, list):
+                        issues.append(Issue(
+                            tool=tool_name,
+                            severity="error",
+                            check="required_not_array",
+                            message=(
+                                "param '{param}' has 'required: {val}' — "
+                                "'required' must be an array of strings."
+                            ).format(param=pname, val=repr(nested_req)),
+                        ))
+
+    _check_obj(schema, tool_name)
+    return issues
+
+
 # Check 119: description_has_json_example
 # ---------------------------------------------------------------------------
 
@@ -7335,6 +7397,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 119: description_has_json_example
         issues.extend(_check_description_has_json_example(name, raw_obj, schema, fmt))
+
+        # Check 120: required_not_array
+        issues.extend(_check_required_not_array(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
