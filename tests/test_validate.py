@@ -5902,7 +5902,49 @@ class TestCheckDescriptionModelInstructions:
         assert len(hits) == 1
         assert "always call" in hits[0].message.lower()
 
+    # New patterns added in v0.104.0
 
+    def test_fires_on_use_this_tool_when(self):
+        """'Use this tool when' fires (orchestration hint)."""
+        tools = [self._make_tool(tool_desc="Use this tool when the user asks for help.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_when_to_use(self):
+        """'When to use' fires."""
+        tools = [self._make_tool(tool_desc="When to use: only call if the user requests data.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_do_not_use_this(self):
+        """'Do not use this' fires."""
+        tools = [self._make_tool(tool_desc="Do not use this tool for creating files.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_call_this_first(self):
+        """'Call this first' fires."""
+        tools = [self._make_tool(tool_desc="Call this first to initialize the session.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_call_this_before(self):
+        """'Call this before' fires."""
+        tools = [self._make_tool(tool_desc="Call this before executing any queries.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
+
+    def test_fires_on_only_call_this_when(self):
+        """'Only call this when' fires."""
+        tools = [self._make_tool(tool_desc="Only call this tool when authentication is needed.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_model_instructions"]
+        assert len(hits) == 1
 
 
 class TestCheckRequiredStringNoMinlength:

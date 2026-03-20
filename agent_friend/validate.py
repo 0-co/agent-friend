@@ -1062,7 +1062,14 @@ _TOOL_MODEL_INSTRUCTIONS_RE = re.compile(
     r'|\bnever (?:call|use|pass|include|skip|omit)\b'
     r'|\bIMPORTANT:\s*(?:call|use|this tool must|always)\b'
     r'|\bmust be called (?:before|first|after|instead)\b'
-    r'|\bprioritize (?:this|using)\b',
+    r'|\bprioritize (?:this|using)\b'
+    # Orchestration-hint patterns (added v0.104.0)
+    r'|\buse\s+this\s+tool\s+when\b'
+    r'|\bwhen\s+to\s+use\b'
+    r'|\bdo\s+not\s+use\s+this\b'
+    r'|\bcall\s+this\s+(?:tool\s+)?(?:first|before|after)\b'
+    r'|\bthis\s+tool\s+should\s+(?:only|never|not)\s+be\b'
+    r'|\bonly\s+(?:call|use)\s+this\s+(?:tool\s+)?when\b',
     re.IGNORECASE,
 )
 """Patterns that indicate model-directing language in tool descriptions."""
@@ -1073,14 +1080,28 @@ def _check_description_model_instructions(tool_name: str, tool_description: str)
     directing model behavior rather than describing what the tool does.
 
     Tool descriptions should describe what a tool does.  Phrases like
-    "you must call X first", "always pass Y", "never skip Z" are
-    operational instructions for the model — they belong in the system
-    prompt, not in the schema.  Putting them here:
+    "you must call X first", "always pass Y", "never skip Z", or
+    "Use this tool when:" sections are operational instructions for the
+    model — they belong in the system prompt, not in the schema.
+    Putting them here:
 
     * wastes tokens on every tool call (the model re-reads the full
       schema each time)
     * mixes "what" (schema) with "how" (system prompt)
     * may conflict with system-level instructions from the host application
+
+    Fires on (examples):
+    - "you must/should/need to/have to/always/never ..."
+    - "always call/use/pass/include ..."
+    - "never call/use/pass/include/skip ..."
+    - "IMPORTANT: call/use ..."
+    - "must be called before/first/after ..."
+    - "Use this tool when: ..."
+    - "When to use: ..."
+    - "Do not use this ..."
+    - "Call this first/before/after ..."
+    - "This tool should only/never/not be ..."
+    - "Only call/use this tool when ..."
 
     Does not fire on:
     - "always" used as a modifier unrelated to model behavior
