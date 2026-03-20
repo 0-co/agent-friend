@@ -2478,6 +2478,53 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 127: param_name_has_space
+# ---------------------------------------------------------------------------
+
+
+def _check_param_name_has_space(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 127: param_name_has_space — a parameter name contains a
+    whitespace character (space, tab, newline).
+
+    Whitespace in parameter names is technically valid JSON but causes
+    issues in virtually every programming environment — it can't be used
+    as a Python variable, JavaScript property without bracket notation, or
+    CLI argument.  It almost always indicates a schema generation error::
+
+        # bad — spaces in param names
+        {"first name": {"type": "string", ...}}
+        {"search query": {"type": "string", ...}}
+        {"max results": {"type": "integer", ...}}
+
+        # good — snake_case names
+        {"first_name": {"type": "string", ...}}
+        {"search_query": {"type": "string", ...}}
+        {"max_results": {"type": "integer", ...}}
+
+    Severity: ``error``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name in properties:
+        if isinstance(param_name, str) and any(c.isspace() for c in param_name):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="param_name_has_space",
+                message=(
+                    "param '{param}' contains whitespace — parameter names "
+                    "cannot have spaces; use snake_case instead."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 126: name_ends_with_underscore
 # ---------------------------------------------------------------------------
 
@@ -7721,6 +7768,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 126: name_ends_with_underscore
         issues.extend(_check_name_ends_with_underscore(name, schema))
+
+        # Check 127: param_name_has_space
+        issues.extend(_check_param_name_has_space(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

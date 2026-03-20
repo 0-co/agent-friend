@@ -119,6 +119,7 @@ from agent_friend.validate import (
     _check_param_name_starts_with_underscore,
     _check_param_name_is_number,
     _check_name_ends_with_underscore,
+    _check_param_name_has_space,
 )
 
 
@@ -11750,4 +11751,39 @@ class TestNameEndsWithUnderscore:
 
     def test_empty_schema_passes(self):
         issues = _check_name_ends_with_underscore("get_user", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 127: param_name_has_space
+# ---------------------------------------------------------------------------
+
+
+class TestParamNameHasSpace:
+    """Tests for _check_param_name_has_space (Check 127)."""
+
+    @staticmethod
+    def _schema(*param_names: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {n: {"type": "string", "description": "A param."} for n in param_names},
+        }
+
+    def test_space_in_name_fires(self):
+        issues = _check_param_name_has_space("tool", self._schema("first name"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_has_space"
+        assert issues[0].severity == "error"
+
+    def test_multiple_words_fires(self):
+        issues = _check_param_name_has_space("tool", self._schema("search query"))
+        assert len(issues) == 1
+        assert "search query" in issues[0].message
+
+    def test_snake_case_passes(self):
+        issues = _check_param_name_has_space("tool", self._schema("first_name", "search_query"))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_name_has_space("tool", {})
         assert issues == []
