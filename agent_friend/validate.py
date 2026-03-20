@@ -2675,6 +2675,61 @@ def _check_enum_boolean_string(
 
 
 # ---------------------------------------------------------------------------
+# Check 83: param_nullable_field
+# ---------------------------------------------------------------------------
+
+
+def _check_param_nullable_field(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 83: param_nullable_field — a parameter uses the OpenAPI 3.0
+    ``nullable: true`` extension keyword instead of proper JSON Schema syntax.
+
+    ``nullable`` is not a JSON Schema keyword.  It is an OpenAPI 3.0
+    extension.  JSON Schema validators ignore it; most tool-calling runtimes
+    ignore it.  The correct JSON Schema patterns for nullable types are:
+
+    * ``{"type": ["string", "null"]}``  (JSON Schema draft-07+)
+    * ``{"anyOf": [{"type": "string"}, {"type": "null"}]}`` (handled by Check 77)
+
+    Common source: auto-generated schemas from OpenAPI → MCP converters that
+    do not translate ``nullable`` to proper JSON Schema.
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    def _check_props(props: Dict[str, Any]) -> None:
+        for param_name, param_schema in props.items():
+            if not isinstance(param_schema, dict):
+                continue
+            if param_schema.get("nullable") is True:
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="param_nullable_field",
+                    message=(
+                        "param '{param}' uses 'nullable: true' (OpenAPI extension); "
+                        "use type: [\"{t}\", \"null\"] or anyOf instead."
+                    ).format(
+                        param=param_name,
+                        t=param_schema.get("type", "string"),
+                    ),
+                ))
+            # Recurse into nested object properties
+            nested_props = param_schema.get("properties")
+            if isinstance(nested_props, dict):
+                _check_props(nested_props)
+
+    _check_props(properties)
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 71: schema_has_title_field
 # ---------------------------------------------------------------------------
 
@@ -5230,6 +5285,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 82: enum_boolean_string
         issues.extend(_check_enum_boolean_string(name, schema))
+
+        # Check 83: param_nullable_field
+        issues.extend(_check_param_nullable_field(name, schema))
 
         # Note: check 52 (number_should_be_integer) is subsumed by check 40
         # (number_type_for_integer) — merged into check 40 in v0.103.1.

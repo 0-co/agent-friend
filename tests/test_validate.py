@@ -75,6 +75,7 @@ from agent_friend.validate import (
     _check_description_lists_enum_values,
     _check_param_description_says_ignored,
     _check_enum_boolean_string,
+    _check_param_nullable_field,
 )
 
 
@@ -9513,3 +9514,77 @@ class TestEnumBooleanString:
     def test_empty_schema_passes(self):
         issues = _check_enum_boolean_string("tool", {})
         assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for Check 83: param_nullable_field
+# ---------------------------------------------------------------------------
+
+
+class TestParamNullableField:
+    """Tests for Check 83: param_nullable_field."""
+
+    def _schema(self, param, extra=None):
+        ps = {"type": "string", "description": "A field."}
+        if extra:
+            ps.update(extra)
+        return {
+            "type": "object",
+            "properties": {param: ps},
+        }
+
+    def test_nullable_true_fires(self):
+        issues = _check_param_nullable_field("tool", self._schema("name", {"nullable": True}))
+        assert len(issues) == 1
+        assert issues[0].check == "param_nullable_field"
+        assert issues[0].severity == "warn"
+
+    def test_nullable_false_passes(self):
+        """nullable: false is also technically wrong but not harmful."""
+        issues = _check_param_nullable_field("tool", self._schema("name", {"nullable": False}))
+        assert issues == []
+
+    def test_no_nullable_passes(self):
+        issues = _check_param_nullable_field("tool", self._schema("name"))
+        assert issues == []
+
+    def test_nested_nullable_fires(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "description": "Options.",
+                    "properties": {
+                        "timeout": {
+                            "type": "integer",
+                            "nullable": True,
+                            "description": "Timeout in seconds.",
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_param_nullable_field("tool", schema)
+        assert len(issues) == 1
+        assert "timeout" in issues[0].message
+
+    def test_no_properties_passes(self):
+        issues = _check_param_nullable_field("tool", {"type": "object"})
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_nullable_field("tool", {})
+        assert issues == []
+
+    def test_multiple_nullable_params(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "nullable": True, "description": "Name."},
+                "age": {"type": "integer", "nullable": True, "description": "Age."},
+                "city": {"type": "string", "description": "City."},
+            },
+        }
+        issues = _check_param_nullable_field("tool", schema)
+        assert len(issues) == 2
