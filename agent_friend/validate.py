@@ -858,6 +858,38 @@ def _check_required_params_exist(name: str, schema: Dict[str, Any]) -> List[Issu
     return issues
 
 
+def _check_required_missing(name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 27: required_missing — tool has parameters but no 'required' field.
+
+    When a tool has ``properties`` but no ``required`` array, all parameters are
+    implicitly optional in JSON Schema. This is technically valid, but it means
+    the model cannot distinguish mandatory parameters from optional ones.
+
+    A model calling a tool that requires a ``project_id`` but doesn't declare it
+    as required may omit it, producing a failed API call. Explicit ``required``
+    declarations improve call accuracy.
+
+    Does not fire when:
+    - There are no properties (no params → nothing to mark required)
+    - ``required`` is present (even as an empty list)
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict) or not properties:
+        return None
+    if "required" in schema:
+        return None
+    count = len(properties)
+    return Issue(
+        tool=name,
+        severity="warn",
+        check="required_missing",
+        message=(
+            "tool has {count} parameter{s} but no 'required' field — "
+            "models cannot distinguish mandatory from optional parameters."
+        ).format(count=count, s="s" if count != 1 else ""),
+    )
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1084,6 +1116,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 9: required_params_exist
         issues.extend(_check_required_params_exist(name, schema))
+
+        # Check 27: required_missing
+        issue = _check_required_missing(name, schema)
+        if issue is not None:
+            issues.append(issue)
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))

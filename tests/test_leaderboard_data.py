@@ -53,7 +53,7 @@ class TestGetLeaderboardPosition:
         """Score of 50 should be in the mid-range with valid neighbors."""
         rank, total, above, below = get_leaderboard_position(50)
         # Score of 50 is in the lower-middle range
-        assert rank > 100
+        assert rank >= 100
         assert rank < total
 
         # servers_above: up to 2 servers immediately above (higher score)

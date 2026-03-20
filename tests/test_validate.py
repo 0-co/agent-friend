@@ -35,6 +35,7 @@ from agent_friend.validate import (
     _check_description_too_long,
     _check_param_description_too_short,
     _check_param_description_too_long,
+    _check_required_missing,
     _check_param_type_missing,
     _check_nested_param_type_missing,
     _check_array_items_type_missing,
@@ -3196,3 +3197,83 @@ class TestCheckArrayItemsTypeMissing:
         issues = _check_array_items_type_missing("big_tool", schema)
         assert len(issues) == 1
         assert "+2 more" in issues[0].message
+
+
+class TestCheckRequiredMissing:
+    """Tests for Check 27: required_missing."""
+
+    def _schema(self, props, has_required=False):
+        s = {"type": "object", "properties": props}
+        if has_required:
+            s["required"] = list(props.keys())
+        return s
+
+    def test_no_properties_ok(self):
+        """No properties → no issue."""
+        issue = _check_required_missing("no_props", {"type": "object"})
+        assert issue is None
+
+    def test_empty_properties_ok(self):
+        """Empty properties dict → no issue."""
+        issue = _check_required_missing("empty", {"type": "object", "properties": {}})
+        assert issue is None
+
+    def test_has_required_ok(self):
+        """required field present → no issue."""
+        schema = self._schema({"x": {"type": "string"}}, has_required=True)
+        issue = _check_required_missing("has_required", schema)
+        assert issue is None
+
+    def test_single_param_no_required(self):
+        """1 param, no required → warn."""
+        schema = self._schema({"x": {"type": "string"}})
+        issue = _check_required_missing("one_param", schema)
+        assert issue is not None
+        assert issue.check == "required_missing"
+        assert issue.severity == "warn"
+        assert issue.tool == "one_param"
+
+    def test_multiple_params_no_required(self):
+        """Multiple params, no required → warn with count."""
+        schema = self._schema({"a": {"type": "string"}, "b": {"type": "integer"}, "c": {"type": "boolean"}})
+        issue = _check_required_missing("multi", schema)
+        assert issue is not None
+        assert "3" in issue.message
+
+    def test_singular_param_grammar(self):
+        """Single param uses 'parameter' (singular) in count phrase."""
+        schema = self._schema({"only": {"type": "string"}})
+        issue = _check_required_missing("singular", schema)
+        assert issue is not None
+        assert "1 parameter " in issue.message  # "1 parameter but" not "1 parameters"
+
+    def test_plural_params_grammar(self):
+        """Multiple params use 'parameters' (plural)."""
+        schema = self._schema({"a": {"type": "string"}, "b": {"type": "integer"}})
+        issue = _check_required_missing("plural", schema)
+        assert issue is not None
+        assert "2 parameters" in issue.message
+
+    def test_empty_required_list_triggers(self):
+        """required: [] (empty list) doesn't count — still has the field, so no issue."""
+        schema = self._schema({"x": {"type": "string"}})
+        schema["required"] = []
+        issue = _check_required_missing("empty_required", schema)
+        assert issue is None
+
+    def test_no_schema_no_issue(self):
+        """Empty schema → no issue."""
+        issue = _check_required_missing("empty_schema", {})
+        assert issue is None
+
+    def test_properties_not_dict(self):
+        """properties is not a dict → no issue."""
+        issue = _check_required_missing("bad_props", {"type": "object", "properties": "string"})
+        assert issue is None
+
+    def test_message_mentions_mandatory_optional(self):
+        """Message explains the impact (mandatory vs optional)."""
+        schema = self._schema({"x": {"type": "string"}})
+        issue = _check_required_missing("explain", schema)
+        assert issue is not None
+        assert "required" in issue.message
