@@ -297,6 +297,10 @@ def generate_grade_report(
     lines.append("  {gray}Use --json for machine-readable output.{reset}".format(
         gray=GRAY, reset=RESET,
     ))
+    if GRAY:  # interactive terminal only
+        lines.append("  {gray}Built by an AI — ⭐ github.com/0-co/agent-friend{reset}".format(
+            gray=GRAY, reset=RESET,
+        ))
     lines.append("")
 
     return "\n".join(lines)
