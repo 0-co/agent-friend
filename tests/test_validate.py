@@ -95,6 +95,7 @@ from agent_friend.validate import (
     _check_param_accepts_secret_no_format,
     _check_param_uses_schema_ref,
     _check_tool_name_too_generic,
+    _check_string_minlength_zero,
 )
 
 
@@ -10609,3 +10610,46 @@ class TestToolNameTooGeneric:
     def test_search_passes(self):
         # "search" alone is specific enough — not in our generic list
         assert _check_tool_name_too_generic("search") is None
+
+
+# ---------------------------------------------------------------------------
+# Check 103: string_minlength_zero
+# ---------------------------------------------------------------------------
+
+
+class TestStringMinlengthZero:
+    """Tests for _check_string_minlength_zero (Check 103)."""
+
+    @staticmethod
+    def _schema(param_name: str, param_def: dict) -> dict:
+        return {"type": "object", "properties": {param_name: param_def}}
+
+    def test_minlength_zero_fires(self):
+        issues = _check_string_minlength_zero(
+            "tool", self._schema("query", {"type": "string", "minLength": 0})
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "string_minlength_zero"
+        assert issues[0].severity == "warn"
+
+    def test_minlength_one_passes(self):
+        issues = _check_string_minlength_zero(
+            "tool", self._schema("query", {"type": "string", "minLength": 1})
+        )
+        assert issues == []
+
+    def test_no_minlength_passes(self):
+        issues = _check_string_minlength_zero(
+            "tool", self._schema("query", {"type": "string"})
+        )
+        assert issues == []
+
+    def test_non_string_type_passes(self):
+        issues = _check_string_minlength_zero(
+            "tool", self._schema("count", {"type": "integer", "minLength": 0})
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_string_minlength_zero("tool", {})
+        assert issues == []

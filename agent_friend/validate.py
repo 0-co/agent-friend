@@ -2478,6 +2478,55 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 103: string_minlength_zero
+# ---------------------------------------------------------------------------
+
+
+def _check_string_minlength_zero(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 103: string_minlength_zero — a string parameter has an explicit
+    ``minLength: 0``.
+
+    The default value of ``minLength`` in JSON Schema is already ``0``, so
+    ``minLength: 0`` is redundant and wastes schema tokens.  It also
+    misses an opportunity to actually validate non-empty input::
+
+        # bad — redundant; minLength: 0 is the default
+        {"query": {"type": "string", "minLength": 0}}
+
+        # good — remove the redundant field, or set a meaningful minimum
+        {"query": {"type": "string"}}
+        {"query": {"type": "string", "minLength": 1}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "string":
+            continue
+        if param_schema.get("minLength") == 0:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="string_minlength_zero",
+                message=(
+                    "param '{param}' has minLength: 0 which is the default "
+                    "— remove it (redundant) or set minLength: 1 to prohibit "
+                    "empty strings."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 101: param_uses_schema_ref
 # ---------------------------------------------------------------------------
 
@@ -6303,6 +6352,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_tool_name_too_generic(name)
         if issue is not None:
             issues.append(issue)
+
+        # Check 103: string_minlength_zero
+        issues.extend(_check_string_minlength_zero(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
