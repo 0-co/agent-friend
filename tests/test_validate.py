@@ -35,6 +35,7 @@ from agent_friend.validate import (
     _check_param_description_too_short,
     _check_param_type_missing,
     _check_nested_param_type_missing,
+    _check_array_items_type_missing,
 )
 
 
@@ -2802,5 +2803,187 @@ class TestCheckNestedParamTypeMissing:
             },
         }
         issues = _check_nested_param_type_missing("big_tool", schema)
+        assert len(issues) == 1
+        assert "+2 more" in issues[0].message
+
+# ---------------------------------------------------------------------------
+# Check 24: array_items_type_missing
+# ---------------------------------------------------------------------------
+
+
+class TestCheckArrayItemsTypeMissing:
+    def test_items_without_type_flagged(self):
+        """Array param with items schema but no type in items is flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "description": "List of tags",
+                    "items": {
+                        "description": "A tag value",
+                    },
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("tag_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "array_items_type_missing"
+        assert issues[0].severity == "warn"
+        assert "tags" in issues[0].message
+
+    def test_items_with_type_ok(self):
+        """Array param with typed items is not flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "description": "List of names",
+                    "items": {"type": "string"},
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("list_tool", schema)
+        assert issues == []
+
+    def test_items_with_anyof_ok(self):
+        """Array items using anyOf are not flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "description": "Mixed values",
+                    "items": {
+                        "anyOf": [{"type": "string"}, {"type": "integer"}],
+                    },
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("mixed_tool", schema)
+        assert issues == []
+
+    def test_items_with_ref_ok(self):
+        """Array items using $ref are not flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "description": "Records",
+                    "items": {"$ref": "#/defs/Record"},
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("record_tool", schema)
+        assert issues == []
+
+    def test_array_without_items_not_flagged(self):
+        """Arrays with no items schema are handled by check 17, not 24."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "description": "List of IDs",
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("id_tool", schema)
+        assert issues == []
+
+    def test_nested_array_untyped_items_flagged(self):
+        """Arrays nested inside objects with untyped items are flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "description": "Configuration",
+                    "properties": {
+                        "filters": {
+                            "type": "array",
+                            "description": "Filter conditions",
+                            "items": {
+                                "description": "A filter condition",
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("config_tool", schema)
+        assert len(issues) == 1
+        assert "config.filters" in issues[0].message
+
+    def test_multiple_untyped_array_items(self):
+        """Multiple arrays with untyped items produce one issue with count."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "description": "Tags",
+                    "items": {"description": "A tag"},
+                },
+                "labels": {
+                    "type": "array",
+                    "description": "Labels",
+                    "items": {"description": "A label"},
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("multi_tool", schema)
+        assert len(issues) == 1
+        assert "2 array parameters" in issues[0].message
+
+    def test_items_with_object_type_ok(self):
+        """Array items typed as object are not flagged (even without properties)."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "description": "Entries",
+                    "items": {"type": "object"},
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("entry_tool", schema)
+        assert issues == []
+
+    def test_empty_items_schema_flagged(self):
+        """Empty items schema {} has no type and is flagged."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "description": "Data",
+                    "items": {},
+                },
+            },
+        }
+        issues = _check_array_items_type_missing("data_tool", schema)
+        assert len(issues) == 1
+        assert "data" in issues[0].message
+
+    def test_empty_schema_ok(self):
+        """Empty schema produces no issues."""
+        issues = _check_array_items_type_missing("empty", {})
+        assert issues == []
+
+    def test_sample_truncated_above_5(self):
+        """More than 5 untyped array items shows '+N more' suffix."""
+        props = {}
+        for i in range(7):
+            props[f"arr_{i}"] = {
+                "type": "array",
+                "description": f"Array {i}",
+                "items": {"description": f"Item {i}"},
+            }
+        schema = {"type": "object", "properties": props}
+        issues = _check_array_items_type_missing("big_tool", schema)
         assert len(issues) == 1
         assert "+2 more" in issues[0].message

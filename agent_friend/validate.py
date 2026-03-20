@@ -353,6 +353,67 @@ def _check_nested_param_type_missing(tool_name: str, schema: Dict[str, Any]) -> 
     )]
 
 
+def _check_array_items_type_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 24: array_items_type_missing — array parameters with 'items' but no type in the items schema.
+
+    Check 17 catches arrays with no 'items' at all. This check catches arrays that
+    *have* an items schema but that items schema declares no ``type`` (and no
+    ``anyOf``/``oneOf``/``allOf``/``$ref`` alternative). Without a type in the items
+    schema, models cannot determine what kind of values belong in the array.
+
+    Fires once per tool that has any untyped array items schemas.
+    """
+    untyped = []  # type: List[str]
+
+    def _scan_props(properties: Dict[str, Any], path: str, depth: int = 0) -> None:
+        if depth > 5 or not isinstance(properties, dict):
+            return
+        for param_name, param_def in properties.items():
+            if not isinstance(param_def, dict):
+                continue
+            full_path = "{}.{}".format(path, param_name) if path else param_name
+            ptype = param_def.get("type", "")
+            types = ptype if isinstance(ptype, list) else [ptype]
+            if "array" in types and "items" in param_def:
+                items = param_def["items"]
+                if isinstance(items, dict) and not any(
+                    k in items for k in ("type", "anyOf", "oneOf", "allOf", "$ref")
+                ):
+                    untyped.append(full_path)
+            # Recurse into nested object properties
+            nested = param_def.get("properties", {})
+            if nested and isinstance(nested, dict):
+                _scan_props(nested, full_path, depth + 1)
+            # Recurse into array item object properties
+            items = param_def.get("items", {})
+            if isinstance(items, dict):
+                item_props = items.get("properties", {})
+                if item_props and isinstance(item_props, dict):
+                    _scan_props(item_props, "{}[]".format(full_path), depth + 1)
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        _scan_props(properties, "", 0)
+
+    if not untyped:
+        return []
+
+    count = len(untyped)
+    sample = ", ".join("'{}'".format(p) for p in untyped[:5])
+    suffix = " +{n} more".format(n=count - 5) if count > 5 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="array_items_type_missing",
+        message=(
+            "{count} array parameter{s} have an 'items' schema without a type: "
+            "{sample}{suffix}. "
+            "Without a type in the items schema, models cannot determine what "
+            "kind of values belong in the array."
+        ).format(count=count, s="s" if count != 1 else "", sample=sample, suffix=suffix),
+    )]
+
+
 def _check_name_snake_case(name: str) -> Optional[Issue]:
     """Check 14: name_snake_case — tool name uses snake_case, not camelCase or PascalCase."""
     # Valid snake_case: lowercase letters, digits, underscores only
@@ -954,6 +1015,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 23: nested_param_type_missing
         issues.extend(_check_nested_param_type_missing(name, schema))
+
+        # Check 24: array_items_type_missing
+        issues.extend(_check_array_items_type_missing(name, schema))
 
         # Check 13: description_override_pattern
         issue = _check_description_override_pattern(name, raw_obj, fmt)
