@@ -1608,6 +1608,79 @@ def _check_required_param_has_default(tool_name: str, schema: Dict[str, Any]) ->
 
 
 # ---------------------------------------------------------------------------
+# Check 58: description_allows_you_to
+# ---------------------------------------------------------------------------
+
+_ALLOWS_YOU_TO_RE = re.compile(
+    r'^(?:'
+    r'Allows?\s+(?:you|the\s+(?:model|user|agent|caller|client))\s+to\s+'
+    r'|Enables?\s+(?:you|the\s+(?:model|user|agent|caller|client))\s+to\s+'
+    r'|Lets?\s+(?:you|the\s+(?:model|user|agent|caller|client))\s+'
+    r'|Helps?\s+(?:you|the\s+(?:model|user|agent|caller|client))\s+(?:to\s+)?'
+    r'|Used\s+to\s+'
+    r'|Can\s+be\s+used\s+to\s+'
+    r'|Provides?\s+(?:you|the\s+(?:model|user|agent|caller|client))\s+(?:with\s+)?(?:the\s+ability|a\s+way|the\s+capability)\s+to\s+'
+    r')',
+    re.IGNORECASE,
+)
+"""Patterns indicating weak 'allows you to X' preambles in tool descriptions."""
+
+
+def _check_description_allows_you_to(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
+    """Check 58: description_allows_you_to — tool description starts with an indirect
+    'Allows you to X', 'Enables you to X', 'Lets you X', or 'Used to X' preamble
+    instead of directly stating the action in imperative mood.
+
+    These phrasings describe the tool from the user's perspective ("you get to do X")
+    rather than directly naming the action ("do X").  They waste tokens, add noise, and
+    weaken the signal — the model must extract the real action from the preamble.
+
+    Fires when the description starts with:
+
+    * ``Allows you to …`` / ``Allows the model to …``
+    * ``Enables you to …`` / ``Enables the agent to …``
+    * ``Lets you …``
+    * ``Helps you to …`` / ``Helps the caller …``
+    * ``Used to …``
+    * ``Can be used to …``
+    * ``Provides you with the ability to …``
+
+    Does **not** fire on descriptions that simply *mention* these phrases mid-sentence.
+
+    Examples::
+
+        # flagged — indirect preamble
+        "Allows you to search for files by name."
+        "Enables you to create new records in the database."
+        "Used to retrieve the current user session."
+        "Can be used to send messages to a Slack channel."
+
+        # correct — direct imperative
+        "Search for files by name."
+        "Create new records in the database."
+        "Retrieve the current user session."
+        "Send messages to a Slack channel."
+    """
+    desc = _get_tool_description(obj, fmt)
+    if not desc or not isinstance(desc, str):
+        return None
+    m = _ALLOWS_YOU_TO_RE.match(desc)
+    if not m:
+        return None
+    preamble = m.group(0).strip()
+    return Issue(
+        tool=name,
+        severity="warn",
+        check="description_allows_you_to",
+        message=(
+            "tool description starts with indirect preamble '{preamble}' — "
+            "drop the preamble and use imperative mood directly "
+            "(e.g. 'Search for files' not 'Allows you to search for files')."
+        ).format(preamble=preamble),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Check 57: description_this_tool
 # ---------------------------------------------------------------------------
 
@@ -3379,6 +3452,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 57: description_this_tool
         issue = _check_description_this_tool(name, raw_obj, fmt)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 58: description_allows_you_to
+        issue = _check_description_allows_you_to(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
 

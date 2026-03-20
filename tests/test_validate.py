@@ -49,6 +49,7 @@ from agent_friend.validate import (
     _check_required_param_has_default,
     _check_tool_description_non_imperative,
     _check_description_this_tool,
+    _check_description_allows_you_to,
 )
 
 
@@ -7274,4 +7275,126 @@ class TestDescriptionThisTool:
         tools = [self._make_mcp_tool("This method updates the user profile.")]
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "description_this_tool"]
+        assert len(hits) == 1
+
+
+# ---------------------------------------------------------------------------
+# Check 58: description_allows_you_to
+# ---------------------------------------------------------------------------
+
+class TestDescriptionAllowsYouTo:
+    """Tests for check 58: description_allows_you_to."""
+
+    def _make_mcp_tool(self, description: str) -> dict:
+        return {
+            "name": "do_thing",
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "required": []},
+        }
+
+    def test_fires_for_allows_you_to(self):
+        """Description starting with 'Allows you to' fires."""
+        tools = [self._make_mcp_tool("Allows you to search for files by name.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_fires_for_enables_you_to(self):
+        """Description starting with 'Enables you to' fires."""
+        tools = [self._make_mcp_tool("Enables you to create records in the database.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_fires_for_lets_you(self):
+        """Description starting with 'Lets you' fires."""
+        tools = [self._make_mcp_tool("Lets you update user profiles.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_fires_for_used_to(self):
+        """Description starting with 'Used to' fires."""
+        tools = [self._make_mcp_tool("Used to retrieve the current session.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_fires_for_can_be_used_to(self):
+        """Description starting with 'Can be used to' fires."""
+        tools = [self._make_mcp_tool("Can be used to send messages to a channel.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_fires_for_allows_the_model_to(self):
+        """Description starting with 'Allows the model to' fires."""
+        tools = [self._make_mcp_tool("Allows the model to query the database.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+
+    def test_no_fire_for_imperative(self):
+        """Imperative description does not fire."""
+        tools = [self._make_mcp_tool("Search for files by name.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_mid_sentence(self):
+        """'Allows you to' mid-sentence does not fire."""
+        tools = [self._make_mcp_tool("This feature allows you to search files.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 0
+
+    def test_no_fire_for_empty_description(self):
+        """Empty description does not fire."""
+        tools = [self._make_mcp_tool("")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 0
+
+    def test_severity_is_warn(self):
+        """Severity is warn, not error."""
+        tools = [self._make_mcp_tool("Allows you to search for files.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_message_includes_preamble(self):
+        """Message includes the matched preamble text."""
+        tools = [self._make_mcp_tool("Enables you to create a new record.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
+        assert len(hits) == 1
+        assert "Enables you to" in hits[0].message
+
+    def test_direct_function_fires(self):
+        """Direct function call fires for 'Allows you to' preamble."""
+        obj = {
+            "name": "search_files",
+            "description": "Allows you to search for files in the workspace.",
+            "inputSchema": {"type": "object", "properties": {}},
+        }
+        issue = _check_description_allows_you_to("search_files", obj, "mcp")
+        assert issue is not None
+        assert issue.check == "description_allows_you_to"
+
+    def test_direct_function_no_fire(self):
+        """Direct function does not fire for imperative description."""
+        obj = {
+            "name": "search_files",
+            "description": "Search for files in the workspace.",
+            "inputSchema": {"type": "object", "properties": {}},
+        }
+        issue = _check_description_allows_you_to("search_files", obj, "mcp")
+        assert issue is None
+
+    def test_fires_case_insensitive(self):
+        """Fires regardless of case."""
+        tools = [self._make_mcp_tool("ALLOWS YOU TO delete records.")]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "description_allows_you_to"]
         assert len(hits) == 1
