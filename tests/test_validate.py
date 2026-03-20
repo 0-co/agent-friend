@@ -86,6 +86,7 @@ from agent_friend.validate import (
     _check_string_type_describes_json,
     _check_object_param_no_properties,
     _check_tool_name_contains_version,
+    _check_param_name_is_reserved_word,
 )
 
 
@@ -10177,3 +10178,45 @@ class TestToolNameContainsVersion:
     def test_oauth2_passes(self):
         # "oauth2_token" — 2 is part of word, not a standalone v2 segment
         assert _check_tool_name_contains_version("oauth2_token") is None
+
+
+# ---------------------------------------------------------------------------
+# Check 94: param_name_is_reserved_word
+# ---------------------------------------------------------------------------
+
+
+class TestParamNameIsReservedWord:
+    """Tests for _check_param_name_is_reserved_word (Check 94)."""
+
+    @staticmethod
+    def _schema(param_name: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": "string", "description": "A value."}},
+        }
+
+    def test_class_fires(self):
+        issues = _check_param_name_is_reserved_word("tool", self._schema("class"))
+        assert len(issues) == 1
+        assert issues[0].check == "param_name_is_reserved_word"
+        assert issues[0].severity == "warn"
+
+    def test_from_fires(self):
+        issues = _check_param_name_is_reserved_word("tool", self._schema("from"))
+        assert len(issues) == 1
+
+    def test_import_fires(self):
+        issues = _check_param_name_is_reserved_word("tool", self._schema("import"))
+        assert len(issues) == 1
+
+    def test_return_fires(self):
+        issues = _check_param_name_is_reserved_word("tool", self._schema("return"))
+        assert len(issues) == 1
+
+    def test_plain_name_passes(self):
+        issues = _check_param_name_is_reserved_word("tool", self._schema("user_id"))
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_param_name_is_reserved_word("tool", {})
+        assert issues == []

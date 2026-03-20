@@ -2371,6 +2371,64 @@ def _check_tool_name_uses_hyphen(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 94: param_name_is_reserved_word
+# ---------------------------------------------------------------------------
+
+# Python + JS keywords that commonly appear as param names and break codegen
+_RESERVED_WORDS = frozenset({
+    # Python keywords
+    "and", "as", "assert", "async", "await", "break", "class", "continue",
+    "def", "del", "elif", "else", "except", "finally", "for", "from",
+    "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+    "or", "pass", "raise", "return", "try", "while", "with", "yield",
+    # JS reserved words that overlap and are commonly seen
+    "delete", "export", "extends", "function", "instanceof", "let",
+    "new", "static", "super", "switch", "this", "throw", "typeof",
+    "var", "void",
+})
+
+
+def _check_param_name_is_reserved_word(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 94: param_name_is_reserved_word — a parameter name is a Python
+    or JavaScript reserved word (e.g., ``type``, ``class``, ``from``,
+    ``import``).
+
+    Reserved-word parameter names break code generators that map tool
+    parameters to function arguments, require quoting in many contexts,
+    and cause syntax errors in generated client code::
+
+        # bad — "from" is a Python keyword
+        {"from": {"type": "string", "description": "Sender email address."}}
+
+        # good — unambiguous name
+        {"from_address": {"type": "string", "description": "Sender email address."}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name in properties:
+        if param_name.lower() in _RESERVED_WORDS:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="param_name_is_reserved_word",
+                message=(
+                    "param name '{param}' is a reserved word — rename to "
+                    "avoid conflicts in generated code (e.g., "
+                    "'{param}_value' or '{param}_field')."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 93: tool_name_contains_version
 # ---------------------------------------------------------------------------
 
@@ -5653,6 +5711,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_tool_name_contains_version(name)
         if issue is not None:
             issues.append(issue)
+
+        # Check 94: param_name_is_reserved_word
+        issues.extend(_check_param_name_is_reserved_word(name, schema))
 
         # Check 15: param_snake_case
         issues.extend(_check_param_snake_case(name, schema))
