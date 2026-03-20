@@ -2478,6 +2478,59 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 133: object_additional_properties_redundant
+# ---------------------------------------------------------------------------
+
+
+def _check_object_additional_properties_redundant(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 133: object_additional_properties_redundant — the ``inputSchema``
+    or a nested object param explicitly sets ``additionalProperties: true``.
+
+    ``additionalProperties: true`` is the JSON Schema default — writing it
+    explicitly adds noise with no effect.  Only ``additionalProperties: false``
+    (to disallow extra keys) or an object schema (to type extra values) is
+    meaningful::
+
+        # bad — redundant, this is the default
+        {"type": "object", "properties": {...}, "additionalProperties": true}
+
+        # good — omit it entirely
+        {"type": "object", "properties": {...}}
+
+        # good — actually constrains the schema
+        {"type": "object", "properties": {...}, "additionalProperties": false}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+
+    def _scan(obj: Dict[str, Any], context: str) -> None:
+        if obj.get("additionalProperties") is True:
+            issues.append(
+                Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="object_additional_properties_redundant",
+                    message=(
+                        "tool '{name}' {ctx} sets 'additionalProperties: true' "
+                        "— this is the JSON Schema default; omit it to reduce noise."
+                    ).format(name=tool_name, ctx=context),
+                )
+            )
+        props = obj.get("properties")
+        if isinstance(props, dict):
+            for param, pschema in props.items():
+                if isinstance(pschema, dict):
+                    _scan(pschema, f"param '{param}'")
+
+    _scan(schema, "inputSchema")
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 132: param_min_equals_max
 # ---------------------------------------------------------------------------
 
@@ -8098,6 +8151,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 132: param_min_equals_max
         issues.extend(_check_param_min_equals_max(name, schema))
+
+        # Check 133: object_additional_properties_redundant
+        issues.extend(_check_object_additional_properties_redundant(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

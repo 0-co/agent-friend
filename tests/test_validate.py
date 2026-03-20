@@ -125,6 +125,7 @@ from agent_friend.validate import (
     _check_enum_mixed_types,
     _check_description_has_ellipsis,
     _check_param_min_equals_max,
+    _check_object_additional_properties_redundant,
 )
 
 
@@ -12024,4 +12025,42 @@ class TestParamMinEqualsMax:
 
     def test_empty_schema_passes(self):
         issues = _check_param_min_equals_max("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 133: object_additional_properties_redundant
+# ---------------------------------------------------------------------------
+
+class TestObjectAdditionalPropertiesRedundant:
+    def test_top_level_true_fires(self):
+        schema = {"type": "object", "properties": {"x": {"type": "string"}}, "additionalProperties": True}
+        issues = _check_object_additional_properties_redundant("tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "object_additional_properties_redundant"
+        assert issues[0].severity == "warn"
+
+    def test_nested_param_true_fires(self):
+        schema = {"properties": {"opts": {"type": "object", "additionalProperties": True}}}
+        issues = _check_object_additional_properties_redundant("tool", schema)
+        assert len(issues) == 1
+        assert "opts" in issues[0].message
+
+    def test_false_passes(self):
+        schema = {"type": "object", "properties": {"x": {"type": "string"}}, "additionalProperties": False}
+        issues = _check_object_additional_properties_redundant("tool", schema)
+        assert issues == []
+
+    def test_absent_passes(self):
+        schema = {"type": "object", "properties": {"x": {"type": "string"}}}
+        issues = _check_object_additional_properties_redundant("tool", schema)
+        assert issues == []
+
+    def test_schema_object_passes(self):
+        schema = {"type": "object", "properties": {"x": {"type": "string"}}, "additionalProperties": {"type": "string"}}
+        issues = _check_object_additional_properties_redundant("tool", schema)
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_object_additional_properties_redundant("tool", {})
         assert issues == []
