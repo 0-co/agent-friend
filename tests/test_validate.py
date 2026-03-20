@@ -101,6 +101,7 @@ from agent_friend.validate import (
     _check_description_ends_abruptly,
     _check_object_no_props_additional_false,
     _check_array_items_empty_schema,
+    _check_description_has_parenthetical_type,
 )
 
 
@@ -10901,4 +10902,49 @@ class TestArrayItemsEmptySchema:
 
     def test_empty_schema_passes(self):
         issues = _check_array_items_empty_schema("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 109: description_has_parenthetical_type
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasParentheticalType:
+    """Tests for _check_description_has_parenthetical_type (Check 109)."""
+
+    @staticmethod
+    def _schema(param_name: str, desc: str, ptype: str = "string") -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": ptype, "description": desc}},
+        }
+
+    def test_paren_string_fires(self):
+        issues = _check_description_has_parenthetical_type(
+            "tool", self._schema("name", "(string) The user name.")
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_parenthetical_type"
+
+    def test_paren_boolean_fires(self):
+        issues = _check_description_has_parenthetical_type(
+            "tool", self._schema("active", "Flag (boolean) to enable the feature.", "boolean")
+        )
+        assert len(issues) == 1
+
+    def test_type_colon_fires(self):
+        issues = _check_description_has_parenthetical_type(
+            "tool", self._schema("count", "(type: integer) Number of results.", "integer")
+        )
+        assert len(issues) == 1
+
+    def test_clean_description_passes(self):
+        issues = _check_description_has_parenthetical_type(
+            "tool", self._schema("name", "The user's display name.")
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_description_has_parenthetical_type("tool", {})
         assert issues == []

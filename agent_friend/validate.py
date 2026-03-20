@@ -2478,6 +2478,63 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 109: description_has_parenthetical_type
+# ---------------------------------------------------------------------------
+
+_PAREN_TYPE_RE = re.compile(
+    r"\(\s*(?:type[:\s]+)?(?:string|integer|number|boolean|array|object|null)\s*\)",
+    re.IGNORECASE,
+)
+
+
+def _check_description_has_parenthetical_type(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 109: description_has_parenthetical_type — a parameter
+    description contains the type in parentheses (e.g., ``"(string)"``,
+    ``"(boolean)"``, ``"(type: integer)"``).
+
+    The type is already declared in the schema's ``type`` field; repeating
+    it in the description wastes tokens and goes out of sync if the type
+    changes::
+
+        # bad — type duplicated in description
+        {"limit": {"type": "integer", "description": "(integer) Max results."}}
+        {"active": {"type": "boolean", "description": "Flag (boolean) to enable."}}
+
+        # good — description adds value, not redundant type info
+        {"limit": {"type": "integer", "description": "Max results to return."}}
+        {"active": {"type": "boolean", "description": "Enable or disable the feature."}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        desc = param_schema.get("description", "")
+        if not isinstance(desc, str) or not desc:
+            continue
+        if _PAREN_TYPE_RE.search(desc):
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_has_parenthetical_type",
+                message=(
+                    "param '{param}' description contains the type in "
+                    "parentheses — the type is already in the schema; "
+                    "remove it from the description."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 108: array_items_empty_schema
 # ---------------------------------------------------------------------------
 
@@ -6669,6 +6726,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 108: array_items_empty_schema
         issues.extend(_check_array_items_empty_schema(name, schema))
+
+        # Check 109: description_has_parenthetical_type
+        issues.extend(_check_description_has_parenthetical_type(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
