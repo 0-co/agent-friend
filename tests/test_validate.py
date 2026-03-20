@@ -4915,3 +4915,134 @@ class TestCheckDefaultInDescriptionNotSchema:
         assert len(desc_issues) == 2
         params = {i.message.split("'")[1] for i in desc_issues}
         assert params == {"page", "per_page"}
+
+
+class TestCheckNumberTypeForInteger:
+    """Tests for Check 40: number_type_for_integer."""
+
+    def _make_schema(self, props, required=None):
+        s = {"type": "object", "properties": props}
+        if required:
+            s["required"] = required
+        return s
+
+    def test_limit_as_number_fires(self):
+        """'limit' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"limit": {"type": "number", "description": "Max results."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "number_type_for_integer"
+        assert "limit" in issues[0].message
+
+    def test_page_as_number_fires(self):
+        """'page' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"page": {"type": "number", "description": "Page number."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_offset_as_number_fires(self):
+        """'offset' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"offset": {"type": "number", "description": "Skip N records."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_id_suffix_fires(self):
+        """Param ending in '_id' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"run_id": {"type": "number", "description": "Run identifier."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_width_height_fire(self):
+        """'width' and 'height' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({
+            "width": {"type": "number", "description": "Width in pixels."},
+            "height": {"type": "number", "description": "Height in pixels."},
+        })
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 2
+
+    def test_limit_as_integer_no_fire(self):
+        """'limit' with type 'integer' should NOT fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"limit": {"type": "integer", "description": "Max results."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_latitude_as_number_no_fire(self):
+        """'latitude' with type 'number' should NOT fire — float is correct."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"latitude": {"type": "number", "description": "Latitude coordinate."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_temperature_as_number_no_fire(self):
+        """'temperature' with type 'number' should NOT fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"temperature": {"type": "number", "description": "LLM temperature."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_per_page_fires(self):
+        """'per_page' with type 'number' should fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"per_page": {"type": "number", "description": "Results per page."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 1
+
+    def test_tool_name_set_correctly(self):
+        """Issue tool attribute should match the tool name passed."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"limit": {"type": "number", "description": "Max results."}})
+        issues = _check_number_type_for_integer("search_repos", schema)
+        assert issues[0].tool == "search_repos"
+
+    def test_no_properties_no_fire(self):
+        """Schema with no properties should not fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        issues = _check_number_type_for_integer("my_tool", {})
+        assert len(issues) == 0
+
+    def test_string_type_no_fire(self):
+        """Param with type 'string' (not number) should not fire even if name implies integer."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({"page": {"type": "string", "description": "Page token."}})
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 0
+
+    def test_multiple_params_fire_independently(self):
+        """Multiple integer-named number params each fire."""
+        from agent_friend.validate import _check_number_type_for_integer
+        schema = self._make_schema({
+            "page": {"type": "number"},
+            "per_page": {"type": "number"},
+            "offset": {"type": "number"},
+        })
+        issues = _check_number_type_for_integer("my_tool", schema)
+        assert len(issues) == 3
+
+    def test_validate_tools_integration(self):
+        """validate_tools picks up the check end-to-end."""
+        from agent_friend.validate import validate_tools
+        tools = [{
+            "name": "list_repos",
+            "description": "List repositories.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "owner": {"type": "string", "description": "Owner name"},
+                    "limit": {"type": "number", "description": "Max results"},
+                    "page": {"type": "number", "description": "Page number"},
+                },
+                "required": ["owner"],
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        int_issues = [i for i in issues if i.check == "number_type_for_integer"]
+        assert len(int_issues) == 2
+        params = {i.message.split("'")[1] for i in int_issues}
+        assert params == {"limit", "page"}

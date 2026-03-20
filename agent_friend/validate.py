@@ -1601,6 +1601,89 @@ def _check_default_in_description_not_schema(tool_name: str, schema: Dict[str, A
     return issues
 
 
+_INTEGER_NAMES = frozenset({
+    "limit", "count", "page", "offset", "size", "depth",
+    "width", "height", "index", "length", "version",
+    "num", "number", "total", "retries", "retry",
+    "page_size", "pagesize", "max_results", "max_tokens",
+    "top_k", "top_n", "skip", "take", "batch", "batch_size",
+    "chunk_size", "per_page", "cursor", "start", "end",
+})
+_INTEGER_SUFFIX_RE = re.compile(
+    r'(?:^|_)(?:' + "|".join(re.escape(n) for n in sorted(_INTEGER_NAMES, key=len, reverse=True)) + r')s?$',
+    re.IGNORECASE,
+)
+_INTEGER_ID_RE = re.compile(r'(?:^|_)id$', re.IGNORECASE)
+
+
+def _check_number_type_for_integer(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 40: number_type_for_integer — param name implies integer but type is 'number'.
+
+    JSON Schema distinguishes ``integer`` (no fractional component) from
+    ``number`` (any numeric value, including floats).  When a parameter named
+    ``limit``, ``page``, ``offset``, ``count``, ``id``, ``width``, ``height``,
+    or similar is declared as ``type: "number"``, models may legally supply
+    values like ``1.5``, ``0.3``, or ``-7.2`` — values that most servers will
+    reject or silently truncate.
+
+    Using the correct ``type: "integer"`` tells the model it must supply a
+    whole number, prevents silent type coercion bugs, and improves schema
+    accuracy for downstream tooling.
+
+    Fires when:
+
+    * A top-level parameter has ``type: "number"``, AND
+    * Its name matches a set of known integer-implying patterns
+      (exact: ``limit``, ``page``, ``offset``, ``count``, ``size``,
+      ``depth``, ``width``, ``height``, ``index``, ``version``, etc.;
+      suffix: ``_limit``, ``_page``, ``_count``, ``_id``, ``_ids``, …).
+
+    Does **not** fire for parameters that already use ``type: "integer"``,
+    or for parameters where a fractional value is plausible
+    (e.g. ``latitude``, ``longitude``, ``temperature``, ``score``).
+
+    Examples::
+
+        # flagged — 'number' used where 'integer' is clearly intended
+        "limit":    {"type": "number", "description": "Max results to return"}
+        "page":     {"type": "number", "description": "Page number (default: 1)"}
+        "offset":   {"type": "number", "description": "Number of records to skip"}
+        "run_id":   {"type": "number", "description": "ID of the workflow run"}
+
+        # correct
+        "limit":    {"type": "integer", "description": "Max results to return"}
+        "latitude": {"type": "number",  "description": "Latitude coordinate"}
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") != "number":
+            continue
+        name_lower = param_name.lower()
+        is_integer_name = (
+            _INTEGER_SUFFIX_RE.search(name_lower) is not None
+            or _INTEGER_ID_RE.search(name_lower) is not None
+        )
+        if not is_integer_name:
+            continue
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="number_type_for_integer",
+            message=(
+                "param '{param}' is declared as 'number' but the name implies an integer; "
+                "use \"type\": \"integer\" to prevent models from supplying fractional values"
+            ).format(param=param_name),
+        ))
+
+    return issues
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1880,6 +1963,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 39: default_in_description_not_schema
         issues.extend(_check_default_in_description_not_schema(name, schema))
+
+        # Check 40: number_type_for_integer
+        issues.extend(_check_number_type_for_integer(name, schema))
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
