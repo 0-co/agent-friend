@@ -2478,6 +2478,80 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 146: description_uses_future_tense
+# ---------------------------------------------------------------------------
+
+_FUTURE_TENSE_RE = re.compile(
+    r"\bwill\s+(?:return|create|delete|remove|update|fetch|retrieve|get|set|"
+    r"perform|execute|run|make|build|generate|send|post|put|patch|call|"
+    r"search|find|list|show|display|render|process|handle|manage|apply|"
+    r"add|insert|write|read|load|save|store|check|validate|parse|format|"
+    r"convert|transform|calculate|compute|analyze|scan|download|upload)\b",
+    re.IGNORECASE,
+)
+
+
+def _check_description_uses_future_tense(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 146: description_uses_future_tense — a tool or parameter
+    description uses future tense (``will return``, ``will create``,
+    ``will delete``, etc.).
+
+    Tool descriptions should use the imperative present tense.  Future tense
+    reads like documentation or a promise rather than a concise capability
+    statement::
+
+        # bad — future tense
+        {"description": "This will return a list of users."}
+        {"description": "Will create a new resource."}
+
+        # good — imperative present tense
+        {"description": "Return a list of users."}
+        {"description": "Create a new resource."}
+
+    Severity: ``warn``.
+    """
+    issues: List[Issue] = []
+    tool_desc = _get_tool_description(obj, fmt)
+    if isinstance(tool_desc, str) and _FUTURE_TENSE_RE.search(tool_desc):
+        issues.append(
+            Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_uses_future_tense",
+                message=(
+                    "tool '{name}' description uses future tense ('will X') "
+                    "— use imperative present tense instead "
+                    "(e.g., 'Return' not 'Will return')."
+                ).format(name=tool_name),
+            )
+        )
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        for param, pschema in props.items():
+            if not isinstance(pschema, dict):
+                continue
+            desc = pschema.get("description", "")
+            if isinstance(desc, str) and _FUTURE_TENSE_RE.search(desc):
+                issues.append(
+                    Issue(
+                        tool=tool_name,
+                        severity="warn",
+                        check="description_uses_future_tense",
+                        message=(
+                            "tool '{name}' param '{param}' description uses "
+                            "future tense ('will X') — use present tense."
+                        ).format(name=tool_name, param=param),
+                    )
+                )
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 145: description_has_command_example
 # ---------------------------------------------------------------------------
 
@@ -8909,6 +8983,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 145: description_has_command_example
         issues.extend(_check_description_has_command_example(name, raw_obj, schema, fmt))
+
+        # Check 146: description_uses_future_tense
+        issues.extend(_check_description_uses_future_tense(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

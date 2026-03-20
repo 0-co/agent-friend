@@ -138,6 +138,7 @@ from agent_friend.validate import (
     _check_param_name_has_period,
     _check_description_has_email,
     _check_description_has_command_example,
+    _check_description_uses_future_tense,
 )
 
 
@@ -12574,6 +12575,52 @@ class TestDescriptionHasCommandExample:
 
     def test_curl_in_middle_of_sentence_passes(self):
         issues = self._run(tool_desc="The tool works like curl but with retries.")
+        assert issues == []
+
+    def test_empty_passes(self):
+        issues = self._run(tool_desc="")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 146: description_uses_future_tense
+# ---------------------------------------------------------------------------
+
+class TestDescriptionUsesFutureTense:
+    def _run(self, tool_desc=None, param_desc=None):
+        obj = {}
+        if tool_desc is not None:
+            obj["description"] = tool_desc
+        schema = {}
+        if param_desc is not None:
+            schema["properties"] = {"x": {"type": "string", "description": param_desc}}
+        return _check_description_uses_future_tense("tool", obj, schema, "mcp")
+
+    def test_will_return_fires(self):
+        issues = self._run(tool_desc="This will return a list of users.")
+        assert len(issues) == 1
+        assert issues[0].check == "description_uses_future_tense"
+        assert issues[0].severity == "warn"
+
+    def test_will_create_fires(self):
+        issues = self._run(tool_desc="Will create a new resource.")
+        assert len(issues) == 1
+
+    def test_will_delete_fires(self):
+        issues = self._run(tool_desc="This tool will delete the item.")
+        assert len(issues) == 1
+
+    def test_param_will_fires(self):
+        issues = self._run(param_desc="The tool will fetch this value.")
+        assert len(issues) == 1
+        assert "x" in issues[0].message
+
+    def test_imperative_passes(self):
+        issues = self._run(tool_desc="Return a list of users.")
+        assert issues == []
+
+    def test_will_without_verb_passes(self):
+        issues = self._run(tool_desc="This fulfills the user's will.")
         assert issues == []
 
     def test_empty_passes(self):
