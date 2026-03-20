@@ -3752,3 +3752,136 @@ class TestCheck31EnumUndocumented:
         issue = _check_enum_undocumented("t", schema)
         assert issue is not None
         assert issue.check == "enum_undocumented"
+
+
+# ---------------------------------------------------------------------------
+# Check 32: numeric_constraints_missing
+# ---------------------------------------------------------------------------
+
+class TestCheck32NumericConstraintsMissing:
+    """Tests for Check 32: numeric_constraints_missing."""
+
+    def _schema(self, param_name, ptype, **extras):
+        return {
+            "type": "object",
+            "properties": {
+                param_name: {"type": ptype, **extras}
+            },
+        }
+
+    def test_no_properties_ok(self):
+        from agent_friend.validate import _check_numeric_constraints_missing
+        assert _check_numeric_constraints_missing("t", {}) is None
+
+    def test_limit_no_constraints_fires(self):
+        """Integer limit without min/max → warn."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("limit", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+        assert issue.severity == "warn"
+        assert issue.check == "numeric_constraints_missing"
+
+    def test_count_no_constraints_fires(self):
+        """'count' is in the bounded-name list → warn."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("count", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+
+    def test_page_no_constraints_fires(self):
+        """'page' parameter without constraints → warn."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("page", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+
+    def test_top_k_no_constraints_fires(self):
+        """'top_k' parameter without constraints → warn."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("top_k", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+
+    def test_with_minimum_ok(self):
+        """Has minimum → no issue."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("limit", "integer", minimum=1)
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_with_maximum_ok(self):
+        """Has maximum → no issue."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("limit", "integer", maximum=1000)
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_with_both_constraints_ok(self):
+        """Has both minimum and maximum → no issue."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("per_page", "integer", minimum=1, maximum=100)
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_with_enum_ok(self):
+        """Enum already constrains values → no issue."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("size", "integer", enum=[10, 25, 50, 100])
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_non_bounded_name_ok(self):
+        """Non-bounded param name not in the list → no issue."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("timeout", "integer")
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_string_type_ok(self):
+        """String type param named 'limit' → no issue (only numeric types)."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("limit", "string")
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_number_type_fires(self):
+        """'number' type (float) also triggers the check."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("max", "number")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+
+    def test_days_param_fires(self):
+        """'days' is in the bounded-name list → warn if no constraints."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("days", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None
+
+    def test_days_with_constraints_ok(self):
+        """'days' with min=1, max=5 → no issue (weather-mcp pattern)."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("days", "integer", minimum=1, maximum=5)
+        assert _check_numeric_constraints_missing("t", schema) is None
+
+    def test_issue_mentions_param_name(self):
+        """Issue message includes the parameter name."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("per_page", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert "per_page" in issue.message
+
+    def test_only_first_bad_param_fires(self):
+        """Only one issue per tool even if multiple bounded params lack constraints."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer"},
+                "offset": {"type": "integer"},
+            }
+        }
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None  # Only first bad param
+
+    def test_max_tokens_fires(self):
+        """'max_tokens' without constraints → warn."""
+        from agent_friend.validate import _check_numeric_constraints_missing
+        schema = self._schema("max_tokens", "integer")
+        issue = _check_numeric_constraints_missing("t", schema)
+        assert issue is not None

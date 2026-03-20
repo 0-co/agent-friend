@@ -1052,6 +1052,53 @@ def _check_enum_undocumented(name: str, schema: Dict[str, Any]) -> Optional[Issu
     return None
 
 
+_BOUNDED_PARAM_NAMES: set = {
+    "limit", "max", "count", "per_page", "page_size", "max_results",
+    "num_results", "top_k", "size", "max_tokens", "page", "offset",
+    "start", "days", "hours", "months",
+}
+"""Parameter names that typically represent bounded numeric quantities."""
+
+
+def _check_numeric_constraints_missing(name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 32: numeric_constraints_missing — bounded numeric params lack min/max.
+
+    Pagination and limit parameters (``limit``, ``count``, ``page``, etc.)
+    should declare explicit ``minimum`` / ``maximum`` JSON Schema constraints
+    so models know the valid range.  Without them, a model might pass
+    ``limit=0`` (often an error), ``limit=-1`` (undefined behaviour), or
+    ``limit=1000000`` (expensive / rejected by the API).
+
+    Only fires when **both** ``minimum`` and ``maximum`` are absent and the
+    parameter has no ``enum`` (which would already constrain the values).
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return None
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        if param_schema.get("type") not in ("integer", "number"):
+            continue
+        if param_name.lower() not in _BOUNDED_PARAM_NAMES:
+            continue
+        if "enum" in param_schema:
+            continue  # enum already constrains values
+        if "minimum" in param_schema or "maximum" in param_schema:
+            continue  # at least one constraint present — acceptable
+        return Issue(
+            tool=name,
+            severity="warn",
+            check="numeric_constraints_missing",
+            message=(
+                "param '{param}' is a numeric limit/count but has no 'minimum' or "
+                "'maximum' — models may pass 0, negative values, or arbitrarily "
+                "large numbers."
+            ).format(param=param_name),
+        )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1299,6 +1346,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 31: enum_undocumented
         issue = _check_enum_undocumented(name, schema)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 32: numeric_constraints_missing
+        issue = _check_numeric_constraints_missing(name, schema)
         if issue is not None:
             issues.append(issue)
 
