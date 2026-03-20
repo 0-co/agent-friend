@@ -159,6 +159,7 @@ def _check_description_not_empty(name: str, obj: Dict[str, Any], fmt: str) -> Op
 _MIN_DESCRIPTION_LENGTH = 20
 _MIN_PARAM_DESCRIPTION_LENGTH = 10
 _MAX_DESCRIPTION_LENGTH = 500
+_MAX_PARAM_DESCRIPTION_LENGTH = 300
 
 
 def _check_description_too_long(name: str, obj: Dict[str, Any], fmt: str) -> Optional[Issue]:
@@ -273,6 +274,64 @@ def _check_param_description_too_short(tool_name: str, schema: Dict[str, Any]) -
             sample=sample,
             suffix=suffix,
             min=_MIN_PARAM_DESCRIPTION_LENGTH,
+        ),
+    )]
+
+
+def _check_param_description_too_long(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
+    """Check 26: param_description_too_long — parameter descriptions over 300 characters.
+
+    A parameter description longer than 300 characters adds token overhead without
+    meaningfully improving model comprehension. At ~4 chars per token, a 300-char
+    description costs ~75 tokens per parameter. A tool with 5 overlong descriptions
+    adds ~375 tokens before any user message.
+
+    Good param descriptions are one sentence that explains what the parameter is,
+    its expected format, and any constraints. If a param needs more than 300 chars
+    to explain, the parameter design probably needs work.
+
+    Fires once per tool that has any such parameters. Only fires when a description
+    IS present (check 18 passed) and not too short (check 21 passed).
+    """
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return []
+
+    long = []
+    for param_name, param_def in properties.items():
+        if not isinstance(param_def, dict):
+            continue
+        desc = param_def.get("description", "")
+        if not isinstance(desc, str):
+            continue
+        stripped = desc.strip()
+        if not stripped:
+            continue
+        if len(stripped) > _MAX_PARAM_DESCRIPTION_LENGTH:
+            long.append((param_name, len(stripped)))
+
+    if not long:
+        return []
+
+    count = len(long)
+    sample = ", ".join(
+        "'{param}' ({n} chars)".format(param=p, n=n) for p, n in long[:3]
+    )
+    suffix = " +{n} more".format(n=count - 3) if count > 3 else ""
+    return [Issue(
+        tool=tool_name,
+        severity="warn",
+        check="param_description_too_long",
+        message=(
+            "{count} parameter description{s} too long: {sample}{suffix}. "
+            "Descriptions over {max} characters add ~{tokens} tokens of overhead each."
+        ).format(
+            count=count,
+            s="s" if count != 1 else "",
+            sample=sample,
+            suffix=suffix,
+            max=_MAX_PARAM_DESCRIPTION_LENGTH,
+            tokens=_MAX_PARAM_DESCRIPTION_LENGTH // 4,
         ),
     )]
 
@@ -1051,6 +1110,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 21: param_description_too_short
         issues.extend(_check_param_description_too_short(name, schema))
+
+        # Check 26: param_description_too_long
+        issues.extend(_check_param_description_too_long(name, schema))
 
         # Check 22: param_type_missing
         issues.extend(_check_param_type_missing(name, schema))

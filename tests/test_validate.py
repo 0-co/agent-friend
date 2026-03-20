@@ -34,6 +34,7 @@ from agent_friend.validate import (
     _check_description_too_short,
     _check_description_too_long,
     _check_param_description_too_short,
+    _check_param_description_too_long,
     _check_param_type_missing,
     _check_nested_param_type_missing,
     _check_array_items_type_missing,
@@ -2597,6 +2598,126 @@ class TestCheckParamDescriptionTooShort:
         assert len(issues) == 1
         assert "code" in issues[0].message
         assert "name" not in issues[0].message
+
+
+# ---------------------------------------------------------------------------
+# Check 26: param_description_too_long
+# ---------------------------------------------------------------------------
+
+
+class TestCheckParamDescriptionTooLong:
+    def _long_desc(self, n: int) -> str:
+        return "x" * n
+
+    def test_long_param_description_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": self._long_desc(301)},
+            },
+        }
+        issues = _check_param_description_too_long("search", schema)
+        assert len(issues) == 1
+        assert issues[0].check == "param_description_too_long"
+        assert issues[0].severity == "warn"
+
+    def test_exactly_300_chars_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": self._long_desc(300)},
+            },
+        }
+        issues = _check_param_description_too_long("search", schema)
+        assert issues == []
+
+    def test_exactly_301_chars_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": self._long_desc(301)},
+            },
+        }
+        issues = _check_param_description_too_long("search", schema)
+        assert len(issues) == 1
+
+    def test_normal_param_description_ok(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "city": {"type": "string", "description": "Name of the target city"},
+            },
+        }
+        issues = _check_param_description_too_long("get_weather", schema)
+        assert issues == []
+
+    def test_empty_description_not_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "x": {"type": "string", "description": ""},
+            },
+        }
+        issues = _check_param_description_too_long("t", schema)
+        assert issues == []
+
+    def test_no_description_not_flagged(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "x": {"type": "string"},
+            },
+        }
+        issues = _check_param_description_too_long("t", schema)
+        assert issues == []
+
+    def test_multiple_long_params_one_issue(self):
+        """Multiple long params should still produce only one issue per tool."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "a": {"type": "string", "description": self._long_desc(400)},
+                "b": {"type": "string", "description": self._long_desc(500)},
+            },
+        }
+        issues = _check_param_description_too_long("t", schema)
+        assert len(issues) == 1
+        assert "2 parameter" in issues[0].message
+
+    def test_char_count_in_message(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": self._long_desc(450)},
+            },
+        }
+        issues = _check_param_description_too_long("search", schema)
+        assert len(issues) == 1
+        assert "450" in issues[0].message
+
+    def test_param_name_in_message(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "spreadsheet_id": {"type": "string", "description": self._long_desc(480)},
+            },
+        }
+        issues = _check_param_description_too_long("get_data", schema)
+        assert len(issues) == 1
+        assert "spreadsheet_id" in issues[0].message
+
+    def test_empty_properties_ok(self):
+        issues = _check_param_description_too_long("t", {})
+        assert issues == []
+
+    def test_more_than_3_shows_suffix(self):
+        props = {}
+        for i in range(5):
+            props[f"p{i}"] = {"type": "string", "description": self._long_desc(350)}
+        schema = {"type": "object", "properties": props}
+        issues = _check_param_description_too_long("t", schema)
+        assert len(issues) == 1
+        assert "+2 more" in issues[0].message
 
 
 # ---------------------------------------------------------------------------
