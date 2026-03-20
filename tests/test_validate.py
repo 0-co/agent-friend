@@ -108,6 +108,7 @@ from agent_friend.validate import (
     _check_name_uses_camelcase,
     _check_name_starts_with_uppercase,
     _check_param_type_is_null,
+    _check_enum_has_empty_value,
 )
 
 
@@ -11232,4 +11233,52 @@ class TestParamTypeIsNull:
 
     def test_empty_schema_passes(self):
         issues = _check_param_type_is_null("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 116: enum_has_empty_value
+# ---------------------------------------------------------------------------
+
+
+class TestEnumHasEmptyValue:
+    """Tests for _check_enum_has_empty_value (Check 116)."""
+
+    @staticmethod
+    def _schema(param_name: str, enum_vals: list) -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": "string", "enum": enum_vals}},
+        }
+
+    def test_empty_string_fires(self):
+        issues = _check_enum_has_empty_value(
+            "tool", self._schema("status", ["active", "inactive", ""])
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "enum_has_empty_value"
+        assert issues[0].severity == "warn"
+
+    def test_only_empty_string_fires(self):
+        issues = _check_enum_has_empty_value(
+            "tool", self._schema("mode", [""])
+        )
+        assert len(issues) == 1
+        assert "mode" in issues[0].message
+
+    def test_clean_enum_passes(self):
+        issues = _check_enum_has_empty_value(
+            "tool", self._schema("status", ["active", "inactive", "none"])
+        )
+        assert issues == []
+
+    def test_no_enum_passes(self):
+        issues = _check_enum_has_empty_value(
+            "tool",
+            {"type": "object", "properties": {"name": {"type": "string"}}},
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_enum_has_empty_value("tool", {})
         assert issues == []

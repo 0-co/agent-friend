@@ -2478,6 +2478,55 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 116: enum_has_empty_value
+# ---------------------------------------------------------------------------
+
+
+def _check_enum_has_empty_value(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 116: enum_has_empty_value — an enum array contains an empty
+    string ``""`` as a valid value.
+
+    An empty-string enum value is almost always a schema generation error.
+    If the intent is to allow "no selection", use an optional param with no
+    default, or add a meaningful sentinel value like ``"none"``::
+
+        # bad — empty string is an opaque sentinel
+        {"status": {"type": "string", "enum": ["active", "inactive", ""]}}
+
+        # good — meaningful values only
+        {"status": {"type": "string", "enum": ["active", "inactive", "none"]}}
+        # or: make it optional with no enum restriction
+
+    Severity: ``warn``.
+    """
+    issues = []
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return issues
+
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        enum_vals = param_schema.get("enum")
+        if not isinstance(enum_vals, list):
+            continue
+        if "" in enum_vals:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="warn",
+                check="enum_has_empty_value",
+                message=(
+                    "param '{param}' enum contains an empty string value — "
+                    "use a named sentinel like 'none' or make the param "
+                    "optional instead."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 115: param_type_is_null
 # ---------------------------------------------------------------------------
 
@@ -7089,6 +7138,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 115: param_type_is_null
         issues.extend(_check_param_type_is_null(name, schema))
+
+        # Check 116: enum_has_empty_value
+        issues.extend(_check_enum_has_empty_value(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
