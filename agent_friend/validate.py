@@ -2478,6 +2478,56 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 122: required_param_not_in_properties
+# ---------------------------------------------------------------------------
+
+
+def _check_required_param_not_in_properties(
+    tool_name: str,
+    schema: Dict[str, Any],
+) -> List[Issue]:
+    """Check 122: required_param_not_in_properties — the ``required`` array
+    lists param names that are not present in ``properties``.
+
+    When a param name appears in ``required`` but not in ``properties``,
+    the schema is internally inconsistent.  Clients cannot resolve the
+    constraint — the parameter has no type or description, but is required::
+
+        # bad — "format" in required but not in properties
+        {
+          "properties": {"query": {"type": "string"}},
+          "required": ["query", "format"]
+        }
+
+        # good — all required params are defined
+        {
+          "properties": {"query": {"type": "string"}, "format": {"type": "string"}},
+          "required": ["query", "format"]
+        }
+
+    Severity: ``error``.
+    """
+    issues = []
+    required = schema.get("required")
+    properties = schema.get("properties")
+
+    if not isinstance(required, list) or not isinstance(properties, dict):
+        return issues
+
+    for param_name in required:
+        if isinstance(param_name, str) and param_name not in properties:
+            issues.append(Issue(
+                tool=tool_name,
+                severity="error",
+                check="required_param_not_in_properties",
+                message=(
+                    "param '{param}' is in 'required' but not in 'properties' — "
+                    "add the param to properties or remove it from required."
+                ).format(param=param_name),
+            ))
+    return issues
+
+
 # Check 121: param_name_all_uppercase
 # ---------------------------------------------------------------------------
 
@@ -7458,6 +7508,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 121: param_name_all_uppercase
         issues.extend(_check_param_name_all_uppercase(name, schema))
+
+        # Check 122: required_param_not_in_properties
+        issues.extend(_check_required_param_not_in_properties(name, schema))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

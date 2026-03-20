@@ -114,6 +114,7 @@ from agent_friend.validate import (
     _check_description_has_json_example,
     _check_required_not_array,
     _check_param_name_all_uppercase,
+    _check_required_param_not_in_properties,
 )
 
 
@@ -11533,4 +11534,60 @@ class TestParamNameAllUppercase:
 
     def test_empty_schema_passes(self):
         issues = _check_param_name_all_uppercase("tool", {})
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 122: required_param_not_in_properties
+# ---------------------------------------------------------------------------
+
+
+class TestRequiredParamNotInProperties:
+    """Tests for _check_required_param_not_in_properties (Check 122)."""
+
+    def test_missing_required_param_fires(self):
+        issues = _check_required_param_not_in_properties(
+            "tool",
+            {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query", "format"],
+            },
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "required_param_not_in_properties"
+        assert issues[0].severity == "error"
+        assert "format" in issues[0].message
+
+    def test_multiple_missing_fires_each(self):
+        issues = _check_required_param_not_in_properties(
+            "tool",
+            {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query", "format", "limit"],
+            },
+        )
+        assert len(issues) == 2
+
+    def test_all_params_in_properties_passes(self):
+        issues = _check_required_param_not_in_properties(
+            "tool",
+            {
+                "type": "object",
+                "properties": {"query": {"type": "string"}, "format": {"type": "string"}},
+                "required": ["query", "format"],
+            },
+        )
+        assert issues == []
+
+    def test_no_required_passes(self):
+        issues = _check_required_param_not_in_properties(
+            "tool",
+            {"type": "object", "properties": {"query": {"type": "string"}}},
+        )
+        assert issues == []
+
+    def test_empty_schema_passes(self):
+        issues = _check_required_param_not_in_properties("tool", {})
         assert issues == []
