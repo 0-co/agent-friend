@@ -3885,3 +3885,149 @@ class TestCheck32NumericConstraintsMissing:
         schema = self._schema("max_tokens", "integer")
         issue = _check_numeric_constraints_missing("t", schema)
         assert issue is not None
+
+
+class TestCheck33DescriptionJustTheName:
+    """Tests for Check 33: description_just_the_name."""
+
+    def _tool(self, param_name: str, description: str, param_type: str = "string"):
+        return [{"name": "test_tool", "description": "A test tool.", "inputSchema": {
+            "type": "object",
+            "properties": {param_name: {"type": param_type, "description": description}},
+            "required": [],
+        }}]
+
+    def test_exact_restatement_fires(self):
+        """'merge_method: Merge method' → fires."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "merge_method": {"type": "string", "description": "Merge method"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_with_the_fires(self):
+        """'issue_number: The issue number' → fires."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "issue_number": {"type": "integer", "description": "The issue number"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_channel_id_fires(self):
+        """'channel_id: ID of the channel' — 'channel' is in name_words."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "channel_id": {"type": "string", "description": "ID of the channel"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_informative_description_ok(self):
+        """'limit: Maximum number of items returned per page' → no issue."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "limit": {"type": "integer", "description": "Maximum number of items returned per page"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None
+
+    def test_long_description_ok(self):
+        """Descriptions with > 5 words are skipped regardless."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "query": {"type": "string", "description": "The query the query query query query"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None
+
+    def test_short_description_under_10_chars_ok(self):
+        """< 10 chars is caught by check 21, not check 33."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "limit": {"type": "integer", "description": "Limit"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None
+
+    def test_no_description_ok(self):
+        """Missing description → not check 33's concern (check 18 handles it)."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "limit": {"type": "integer"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None
+
+    def test_adds_new_word_ok(self):
+        """'output_format: Output format type' — 'type' is new info → no issue."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "output_format": {"type": "string", "description": "Output format type"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None
+
+    def test_issue_mentions_param_name(self):
+        """Issue message includes the parameter name."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "merge_method": {"type": "string", "description": "Merge method"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert "merge_method" in issue.message
+
+    def test_check_id_is_description_just_the_name(self):
+        """Issue check field is 'description_just_the_name'."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "issue_number": {"type": "integer", "description": "The issue number"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue.check == "description_just_the_name"
+
+    def test_severity_is_warn(self):
+        """Issue is a warning, not an error."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "merge_method": {"type": "string", "description": "Merge method"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue.severity == "warn"
+
+    def test_no_properties_ok(self):
+        """Schema without properties → no issue."""
+        from agent_friend.validate import _check_description_just_the_name
+        assert _check_description_just_the_name("t", {}) is None
+
+    def test_only_first_bad_param_fires(self):
+        """Only one issue per tool even if multiple params have trivial descriptions."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "merge_method": {"type": "string", "description": "Merge method"},
+            "issue_number": {"type": "integer", "description": "The issue number"},
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_catalog_id_fires(self):
+        """'catalog_id: ID of the catalog' → fires."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "catalog_id": {"type": "string", "description": "ID of the catalog"}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_experiment_type_fires(self):
+        """'experiment_type: Type of experiment.' → fires."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "experiment_type": {"type": "string", "description": "Type of experiment."}
+        }}
+        issue = _check_description_just_the_name("t", schema)
+        assert issue is not None
+
+    def test_extra_word_prevents_firing(self):
+        """'search_query: The search query string' — 'string' is new → no issue."""
+        from agent_friend.validate import _check_description_just_the_name
+        schema = {"type": "object", "properties": {
+            "search_query": {"type": "string", "description": "The search query string"}
+        }}
+        assert _check_description_just_the_name("t", schema) is None

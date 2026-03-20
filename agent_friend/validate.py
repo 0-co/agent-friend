@@ -1099,6 +1099,62 @@ def _check_numeric_constraints_missing(name: str, schema: Dict[str, Any]) -> Opt
     return None
 
 
+import re as _re_module
+
+
+def _check_description_just_the_name(tool_name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 33: description_just_the_name — param description merely restates the parameter name.
+
+    A description like ``channel_id: "ID of the channel"`` or
+    ``merge_method: "Merge method"`` adds zero information — the model
+    already knows the parameter name.  Good descriptions explain *what
+    the value controls* or *what format is expected*, not just echo the
+    name back.
+
+    Fires when **all** of the following hold:
+    * description is 10+ characters (shorter already caught by check 21)
+    * description is 5 words or fewer
+    * every significant word in the description (3+ letters, not a stop
+      word) is present in the set of words that make up the parameter name
+    """
+    _STOP = {
+        "the", "a", "an", "this", "that", "of", "to", "for",
+        "in", "is", "it", "or", "and", "be", "are", "was", "if", "its",
+    }
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict):
+        return None
+    for param_name, param_schema in properties.items():
+        if not isinstance(param_schema, dict):
+            continue
+        desc = param_schema.get("description", "")
+        if not desc or len(desc) < 10:
+            continue  # already caught by earlier checks
+        if len(desc.split()) > 5:
+            continue  # longer descriptions likely add value
+        # Words derived from the parameter name (split by _)
+        name_words = {w.lower() for w in param_name.split("_") if len(w) >= 2}
+        if not name_words:
+            continue
+        # Significant words from description: 3+ chars, not a stop word
+        desc_tokens = _re_module.sub(r"[^a-z0-9 ]", " ", desc.lower()).split()
+        sig_words = {w for w in desc_tokens if len(w) >= 3 and w not in _STOP}
+        if not sig_words:
+            continue  # no significant words at all
+        if sig_words.issubset(name_words):
+            return Issue(
+                tool=tool_name,
+                severity="warn",
+                check="description_just_the_name",
+                message=(
+                    "param '{param}' description '{desc}' just restates the "
+                    "parameter name — add what the value controls or what "
+                    "format is expected"
+                ).format(param=param_name, desc=desc[:60]),
+            )
+    return None
+
+
 def _check_enum_is_array(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 10: enum_is_array — enum values are arrays, not scalars."""
     issues = []
@@ -1351,6 +1407,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 32: numeric_constraints_missing
         issue = _check_numeric_constraints_missing(name, schema)
+        if issue is not None:
+            issues.append(issue)
+
+        # Check 33: description_just_the_name
+        issue = _check_description_just_the_name(name, schema)
         if issue is not None:
             issues.append(issue)
 
