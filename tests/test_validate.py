@@ -6533,3 +6533,152 @@ class TestCheck52NumberShouldBeInteger:
         schema = self._schema("chunk_size", "number")
         issues = _check_number_should_be_integer("t", schema)
         assert len(issues) == 1
+
+
+# ---------------------------------------------------------------------------
+# Check 53: tool_name_redundant_prefix
+# ---------------------------------------------------------------------------
+
+
+class TestCheck53ToolNameRedundantPrefix:
+    """Tests for check 53: tool_name_redundant_prefix."""
+
+    def _tools(self, names):
+        """Build minimal tool list from names."""
+        return [
+            {
+                "name": n,
+                "description": "A tool.",
+                "inputSchema": {"type": "object", "properties": {}},
+            }
+            for n in names
+        ]
+
+    def test_fires_on_service_name_prefix(self):
+        """All tools share a service-name prefix → fires once."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "auth0_list_applications",
+            "auth0_create_application",
+            "auth0_delete_application",
+            "auth0_get_application",
+        ])
+        assert len(issues) == 1
+        assert issues[0].check == "tool_name_redundant_prefix"
+        assert issues[0].severity == "warn"
+        assert "auth0_" in issues[0].message
+
+    def test_fires_on_hubspot_prefix(self):
+        """hubspot_ prefix fires."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "hubspot_create_company",
+            "hubspot_get_company",
+            "hubspot_search_contacts",
+            "hubspot_list_deals",
+        ])
+        assert len(issues) == 1
+        assert "hubspot_" in issues[0].message
+
+    def test_no_fire_on_verb_prefix_get(self):
+        """get_ is a common verb prefix → does not fire."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "get_weather",
+            "get_forecast",
+            "get_alerts",
+            "get_temperature",
+        ])
+        assert len(issues) == 0
+
+    def test_no_fire_on_verb_prefix_list(self):
+        """list_ is a common verb prefix → does not fire."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "list_users",
+            "list_repos",
+            "list_issues",
+        ])
+        assert len(issues) == 0
+
+    def test_no_fire_mixed_prefixes(self):
+        """Tools with varied prefixes → no fire."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "search_users",
+            "create_issue",
+            "list_labels",
+            "get_repo",
+            "delete_comment",
+        ])
+        assert len(issues) == 0
+
+    def test_no_fire_fewer_than_three(self):
+        """Fewer than 3 matching tools → no fire."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "myapp_list",
+            "myapp_get",
+        ])
+        assert len(issues) == 0
+
+    def test_no_fire_below_80_percent(self):
+        """Less than 80% share prefix → no fire."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "svc_list",
+            "svc_get",
+            "svc_create",
+            "other_list",
+            "another_get",
+            "misc_thing",
+        ])
+        assert len(issues) == 0
+
+    def test_message_contains_rename_example(self):
+        """Message shows rename example."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "chroma_list_collections",
+            "chroma_create_collection",
+            "chroma_delete_collection",
+        ])
+        assert len(issues) == 1
+        assert "list_collections" in issues[0].message or "rename" in issues[0].message
+
+    def test_fires_at_exactly_80_percent(self):
+        """At exactly 80% threshold → fires."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        # 4 out of 5 = 80%
+        issues = _check_tool_name_redundant_prefix([
+            "acme_list",
+            "acme_get",
+            "acme_create",
+            "acme_delete",
+            "other_thing",
+        ])
+        assert len(issues) == 1
+
+    def test_no_fire_tools_without_underscore(self):
+        """Tools with no underscore do not count toward prefix detection."""
+        from agent_friend.validate import _check_tool_name_redundant_prefix
+        issues = _check_tool_name_redundant_prefix([
+            "listtools",
+            "createtool",
+            "deletestuff",
+        ])
+        assert len(issues) == 0
+
+    def test_integration_with_validate_tools(self):
+        """Full validate_tools integration: fires tool_name_redundant_prefix."""
+        from agent_friend.validate import validate_tools
+        tools = self._tools([
+            "notion_pages",
+            "notion_blocks",
+            "notion_database",
+            "notion_search",
+        ])
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "tool_name_redundant_prefix"]
+        assert len(hits) == 1
+        assert "notion_" in hits[0].message

@@ -789,6 +789,113 @@ def _check_no_duplicate_names(names: List[str]) -> List[Issue]:
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Check 53: tool_name_redundant_prefix
+# ---------------------------------------------------------------------------
+
+_VERB_PREFIXES = frozenset({
+    "get", "set", "list", "create", "update", "delete", "search", "find",
+    "run", "execute", "manage", "generate", "fetch", "read", "write",
+    "send", "add", "remove", "check", "handle", "process", "load", "save",
+    "query", "call", "post", "put", "patch", "edit", "batch", "export",
+    "import", "upload", "download", "analyze", "parse", "validate", "test",
+    "start", "stop", "reset", "init", "configure", "show", "view", "make",
+    "build", "deploy", "describe", "enable", "disable", "toggle", "copy",
+    "move", "rename", "clone", "merge", "split", "convert", "transform",
+    "do", "use", "apply", "open", "close", "lock", "unlock", "sync",
+    "push", "pull", "submit", "cancel", "archive", "restore", "refresh",
+    "resolve", "assign", "unassign", "invite", "revoke", "grant", "deny",
+})
+
+
+def _check_tool_name_redundant_prefix(names: List[str]) -> List[Issue]:
+    """Check 53: tool_name_redundant_prefix — most tools share a redundant service-name prefix.
+
+    When a developer names all their tools with the same prefix — e.g.,
+    ``auth0_list_applications``, ``auth0_create_application``,
+    ``auth0_get_application`` — the ``auth0_`` prefix is pure overhead.
+    The MCP client already namespaces tools by server; models see the server
+    name from the protocol layer, not from individual tool names.  A prefix
+    like ``hubspot_``, ``asana_``, ``chroma_`` repeats the server identity on
+    every tool, wasting tokens on every call and making tool names harder to
+    read at a glance.
+
+    Fires when **all** of the following hold:
+
+    * At least 3 tools are present, AND
+    * 80 % or more of tools share the same first word (split on ``_``), AND
+    * That first word is **not** a common action verb (``get``, ``list``,
+      ``create``, ``delete``, etc.) — verbs are meaningful groupings, not
+      redundant namespace prefixes, AND
+    * The shared prefix is 3–15 characters long.
+
+    Fires **once** per tool list (not per tool), with the first matching tool
+    used as the issue anchor.
+
+    Examples::
+
+        # flagged — 'auth0_' prefix repeats the server name
+        ["auth0_list_applications", "auth0_create_application", "auth0_delete_application"]
+
+        # flagged — 'hubspot_' prefix repeats the server name
+        ["hubspot_create_company", "hubspot_get_company", "hubspot_search_contacts"]
+
+        # ok — 'get_' is an action verb, not a redundant service name
+        ["get_weather", "get_forecast", "get_alerts"]
+
+        # ok — tools have different prefixes, no single dominant one
+        ["search_users", "create_issue", "list_labels", "get_repo"]
+
+    The fix is to remove the shared prefix.  The server name provides context;
+    ``list_applications`` in an Auth0 MCP server is unambiguous.
+    """
+    from collections import Counter
+
+    first_words = Counter()  # type: Counter
+    for name in names:
+        if "_" in name:
+            first_word = name.split("_")[0].lower()
+            first_words[first_word] += 1
+
+    if not first_words:
+        return []
+
+    top_word, count = first_words.most_common(1)[0]
+    total = len(names)
+
+    if (
+        count >= 3
+        and count >= int(total * 0.8)
+        and top_word not in _VERB_PREFIXES
+        and 3 <= len(top_word) <= 15
+    ):
+        # Find first example tool with this prefix for the issue anchor
+        sample = next(
+            (n for n in names if "_" in n and n.split("_")[0].lower() == top_word),
+            names[0],
+        )
+        stripped = sample[len(top_word) + 1:]  # remove prefix + underscore
+
+        return [Issue(
+            tool=sample,
+            severity="warn",
+            check="tool_name_redundant_prefix",
+            message=(
+                "{count}/{total} tools share the '{prefix}_' prefix — this repeats the "
+                "server name and wastes tokens on every call; the MCP client already "
+                "namespaces tools by server. Example: rename '{old}' → '{new}'"
+            ).format(
+                count=count,
+                total=total,
+                prefix=top_word,
+                old=sample,
+                new=stripped,
+            ),
+        )]
+
+    return []
+
+
 def _check_parameters_valid_type(name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 8: parameters_valid_type — parameter type is a valid JSON Schema type."""
     issues = []
@@ -2937,6 +3044,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
     # Check 7: no_duplicate_names (cross-tool)
     issues.extend(_check_no_duplicate_names(names))
+
+    # Check 53: tool_name_redundant_prefix (cross-tool)
+    issues.extend(_check_tool_name_redundant_prefix(names))
 
     # Calculate stats
     errors = sum(1 for i in issues if i.severity == "error")
