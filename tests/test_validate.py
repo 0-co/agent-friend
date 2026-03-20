@@ -5570,3 +5570,139 @@ class TestCheckRequiredArrayNoMinitems:
         issues, _ = validate_tools(tools)
         hits = [i for i in issues if i.check == "required_array_no_minitems"]
         assert len(hits) == 0
+
+class TestCheckRequiredArrayEmpty:
+    """Tests for Check 46: required_array_empty."""
+
+    def _make_tool(self, properties, required):
+        return {
+            "name": "my_tool",
+            "description": "Does something useful.",
+            "inputSchema": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        }
+
+    def test_fires_when_required_empty_and_no_defaults(self):
+        """required: [] and params have no defaults — should fire."""
+        tools = [self._make_tool(
+            properties={
+                "paths": {"type": "array", "description": "Files to upload"},
+                "format": {"type": "string", "description": "Output format"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 1
+
+    def test_no_fire_when_required_non_empty(self):
+        """required has entries — not a required_array_empty issue."""
+        tools = [self._make_tool(
+            properties={
+                "query": {"type": "string", "description": "Search query"},
+                "limit": {"type": "integer", "description": "Max results"},
+            },
+            required=["query"],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_all_params_have_defaults(self):
+        """required: [] but all params have defaults — no issue."""
+        tools = [self._make_tool(
+            properties={
+                "limit": {"type": "integer", "description": "Max results", "default": 10},
+                "format": {"type": "string", "description": "Output format", "default": "json"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_required_missing(self):
+        """No required field at all — Check 27 handles that, not this check."""
+        tools = [{
+            "name": "my_tool",
+            "description": "Does something.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"},
+                },
+            },
+        }]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 0
+
+    def test_no_fire_when_no_properties(self):
+        """required: [] but no properties — nothing to mark required."""
+        tools = [{
+            "name": "my_tool",
+            "description": "Does something.",
+            "inputSchema": {"type": "object", "required": []},
+        }]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 0
+
+    def test_partial_defaults_fires(self):
+        """Some params have defaults but not all — should still fire."""
+        tools = [self._make_tool(
+            properties={
+                "paths": {"type": "array", "description": "Files to upload"},
+                "format": {"type": "string", "description": "Output format", "default": "json"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 1
+
+    def test_message_includes_param_names(self):
+        """Issue message should mention the params without defaults."""
+        tools = [self._make_tool(
+            properties={
+                "file_path": {"type": "string", "description": "Path to file"},
+                "encoding": {"type": "string", "description": "Encoding", "default": "utf-8"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 1
+        assert "file_path" in hits[0].message
+
+    def test_warn_severity(self):
+        """Check 46 should be a warning, not an error."""
+        tools = [self._make_tool(
+            properties={
+                "paths": {"type": "array", "description": "Files to upload"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 1
+        assert hits[0].severity == "warn"
+
+    def test_many_params_shows_first_three(self):
+        """When >3 params lack defaults, message shows first 3 with ellipsis."""
+        tools = [self._make_tool(
+            properties={
+                "a": {"type": "string", "description": "Param a"},
+                "b": {"type": "string", "description": "Param b"},
+                "c": {"type": "string", "description": "Param c"},
+                "d": {"type": "string", "description": "Param d"},
+            },
+            required=[],
+        )]
+        issues, _ = validate_tools(tools)
+        hits = [i for i in issues if i.check == "required_array_empty"]
+        assert len(hits) == 1
+        assert "..." in hits[0].message

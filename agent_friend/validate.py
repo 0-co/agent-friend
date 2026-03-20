@@ -890,6 +890,72 @@ def _check_required_missing(name: str, schema: Dict[str, Any]) -> Optional[Issue
     )
 
 
+def _check_required_array_empty(name: str, schema: Dict[str, Any]) -> Optional[Issue]:
+    """Check 46: required_array_empty — tool has ``required: []`` but parameters exist with no defaults.
+
+    ``required: []`` is an *explicit* declaration: "I thought about this and
+    decided nothing is required."  But when parameters have no ``default``
+    value, the model cannot know whether they are truly optional or just
+    forgotten.  Calling the tool without those parameters may fail silently.
+
+    This is the complement of Check 27 (``required_missing``), which fires when
+    ``required`` is absent.  Here ``required`` is present but intentionally
+    empty — which Check 27 exempts — yet the schema still offers no guidance
+    on which parameters are safe to omit.
+
+    Does not fire when:
+    - ``required`` is absent (Check 27 handles that)
+    - ``required`` is non-empty (parameters are explicitly marked)
+    - All parameters have ``default`` values (optionality is documented)
+    - There are no parameters (nothing to mark required)
+
+    Fix: add ``default`` values to confirm parameters are intentionally
+    optional, or move genuinely required parameters into ``required``.
+
+    Examples::
+
+        # flags — required: [] but no defaults (check fires)
+        "required": [],
+        "properties": {
+            "paths":  {"type": "array", "description": "Files to upload"},
+            "format": {"type": "string", "description": "Output format"},
+        }
+
+        # ok — required: [] and all params have defaults
+        "required": [],
+        "properties": {
+            "format": {"type": "string", "default": "json", "description": "Output format"},
+            "limit":  {"type": "integer", "default": 10, "description": "Max results"},
+        }
+    """
+    required = schema.get("required")
+    if not isinstance(required, list) or len(required) != 0:
+        return None
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict) or not properties:
+        return None
+    no_default = [p for p, ps in properties.items()
+                  if isinstance(ps, dict) and "default" not in ps]
+    if not no_default:
+        return None
+    count = len(no_default)
+    return Issue(
+        tool=name,
+        severity="warn",
+        check="required_array_empty",
+        message=(
+            "tool has 'required: []' but {count} parameter{s} ({params}) "
+            "have no 'default' value — models cannot tell which are safe to omit; "
+            "add defaults to confirm optionality or move required params into 'required'."
+        ).format(
+            count=count,
+            s="s" if count != 1 else "",
+            params=", ".join(f"'{p}'" for p in no_default[:3])
+            + (" ..." if count > 3 else ""),
+        ),
+    )
+
+
 def _check_nested_required_missing(tool_name: str, schema: Dict[str, Any]) -> List[Issue]:
     """Check 28: nested_required_missing — nested object params with properties but no 'required' field.
 
@@ -2306,6 +2372,11 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 45: required_array_no_minitems
         issues.extend(_check_required_array_no_minitems(name, schema))
+
+        # Check 46: required_array_empty
+        issue = _check_required_array_empty(name, schema)
+        if issue is not None:
+            issues.append(issue)
 
         # Check 10: enum_is_array
         issues.extend(_check_enum_is_array(name, schema))
