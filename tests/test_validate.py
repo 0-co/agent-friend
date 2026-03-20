@@ -91,6 +91,7 @@ from agent_friend.validate import (
     _check_description_has_todo_marker,
     _check_array_max_items_zero,
     _check_description_says_see_docs,
+    _check_description_has_internal_path,
 )
 
 
@@ -10417,4 +10418,54 @@ class TestDescriptionSaysSeeDocs:
     def test_empty_description_passes(self):
         obj, schema = self._mcp_obj("")
         issues = _check_description_says_see_docs("tool", obj, schema, "mcp")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 99: description_has_internal_path
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasInternalPath:
+    """Tests for _check_description_has_internal_path (Check 99)."""
+
+    @staticmethod
+    def _mcp_obj(desc: str, params: dict = None) -> tuple:
+        props = params or {}
+        obj = {"description": desc, "inputSchema": {"type": "object", "properties": props}}
+        schema = {"type": "object", "properties": props}
+        return obj, schema
+
+    def test_unix_path_in_tool_fires(self):
+        obj, schema = self._mcp_obj("Reads from /var/data/config.yaml by default.")
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_internal_path"
+
+    def test_etc_path_fires(self):
+        obj, schema = self._mcp_obj("Config loaded from /etc/myapp/settings.json.")
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_home_tilde_fires(self):
+        obj, schema = self._mcp_obj("Output written to ~/output/results.txt.")
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_param_unix_path_fires(self):
+        obj, schema = self._mcp_obj(
+            "Upload a file.",
+            {"path": {"type": "string", "description": "Default path: /tmp/uploads/"}},
+        )
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_clean_description_passes(self):
+        obj, schema = self._mcp_obj("Get user profile by ID.")
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        obj, schema = self._mcp_obj("")
+        issues = _check_description_has_internal_path("tool", obj, schema, "mcp")
         assert issues == []

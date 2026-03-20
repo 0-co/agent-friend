@@ -2429,6 +2429,76 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 99: description_has_internal_path
+# ---------------------------------------------------------------------------
+
+_INTERNAL_PATH_RE = re.compile(
+    r"(?:^|[\s\"'`(])"
+    r"(?:/(?:var|etc|home|usr|opt|tmp|srv|root|proc|sys|run)/\w"   # Unix absolute
+    r"|[A-Z]:\\\\(?:Program Files|Users|Windows|System32)\b"       # Windows absolute
+    r"|~/"                                                          # home-relative
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _check_description_has_internal_path(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str = "mcp",
+) -> List[Issue]:
+    """Check 99: description_has_internal_path — a tool or param description
+    contains a server filesystem path (e.g., ``/var/data/``, ``/etc/config``,
+    ``C:\\\\Windows\\\\``).
+
+    Filesystem paths in tool descriptions expose server internals to the
+    LLM and any user who inspects the schema.  They also break when the
+    deployment environment changes.  Paths belong in server configuration,
+    not in schema descriptions::
+
+        # bad — leaks server layout
+        "description": "Path to config file (default: /etc/myapp/config.yaml)."
+
+        # good — describe what the param does, not where it lives
+        "description": "Path to a YAML configuration file."
+
+    Severity: ``warn``.
+    """
+    issues = []
+
+    desc = _get_tool_description(obj, fmt)
+    if isinstance(desc, str) and _INTERNAL_PATH_RE.search(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_internal_path",
+            message=(
+                "tool '{name}' description contains a server filesystem path "
+                "— paths leak server internals and break across deployments."
+            ).format(name=tool_name),
+        ))
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if isinstance(pdesc, str) and _INTERNAL_PATH_RE.search(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_has_internal_path",
+                    message=(
+                        "param '{param}' description contains a server "
+                        "filesystem path — paths leak server internals."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 98: description_says_see_docs
 # ---------------------------------------------------------------------------
 
@@ -6044,6 +6114,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 98: description_says_see_docs
         issues.extend(_check_description_says_see_docs(name, raw_obj, schema, fmt))
+
+        # Check 99: description_has_internal_path
+        issues.extend(_check_description_has_internal_path(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
