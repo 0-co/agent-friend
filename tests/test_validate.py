@@ -88,6 +88,7 @@ from agent_friend.validate import (
     _check_tool_name_contains_version,
     _check_param_name_is_reserved_word,
     _check_description_has_version_info,
+    _check_description_has_todo_marker,
 )
 
 
@@ -10266,3 +10267,54 @@ class TestDescriptionHasVersionInfo:
             "tool", self._mcp_obj(""), "mcp"
         )
         assert issue is None
+
+
+# ---------------------------------------------------------------------------
+# Check 96: description_has_todo_marker
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasTodoMarker:
+    """Tests for _check_description_has_todo_marker (Check 96)."""
+
+    @staticmethod
+    def _mcp_obj(desc: str, params: dict = None) -> tuple:
+        props = params or {}
+        obj = {"description": desc, "inputSchema": {"type": "object", "properties": props}}
+        schema = {"type": "object", "properties": props}
+        return obj, schema
+
+    def test_todo_in_tool_desc_fires(self):
+        obj, schema = self._mcp_obj("Get user data. TODO: add pagination.")
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_todo_marker"
+        assert issues[0].severity == "warn"
+
+    def test_fixme_fires(self):
+        obj, schema = self._mcp_obj("FIXME: this description is incomplete.")
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_hack_fires(self):
+        obj, schema = self._mcp_obj("Submit the form. HACK: bypasses validation.")
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_todo_in_param_fires(self):
+        obj, schema = self._mcp_obj(
+            "Get data.",
+            {"limit": {"type": "integer", "description": "Max results. TODO: set default."}},
+        )
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert len(issues) == 1
+
+    def test_clean_description_passes(self):
+        obj, schema = self._mcp_obj("Get paginated user data.")
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        obj, schema = self._mcp_obj("")
+        issues = _check_description_has_todo_marker("tool", obj, schema, "mcp")
+        assert issues == []

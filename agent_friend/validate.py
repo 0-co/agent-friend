@@ -2429,6 +2429,75 @@ def _check_param_name_is_reserved_word(
 
 
 # ---------------------------------------------------------------------------
+# Check 96: description_has_todo_marker
+# ---------------------------------------------------------------------------
+
+_TODO_MARKER_RE = re.compile(
+    r"\bTODO\b|\bFIXME\b|\bHACK\b|\bXXX\b|\bNOTE:\s",
+    # Note: case-sensitive — TODO/FIXME/HACK/XXX are developer convention
+)
+
+
+def _check_description_has_todo_marker(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str = "mcp",
+) -> List[Issue]:
+    """Check 96: description_has_todo_marker — a tool or param description
+    contains an inline developer marker (TODO, FIXME, HACK, XXX, NOTE:).
+
+    These markers indicate the description was not finished.  Unlike
+    Check 70 (which catches descriptions that are *only* a placeholder),
+    this check fires when a marker appears *within* a longer string::
+
+        # bad — incomplete description with embedded marker
+        "description": "Get user data. TODO: add pagination details."
+        "description": "FIXME: this doesn't handle errors yet."
+
+        # good — complete description
+        "description": "Get paginated user data."
+
+    Severity: ``warn``.
+    """
+    issues = []
+
+    # Tool description
+    desc = _get_tool_description(obj, fmt)
+    if isinstance(desc, str) and _TODO_MARKER_RE.search(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_todo_marker",
+            message=(
+                "tool '{name}' description contains a developer marker "
+                "(TODO/FIXME/HACK/XXX/NOTE) — finish the description before "
+                "publishing."
+            ).format(name=tool_name),
+        ))
+
+    # Param descriptions
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if isinstance(pdesc, str) and _TODO_MARKER_RE.search(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_has_todo_marker",
+                    message=(
+                        "param '{param}' description contains a developer "
+                        "marker (TODO/FIXME/HACK/XXX/NOTE) — finish the "
+                        "description before publishing."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Check 95: description_has_version_info
 # ---------------------------------------------------------------------------
 
@@ -5841,6 +5910,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
         issue = _check_description_has_version_info(name, raw_obj, fmt)
         if issue is not None:
             issues.append(issue)
+
+        # Check 96: description_has_todo_marker
+        issues.extend(_check_description_has_todo_marker(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))
