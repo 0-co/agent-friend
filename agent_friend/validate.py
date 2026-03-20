@@ -2478,6 +2478,69 @@ def _check_tool_name_too_generic(tool_name: str) -> Optional[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Check 119: description_has_json_example
+# ---------------------------------------------------------------------------
+
+_JSON_EXAMPLE_RE = re.compile(
+    r'\{[^{}]{5,}\}'        # inline JSON object (at least 5 chars between braces)
+    r'|\[[^\[\]]{5,}\]',    # or inline JSON array (at least 5 chars between brackets)
+)
+
+
+def _check_description_has_json_example(
+    tool_name: str,
+    obj: Dict[str, Any],
+    schema: Dict[str, Any],
+    fmt: str,
+) -> List[Issue]:
+    """Check 119: description_has_json_example — a tool or parameter
+    description contains an inline JSON example (object or array literal).
+
+    Embedding JSON examples in descriptions wastes tokens (descriptions
+    are included in every tool call) and mixes documentation with schema.
+    Use the ``examples`` field instead::
+
+        # bad — JSON example bloating the description
+        {"query": {"description": "Search query. Example: {\"q\": \"cats\", \"limit\": 10}"}}
+        {"tags": {"description": "List of tags, e.g. [\"foo\", \"bar\", \"baz\"]"}}
+
+        # good — example in dedicated field
+        {"query": {"description": "Search query.", "examples": ["{\"q\": \"cats\"}"]}}
+
+    Severity: ``warn``.
+    """
+    issues = []
+    desc = _get_tool_description(obj, fmt)
+    if desc and _JSON_EXAMPLE_RE.search(desc):
+        issues.append(Issue(
+            tool=tool_name,
+            severity="warn",
+            check="description_has_json_example",
+            message=(
+                "tool '{name}' description contains an inline JSON example — "
+                "move it to the 'examples' field to save tokens."
+            ).format(name=tool_name),
+        ))
+
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        for param_name, param_schema in properties.items():
+            if not isinstance(param_schema, dict):
+                continue
+            pdesc = param_schema.get("description", "")
+            if isinstance(pdesc, str) and pdesc and _JSON_EXAMPLE_RE.search(pdesc):
+                issues.append(Issue(
+                    tool=tool_name,
+                    severity="warn",
+                    check="description_has_json_example",
+                    message=(
+                        "param '{param}' description contains an inline JSON "
+                        "example — move it to the 'examples' field to save tokens."
+                    ).format(param=param_name),
+                ))
+    return issues
+
+
 # Check 118: description_uses_first_person
 # ---------------------------------------------------------------------------
 
@@ -7269,6 +7332,9 @@ def validate_tools(data: Any) -> Tuple[List[Issue], Dict[str, Any]]:
 
         # Check 118: description_uses_first_person
         issues.extend(_check_description_uses_first_person(name, raw_obj, schema, fmt))
+
+        # Check 119: description_has_json_example
+        issues.extend(_check_description_has_json_example(name, raw_obj, schema, fmt))
 
         # Check 35: description_redundant_type
         issues.extend(_check_description_redundant_type(name, schema))

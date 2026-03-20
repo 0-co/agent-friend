@@ -111,6 +111,7 @@ from agent_friend.validate import (
     _check_enum_has_empty_value,
     _check_param_name_too_generic,
     _check_description_uses_first_person,
+    _check_description_has_json_example,
 )
 
 
@@ -11383,4 +11384,56 @@ class TestDescriptionUsesFirstPerson:
 
     def test_empty_description_passes(self):
         issues = _check_description_uses_first_person("tool", {}, {}, "mcp")
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Check 119: description_has_json_example
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptionHasJsonExample:
+    """Tests for _check_description_has_json_example (Check 119)."""
+
+    @staticmethod
+    def _tool_obj(desc: str) -> dict:
+        return {"description": desc}
+
+    @staticmethod
+    def _schema_with_param(param_name: str, desc: str) -> dict:
+        return {
+            "type": "object",
+            "properties": {param_name: {"type": "string", "description": desc}},
+        }
+
+    def test_json_object_in_tool_desc_fires(self):
+        issues = _check_description_has_json_example(
+            "create", self._tool_obj('Create item. Example: {"id": 1, "name": "foo"}'), {}, "mcp"
+        )
+        assert len(issues) == 1
+        assert issues[0].check == "description_has_json_example"
+        assert issues[0].severity == "warn"
+
+    def test_json_array_in_param_desc_fires(self):
+        issues = _check_description_has_json_example(
+            "tool", {}, self._schema_with_param("tags", 'Tags list, e.g. ["foo", "bar", "baz"]'), "mcp"
+        )
+        param_issues = [i for i in issues if "param" in i.message]
+        assert len(param_issues) == 1
+
+    def test_clean_description_passes(self):
+        issues = _check_description_has_json_example(
+            "search", self._tool_obj("Search the database for records."), {}, "mcp"
+        )
+        assert issues == []
+
+    def test_short_braces_passes(self):
+        # Very short {x} or [y] should not fire (< 5 chars)
+        issues = _check_description_has_json_example(
+            "tool", self._tool_obj("Status {ok}"), {}, "mcp"
+        )
+        assert issues == []
+
+    def test_empty_description_passes(self):
+        issues = _check_description_has_json_example("tool", {}, {}, "mcp")
         assert issues == []
