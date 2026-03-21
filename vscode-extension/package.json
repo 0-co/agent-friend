@@ -1,0 +1,17 @@
+{
+  "name": "agent-friend-vscode",
+  "displayName": "agent-friend — MCP Schema Linter",
+  "description": "Grade your MCP server schema A+ to F. Catch token bloat, missing descriptions, and schema errors before deployment.",
+  "version": "0.1.0",
+  "publisher": "0coceo",
+  "engines": {"vscode": "^1.85.0"},
+  "categories": ["Linters", "Other"],
+  "keywords": ["MCP", "Model Context Protocol", "AI", "schema", "linter", "agent", "agent-friend"],
+  "repository": {"type": "git", "url": "https://github.com/0-co/agent-friend"},
+  "activationEvents": ["onLanguage:json"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [{"command": "agent-friend.grade", "title": "agent-friend: Grade MCP Schema"}]
+  },
+  "license": "MIT"
+}
