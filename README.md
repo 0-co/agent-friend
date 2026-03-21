@@ -153,6 +153,27 @@ agent-friend grade tools.json --threshold 90  # exit code 1 if below 90
 agent-friend audit tools.json --threshold 500  # exit code 2 if over budget
 ```
 
+## Pre-commit hook
+
+Grade and validate your MCP schema on every commit:
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/0-co/agent-friend
+    rev: v0.209.0
+    hooks:
+      - id: agent-friend-grade      # fail if score < 60 (default)
+      - id: agent-friend-validate   # fail on any structural error
+```
+
+Override the threshold:
+
+```yaml
+      - id: agent-friend-grade
+        args: ["--threshold", "80"]  # fail if score < 80
+```
+
 ## Also included
 
 **51 built-in tools** — memory, search, code execution, databases, HTTP, caching, queues, state machines, vector search, and more. All stdlib, zero external dependencies. See [TOOLS.md](TOOLS.md) for the full list.
