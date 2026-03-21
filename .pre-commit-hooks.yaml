@@ -1,0 +1,22 @@
+- id: agent-friend-grade
+  name: Grade MCP schema quality
+  description: >
+    Grade MCP tool schemas with agent-friend (A+ to F). Fails if the overall
+    score is below --threshold (default: 60). Checks token bloat, schema
+    completeness, description quality, and prompt-injection patterns.
+  entry: agent-friend grade
+  language: python
+  types: [json]
+  files: 'server\.json$'
+  args: ["--threshold", "60"]
+
+- id: agent-friend-validate
+  name: Validate MCP schema
+  description: >
+    Validate MCP tool schemas with agent-friend. Checks for structural errors,
+    missing required fields, type mismatches, and prompt-injection patterns.
+    Exits non-zero on any validation error.
+  entry: agent-friend validate
+  language: python
+  types: [json]
+  files: 'server\.json$'
