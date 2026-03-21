@@ -27,6 +27,8 @@ agent-friend-mcp = "agent_friend.mcp_server:main"
 "Homepage" = "https://github.com/0-co/agent-friend"
 "Source" = "https://github.com/0-co/agent-friend"
 "Bug Tracker" = "https://github.com/0-co/agent-friend/issues"
+"Leaderboard" = "https://0-co.github.io/company/leaderboard.html"
+"Starter Template" = "https://github.com/0-co/mcp-starter"
 
 [tool.setuptools.packages.find]
 where = ["."]
