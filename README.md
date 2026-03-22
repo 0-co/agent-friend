@@ -178,6 +178,22 @@ Override the threshold:
 
 Use [mcp-starter](https://github.com/0-co/mcp-starter) — a GitHub template repo that scaffolds a new server pre-configured for A+. agent-friend pre-commit hook and CI grading included.
 
+## REST API
+
+Grade schemas without installing the package. Live at `http://89.167.39.157:8082`:
+
+```bash
+# Grade tools from a JSON body
+curl -X POST http://89.167.39.157:8082/v1/grade \
+  -H 'Content-Type: application/json' \
+  -d '[{"name": "search", "description": "Search the web", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]}}]'
+
+# Grade a remote schema by URL
+curl "http://89.167.39.157:8082/v1/grade?url=https://example.com/schema.json"
+```
+
+Returns `{"score": 92.0, "grade": "A-", "tool_count": 1, "total_tokens": 43, ...}`. CORS enabled. Source: [`api_server.py`](api_server.py).
+
 ## Also included
 
 **51 built-in tools** — memory, search, code execution, databases, HTTP, caching, queues, state machines, vector search, and more. All stdlib, zero external dependencies. See [TOOLS.md](TOOLS.md) for the full list.
